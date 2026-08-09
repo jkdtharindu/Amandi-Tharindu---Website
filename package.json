@@ -1,0 +1,28 @@
+{
+  "name": "amandi-tharindu-wedding",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/guest-login.test.mjs",
+    "build": "tsc -p .",
+    "lint": "eslint . --ext .js,.mjs,.ts",
+    "start": "node src/server.js",
+    "smoke": "node src/smoke.js",
+    "check-docs": "node scripts/ci-check-docs.js",
+    "append-memory": "node bin/append-memory.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
+    "eslint": "^8.50.0",
+    "eslint-config-prettier": "^8.8.0",
+    "prettier": "^2.8.8",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "body-parser": "^2.3.0",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1"
+  }
+}

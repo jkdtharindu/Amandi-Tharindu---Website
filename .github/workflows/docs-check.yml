@@ -1,0 +1,22 @@
+name: Docs Check
+
+on:
+  pull_request:
+    paths:
+      - '**'
+
+jobs:
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Run docs checks
+        run: |
+          npm install
+          node scripts/ci-check-docs.js
