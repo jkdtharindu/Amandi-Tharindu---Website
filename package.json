@@ -7,9 +7,13 @@
     "build": "tsc -p .",
     "lint": "eslint . --ext .js,.mjs,.ts",
     "start": "node src/server.js",
+    "start:browser": "node scripts/start-with-browser.js",
     "smoke": "node src/smoke.js",
     "check-docs": "node scripts/ci-check-docs.js",
-    "append-memory": "node bin/append-memory.js"
+    "append-memory": "node bin/append-memory.js",
+    "migrate": "node scripts/run-migrations.js",
+    "hitl:migrate": "node scripts/hitl-preflight.js migrate",
+    "seed:db": "node scripts/seed-local-db.js"
   },
   "devDependencies": {
     "@types/node": "^20.9.0",
@@ -23,6 +27,8 @@
   "dependencies": {
     "body-parser": "^2.3.0",
     "cookie-parser": "^1.4.7",
-    "express": "^5.2.1"
+    "dotenv": "^16.4.0",
+    "express": "^5.2.1",
+    "pg": "^8.11.0"
   }
 }

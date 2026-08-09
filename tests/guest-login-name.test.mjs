@@ -1,22 +1,50 @@
-import assert from 'assert';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = await import('node:test');
+import { loginGuestByName } from '../src/guest-auth/loginGuestByName.js';
 
-describe('loginGuestByName (Slice 2 - Name lookup)', () => {
-  it('exports a `loginGuestByName` function (failing test scaffold)', async () => {
-    const auth = await import('../src/guest-auth/index.js');
-    assert.ok(typeof auth.loginGuestByName === 'function', 'loginGuestByName should be exported as a function');
-  });
+const guestStore = [
+  { id: 'guest-1', code: 'SILVA-001', name: 'Malinda Silva', isDeleted: false },
+  { id: 'guest-2', code: 'SILVA-002', name: 'Silva Family', isDeleted: false },
+  { id: 'guest-3', code: 'SILVA-003', name: 'Kumara Perera', isDeleted: true }
+];
 
-  it('returns a guest object for an exact name match (failing test)', async () => {
-    const { loginGuestByName } = await import('../src/guest-auth/index.js');
-    const result = await loginGuestByName('Malinda Silva');
-    assert.ok(result && result.guestId, 'should return an object with guestId for exact name');
-  });
+test('returns a guest session for an exact name match', async () => {
+  const result = await loginGuestByName('Malinda Silva', guestStore);
 
-  it('returns candidate list when name is ambiguous (failing test)', async () => {
-    const { loginGuestByName } = await import('../src/guest-auth/index.js');
-    const result = await loginGuestByName('Silva');
-    assert.ok(Array.isArray(result) && result.length > 0, 'should return an array of candidate guests when name is ambiguous');
-  });
+  assert.equal(result.success, true);
+  assert.equal(result.type, 'exact');
+  assert.equal(result.guestId, 'guest-1');
+  assert.equal(result.sessionId, 'guest-1');
+});
+
+test('returns a candidate list when name match is ambiguous', async () => {
+  const result = await loginGuestByName('Silva', guestStore);
+
+  assert.equal(result.success, false);
+  assert.equal(result.type, 'candidates');
+  assert.ok(Array.isArray(result.candidates));
+  assert.equal(result.candidates.length, 2);
+  assert.deepEqual(result.candidates[0], { id: 'guest-1', name: 'Malinda Silva', code: 'SILVA-001' });
+});
+
+test('rejects soft-deleted guests when searching by name', async () => {
+  const result = await loginGuestByName('Kumara Perera', guestStore);
+
+  assert.equal(result.success, false);
+  assert.equal(result.reason, 'guest_not_found');
+});
+
+test('returns not found for unknown names', async () => {
+  const result = await loginGuestByName('Unknown Guest', guestStore);
+
+  assert.equal(result.success, false);
+  assert.equal(result.reason, 'guest_not_found');
+});
+
+test('rejects missing name input', async () => {
+  const result = await loginGuestByName('', guestStore);
+
+  assert.equal(result.success, false);
+  assert.equal(result.reason, 'missing_name');
 });

@@ -17,9 +17,17 @@ npm run smoke
 npm start
 ```
 
+If PowerShell blocks script execution, use CMD instead:
+
+```bash
+cmd /c "npm test"
+cmd /c "npm run smoke"
+```
+
 Notes
 - `npm test` runs unit tests (node's `--test`).
 - `npm run smoke` runs an in-process server smoke test that exercises `/api/guest/login` and `/invitation/:code`.
+- The public site pages now reuse a shared page wrapper and a modern wedding-themed layout.
 - The current server is a minimal demo: session persistence is an HTTP-only cookie named `guest_session`. Do not use this in production.
 
 Migrations (Supabase / Postgres)
@@ -37,6 +45,23 @@ Or use the Supabase CLI:
 ```bash
 supabase db push --file migrations/001_create_guests.sql
 supabase db push --file migrations/002_create_rsvp_responses.sql
+```
+
+Or use the project HITL preflight command for local migrations:
+
+```bash
+npm run hitl:migrate
+```
+
+Local development with a database
+
+```bash
+cp .env.example .env
+# Set DATABASE_URL to a local Postgres connection string
+npm install
+npm run migrate
+npm run seed:db
+npm run start:browser
 ```
 
 HITL (Human-in-the-Loop)

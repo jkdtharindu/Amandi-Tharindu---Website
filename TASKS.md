@@ -4,13 +4,19 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## Project Status
 - Status: Scoping / Initial implementation started
-- Current focus: Guest access flow and first TDD slice
+- Current focus: Guest access flow and public page polish
 - Priority: Build the first vertical slice end-to-end
 
 ## Working Principles
 - Use strict TDD for each slice
 - Each slice must be end-to-end and independently testable
 - Prefer small, shippable increments over large speculative work
+
+## PRD Alignment Summary
+- Phase 1 complete; Phase 2 now includes code login, name login, and ambiguous-name recovery.
+- Core launch scope still requires the personalized invitation page, RSVP flow, sticky RSVP bar, admin auth, guest/dashboard management, and messaging/theme features.
+- Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel.
+- Estimated completion: ~30% of the current checklist, ~15-20% of full PRD launch scope.
 
 ## Implementation Backlog (updated)
 
@@ -25,19 +31,21 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 ### Phase 2 — Guest Access Flow
 - [x] Slice 1: Guest can access their invitation with a valid code
   - Status: helper implemented, unit tests present, demo server + smoke test validated locally
-- [ ] Slice 2: Guest can access their invitation with their name (TDD in progress)
-  - Status: failing tests added and `loginGuestByName` helper implemented (exact + candidate search)
-- [ ] Slice 3: Guest can recover when their name is ambiguous
-- [ ] Slice 4: Guest can see a personalized invitation and respond
-- [ ] Slice 5: Guest can change their RSVP later
-- [ ] Slice 6: Guest sees a clear RSVP reminder until they respond
+- [x] Slice 2: Guest can access their invitation with their name
+  - Status: exact name login implemented, ambiguous candidate search returns matching guests, API tests passing
+- [x] Slice 3: Guest can recover when their name is ambiguous
+  - Status: ambiguous-name candidate selection flow implemented on `/login`, guest can select the correct record and continue to invitation
+- [x] Slice 4: Guest can see a personalized invitation and respond
+- [x] Slice 5: Guest can change their RSVP later
+- [x] Slice 6: Guest sees a clear RSVP reminder until they respond
 
 ### Phase 3 — Public Pages
-- [ ] Home page
-- [ ] Our Story page
-- [ ] Celebration page
-- [ ] Gallery page
-- [ ] Wishes page
+- [x] Home page
+- [x] Our Story page
+- [x] Celebration page
+- [x] Gallery page
+- [x] Wishes page
+- [x] Shared page wrapper and refreshed wedding-style layout for public pages
 
 ### Phase 4 — Admin Experience
 - [ ] Admin authentication
@@ -73,14 +81,12 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
  - Added unit tests: `tests/guest-login.test.mjs`, `tests/guest-login-name.test.mjs`
  - Unit tests passed locally for code-based login; name-based tests scaffold added and helper implemented
  - Added demo Express server (`src/server.js`) and smoke test (`src/smoke.js`) that exercise login + invitation page
- - Added migration SQL: `migrations/001_create_guests.sql`, `migrations/002_create_rsvp_responses.sql`
+- Implemented RSVP submission flow, sticky reminder bar, and change-response logic on `/invitation/:code`
  - Pinning/adjusting linting and TypeScript devDependencies to compatible versions (ESLint v8 + TS v5)
 
 ## Current Blockers
-- PowerShell execution policy may block `npm`/scripts in this shell — run tests in CMD or bypass policy for the session.
-- HITL guardrails exist in `HITL.md` but are documentation-only; there is no programmatic enforcement (migrations, deploys, or messaging still require manual discipline).
-- Supabase integration is not wired up: migrations exist but there is no DB runner, seeding, or runtime persistence (in-memory `guestStore` used for demo).
-- Session handling is demo-only (`guest_session` cookie, unsigned) and must be hardened before any public exposure.
+- Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.
+- Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
 ## Next Actions (step-by-step)
 1. Harden auth & sessions: add `SESSION_SECRET` guidance, sign/secure cookies (`HttpOnly`, `Secure`, `SameSite`), add CSRF protection, and include a `.env.example`.
