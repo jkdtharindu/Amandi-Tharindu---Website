@@ -42,6 +42,7 @@ const baseStyles = `
   .site-nav a { text-decoration: none; font-weight: 600; color: #475569; transition: color 0.2s ease; }
   .site-nav a:hover { color: #2563eb; }
   .hero-panel { background: white; border-radius: 32px; padding: 2.5rem; box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08); }
+  .hero-panel { text-align: center; max-width: 900px; margin: 0 auto; }
   .hero-flag { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-size: 0.95rem; margin-bottom: 1.4rem; }
   .hero-panel h1 { margin: 0 0 1rem; font-size: clamp(2.5rem, 4vw, 4.2rem); line-height: 1.02; }
   .hero-panel p { margin: 0 0 1.75rem; color: #475569; font-size: 1.05rem; line-height: 1.78; max-width: 68rem; }
@@ -50,6 +51,8 @@ const baseStyles = `
   .button-secondary { background: transparent; color: #334155; border: 1px solid rgba(100, 116, 139, 0.22); }
   .section-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
   .feature-card, .event-card, .gallery-card, .wish-card, .story-card { background: white; border-radius: 28px; padding: 1.75rem; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06); }
+  .gallery-card { min-height: 180px; display: flex; align-items: center; justify-content: center; color: #64748b; }
+  .story-card { padding: 1.5rem; }
   .feature-card h2, .event-card h2, .story-card h3 { margin: 0 0 0.75rem; }
   .feature-card p, .event-card p, .story-card p, .wish-card p { margin: 0; color: #475569; line-height: 1.75; }
   .countdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }

@@ -38,3 +38,5 @@ Because this project is a guest-facing wedding website with RSVP handling and me
 - Never proceed because it seems like the right next step
 - Never act on a vague or implied approval
 - Wait for a clear explicit confirmation before continuing
+
+Note: UI polish and local prototype changes (code edits, styling, docs) do not bypass HITL requirements — any deploys, migrations, or external sends still require the exact HITL checkpoint confirmation.

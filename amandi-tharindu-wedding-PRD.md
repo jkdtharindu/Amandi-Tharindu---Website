@@ -58,6 +58,16 @@ This website solves all of the above with a personalized, code-gated RSVP system
 
 ## 3. User Personas
 
+## Prototype Implementation Status
+
+The project currently includes a runnable Express-based prototype used for early integration and UI validation. Public pages (Home, Our Story, Celebration, Gallery, Wishes) and the guest login flow (code + name, ambiguous name resolution) are implemented in the prototype for local testing. Key prototype notes:
+
+- The public pages use a shared `pageWrapper` with a refreshed wedding-themed layout and responsive styles.
+- Guest login by code/name, session cookie creation, CSRF protection, and basic RSVP persistence helpers are present in `src/` for local verification.
+- Admin features, Supabase DB integration, messaging (Twilio/Resend), and production deploys remain in the PRD scope and are P0/P1 items to fully implement.
+
+Use the prototype for local validation and UI polish; follow `HITL.md` for any actions that could affect production or guest data.
+
 ### Persona 1: The Wedding Guest (Nimal Silva, 45)
 - Received a physical wedding card with a unique code (e.g., `SILVA-001`)
 - Not very tech-savvy; uses a smartphone (Android, Sri Lanka)
