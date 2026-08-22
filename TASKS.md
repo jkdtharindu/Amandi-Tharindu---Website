@@ -83,7 +83,29 @@ everything else is outstanding. **Do not start new features before the 🔴 item
 - [x] Countdown, couple names, and footer date now derive from ThemeSettings instead of
       being hardcoded.
 
+### ✅ Done — invitation page (2026-08-23)
+- [x] **🔴 P0 BUG: guests could not submit an RSVP from a browser.** The submit handler called
+      `getCookieValue()` for the CSRF token, but that helper was only defined on the login and
+      admin pages — never on the invitation page. Every click threw `ReferenceError`. The API
+      test passed because it POSTed directly to `/api/guest/rsvp`, bypassing the page script.
+      Fixed, with a regression test asserting the page both defines and uses the helper.
+      *Lesson: API-level tests cannot prove a user flow works.*
+- [x] **Invitation page joined the site shell.** It previously used its own `system-ui` styling
+      and shared nothing with the site. Now uses `pageWrapper` + the live theme.
+- [x] **P0-02 satisfied.** `invitationTemplateUrl` and the name-overlay settings
+      (top / left / font size / colour) were also write-only; the invitation page now renders
+      the template image with the guest's name absolutely positioned per ThemeSettings, plus a
+      graceful fallback card when no template is uploaded.
+- [x] 404 for an unknown code now renders in the site shell with a route back to `/login`,
+      instead of a bare `<h1>`.
+- [x] All interpolated guest data is HTML-escaped.
+
 ### 🔴 Blocking launch — do these next
+- [ ] **`/invitation/:code` does not require a guest session.** Anyone holding or guessing a
+      valid InvitationCode can view a guest's page. The previous code computed a `loggedIn`
+      flag and never used it, so this check has never actually been enforced. PRD §11 requires
+      guest routes be protected and cross-guest access prevented. **Changing this affects guest
+      access, so HITL.md applies — get explicit approval before implementing.**
 - [ ] **Guest Management (P0-07)** — no way to add a guest exists. The site cannot run a
       wedding without this. Higher priority than anything already built.
 - [ ] **RSVP Dashboard (P0-08)** — no headcount visibility.

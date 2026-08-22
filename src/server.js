@@ -200,6 +200,27 @@ function buildStyles(theme) {
   .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
   .responsive-stack { display: grid; gap: 1.5rem; }
   .custom-sections { display: grid; gap: 1.25rem; margin-top: 2.5rem; }
+  .hidden { display: none; }
+  .invitation-canvas { position: relative; max-width: 720px; margin: 0 auto 2rem; border-radius: 24px; overflow: hidden; box-shadow: 0 24px 60px rgba(43, 33, 24, 0.14); }
+  .invitation-canvas img { width: 100%; display: block; }
+  .invitation-name { position: absolute; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; font-family: var(--font-display); font-style: var(--font-display-style); }
+  .invitation-fallback { max-width: 720px; margin: 0 auto 2rem; padding: 3rem 2rem; text-align: center; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 24px; }
+  .invitation-fallback .invitation-name-static { font-family: var(--font-display); font-style: var(--font-display-style); font-size: clamp(1.8rem, 4vw, 2.6rem); color: var(--color-primary); margin: 0.75rem 0; }
+  .rsvp-pill { display: inline-block; padding: 0.35rem 0.9rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--color-line); }
+  .rsvp-pill.accepted { background: #E8F3EC; color: #1B5E38; border-color: #1B5E38; }
+  .rsvp-pill.declined { background: #F1EEEB; color: #5B5147; }
+  .rsvp-pill.pending { background: var(--color-secondary); color: var(--color-ink); }
+  .response-card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 24px; padding: 1.75rem; margin-top: 1.25rem; }
+  .detail-list { display: grid; gap: 0.4rem; margin: 0 0 1rem; padding: 0; list-style: none; color: var(--color-muted); }
+  .detail-list strong { color: var(--color-ink); }
+  .choice-row { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 1rem 0; }
+  .choice-row label { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-weight: 600; }
+  .choice-row input { width: auto; }
+  .sticky-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--color-surface); border-top: 1px solid var(--color-line); padding: 0.9rem 1.25rem; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.75rem 1.25rem; box-shadow: 0 -8px 24px rgba(43, 33, 24, 0.08); text-align: center; }
+  .sticky-bar .sticky-actions { display: flex; gap: 0.6rem; }
+  .sticky-bar button { border: none; border-radius: 999px; padding: 0.65rem 1.4rem; font-weight: 700; font: inherit; font-weight: 700; cursor: pointer; }
+  .accept { background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: 999px; padding: 0.75rem 1.5rem; font-weight: 700; }
+  .decline { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); border-radius: 999px; padding: 0.75rem 1.5rem; font-weight: 700; }
   label { display: block; margin-bottom: 0.75rem; font-weight: 600; color: var(--color-ink); }
   input[type="text"], input[type="email"], input[type="password"], textarea, select { width: 100%; padding: 0.95rem 1rem; border-radius: 18px; border: 1px solid var(--color-line); font: inherit; color: var(--color-ink); background: var(--color-surface); }
   textarea { min-height: 120px; resize: vertical; }
@@ -630,82 +651,112 @@ export function createApp() {
     return res.json({ success: true, rsvp: result });
   });
 
+  // NOTE: this route does not yet require a guest session — anyone holding a
+  // valid InvitationCode can view the page. The previous implementation computed
+  // a `loggedIn` flag and never used it, so the check has never been enforced.
+  // Tightening it changes guest access, which HITL.md gates; tracked in TASKS.md.
   app.get('/invitation/:code', async (req, res) => {
     const { code } = req.params;
-    const signedSession = req.cookies && req.cookies.guest_session;
-    const sessionId = verifySession(signedSession);
     const guest = await findGuestByCode(code);
 
-    if (!guest) return res.status(404).send('<h1>Invitation not found</h1>');
+    if (!guest) {
+      return res
+        .status(404)
+        .send(
+          pageWrapper(
+            'Invitation not found',
+            `<section class="hero-panel">
+               <span class="hero-flag">Invitation</span>
+               <h1>We couldn’t find that invitation.</h1>
+               <p>Please check the code printed on your wedding card, or search by your name.</p>
+               <a class="button button-primary" href="/login">Find your invitation</a>
+             </section>`,
+            '',
+            res.locals.theme
+          )
+        );
+    }
 
+    const theme = res.locals.theme;
     const rsvp = await findRsvpResponseByGuestId(guest.id);
-    const loggedIn = sessionId === guest.id;
     const hasResponded = Boolean(rsvp);
     const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
+    const guestName = escapeHtml(guest.name);
 
-    return res.send(`
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Invitation - ${guest.name}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 720px; margin: auto; }
-            .sticky-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff8e6; border-top: 1px solid #ddd; padding: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; box-shadow: 0 -4px 16px rgba(0,0,0,0.05); }
-            .sticky-bar button { padding: 0.75rem 1rem; font-size: 1rem; border: none; cursor: pointer; }
-            .accept { background: #2f855a; color: white; }
-            .decline { background: #718096; color: white; }
-            .hidden { display: none; }
-            .response-card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; margin-top: 1rem; background: #f9fafb; }
-          </style>
-        </head>
-        <body>
-          <h1>Invitation for ${guest.name}</h1>
-          <p><strong>Code:</strong> ${guest.code}</p>
-          <p><strong>Relationship:</strong> ${guest.relationship}</p>
-          <p><strong>RSVP status:</strong> ${rsvpStatus}</p>
+    // P0-02: render the admin-uploaded InvitationTemplate with the guest's name
+    // overlaid at the position/size/colour configured in ThemeSettings.
+    const invitationCanvas = theme.invitationTemplateUrl
+      ? `<div class="invitation-canvas">
+           <img src="${escapeHtml(theme.invitationTemplateUrl)}" alt="Wedding invitation for ${guestName}" />
+           <span class="invitation-name" style="top: ${escapeHtml(theme.invitationNameTop)}; left: ${escapeHtml(theme.invitationNameLeft)}; font-size: ${escapeHtml(theme.invitationNameFontSize)}; color: ${escapeHtml(theme.invitationNameColor)};">${guestName}</span>
+         </div>`
+      : `<div class="invitation-fallback">
+           <span class="hero-flag">You are invited</span>
+           <p class="invitation-name-static">${guestName}</p>
+           <p>${escapeHtml(theme.coupleNames)} · ${formatWeddingDate(theme.weddingDate)}</p>
+         </div>`;
 
-          <section class="response-card">
-            <h2>Your invitation</h2>
-            <p>Welcome ${guest.name}! Please confirm your attendance by responding below.</p>
-            ${hasResponded ? `<p>Thank you. Your current response is <strong>${rsvpStatus}</strong>.</p>` : '<p>We are looking forward to your response.</p>'}
-            ${hasResponded ? '<p><button id="change-response" type="button">Change your response</button></p>' : ''}
-          </section>
+    const venueLine = theme.venueName
+      ? `<li><strong>Venue:</strong> ${escapeHtml(theme.venueName)}${theme.venueAddress ? ` — ${escapeHtml(theme.venueAddress)}` : ''}</li>`
+      : '';
 
-          <div id="rsvp-form" class="hidden">
-            <div class="response-card">
-              <h2>RSVP</h2>
-              <p>Slot count: ${guest.slotCount}</p>
-              <label>
-                <input type="radio" name="attending" value="yes" checked /> Accept
-              </label>
-              <label>
-                <input type="radio" name="attending" value="no" /> Decline
-              </label>
-              <div id="participant-section">
-                <label>
-                  Participant names (comma-separated)<br />
-                  <input id="participant_names" type="text" placeholder="Nimal Silva, Anu Silva" style="width:100%; padding:0.75rem; margin-top:0.5rem;" />
-                </label>
-              </div>
-              <button id="submit-rsvp" type="button" class="accept">Submit RSVP</button>
-              <p id="rsvp-message" aria-live="polite"></p>
-            </div>
+    const bodyContent = `
+      ${invitationCanvas}
+
+      <section class="response-card">
+        <span class="rsvp-pill ${rsvpStatus}">${rsvpStatus}</span>
+        <h2>Your invitation</h2>
+        <ul class="detail-list">
+          <li><strong>Guest:</strong> ${guestName}</li>
+          <li><strong>Code:</strong> ${escapeHtml(guest.code)}</li>
+          <li><strong>Places reserved for you:</strong> ${escapeHtml(guest.slotCount)}</li>
+          <li><strong>Date:</strong> ${formatWeddingDate(theme.weddingDate)}</li>
+          ${venueLine}
+        </ul>
+        ${
+          hasResponded
+            ? `<p>Thank you — your current response is <strong>${rsvpStatus}</strong>.</p>
+               <p><button id="change-response" type="button" class="decline">Change your response</button></p>`
+            : `<p>${escapeHtml(theme.coupleNames)} would love to know if you can join them.</p>`
+        }
+      </section>
+
+      <div id="rsvp-form" class="hidden">
+        <section class="response-card">
+          <h2>RSVP</h2>
+          <div class="choice-row">
+            <label><input type="radio" name="attending" value="yes" checked /> Joyfully accept</label>
+            <label><input type="radio" name="attending" value="no" /> Regretfully decline</label>
           </div>
-
-          <div id="invitation-content" class="response-card">
-            <h2>Event details</h2>
-            <p>This is a demo invitation page. The real site will include the wedding invitation template, event information, and a personalized overlay.</p>
+          <div id="participant-section">
+            <label for="participant_names">
+              Who is coming? Separate names with a comma (up to ${escapeHtml(guest.slotCount)}).
+              <input id="participant_names" type="text" placeholder="Nimal Silva, Anu Silva" />
+            </label>
           </div>
+          <button id="submit-rsvp" type="button" class="accept">Submit RSVP</button>
+          <p id="rsvp-message" aria-live="polite"></p>
+        </section>
+      </div>
 
-          <div id="sticky-bar" class="sticky-bar ${hasResponded ? 'hidden' : ''}">
-            <span>Amandi & Tharindu are waiting for your response 💍 — Will you join us?</span>
-            <div>
-              <button id="accept" class="accept">Accept</button>
-              <button id="decline" class="decline">Decline</button>
-            </div>
-          </div>
+      <div id="sticky-bar" class="sticky-bar ${hasResponded ? 'hidden' : ''}">
+        <span>${escapeHtml(theme.coupleNames)} are waiting for your response 💍 — Will you join us?</span>
+        <div class="sticky-actions">
+          <button id="accept" class="accept">Accept</button>
+          <button id="decline" class="decline">Decline</button>
+        </div>
+      </div>
+    `;
 
+    const scripts = `
           <script>
+            function getCookieValue(name) {
+              return document.cookie.split('; ').reduce((value, cookie) => {
+                const [cookieName, cookieValue] = cookie.split('=');
+                return cookieName === name ? decodeURIComponent(cookieValue) : value;
+              }, '');
+            }
+
             const showForm = () => {
               document.getElementById('rsvp-form').classList.remove('hidden');
               window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -762,9 +813,9 @@ export function createApp() {
               }
             });
           </script>
-        </body>
-      </html>
-    `);
+    `;
+
+    return res.send(pageWrapper(`Invitation — ${guestName}`, bodyContent, scripts, theme));
   });
 
   app.get('/admin', (req, res) => {
