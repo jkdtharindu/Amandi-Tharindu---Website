@@ -21,6 +21,10 @@ Alternative considered: Migrating to Next.js first (rejected — bigger upfront 
 Reason: 
 Alternative considered: 
 
+[2026-08-23] Decision: Treat commercial resale of this application as "Chapter 2" — a separate project with its own PRD — and build nothing for it during Chapter 1.
+Reason: The project owner stated this is their first web app, built for their own wedding, and that they intend to sell it to other couples once it has launched successfully. Recorded in PRD §14. Multi-tenancy is the most expensive thing to retrofit, but building it speculatively now would jeopardise a launch that is already behind schedule, and holding other couples' guest lists carries data-protection obligations that don't exist for one's own wedding. The compromise: adopt only the zero-cost disciplines that keep the door open (repos as the sole DB access path, logic out of route handlers, couple names read from ThemeSettings rather than hardcoded) and defer everything else. This matches the "Future Product Direction" stance already taken in the alternate `New folder (2)/prd3.md`.
+Alternative considered: Designing for multi-tenancy from the start (rejected — premature abstraction against a deadline that is already at risk); ignoring the intent entirely (rejected — a few free habits now avoid a painful rewrite later).
+
 
 3) Past mistakes and corrections (things the AI got wrong before)
 

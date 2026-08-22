@@ -118,6 +118,27 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `section`, `component`, `widget`
 - Example: A custom SiteSection can be added under the admin section manager.
 
+### SeatingTable
+- Canonical name: `SeatingTable`
+- Definition: A physical table at the reception, with a name/number and a seat capacity, to which Participants are assigned.
+- Do not call it: `table` (ambiguous with database tables), `desk`, `group`
+- Example: A SeatingTable named "Table 4" seats eight Participants.
+- Note: Planned for P2-06. Never use the bare word `table` in code for this concept — it collides with database terminology.
+
+### SeatAssignment
+- Canonical name: `SeatAssignment`
+- Definition: The link between one Participant and one seat number at a SeatingTable.
+- Do not call it: `booking`, `placement`, `allocation`, `chair`
+- Example: A SeatAssignment places Nimal Silva at seat 3 of Table 4.
+- Note: Planned for P2-06. The user-facing word may be "chair", but the code term is `SeatAssignment`.
+
+### RSVPCutoff
+- Canonical name: `RSVPCutoff`
+- Definition: The date after which Guests can no longer submit or change an RSVP, freezing the headcount for catering and seating.
+- Do not call it: `deadline`, `lock date`, `freeze`, `closing date`
+- Example: After the RSVPCutoff passes, the Invitation page shows the final response instead of a change option.
+- Note: Planned for P2-07, pending the clarification recorded in the PRD.
+
 ---
 
 ## Forbidden Terms
@@ -136,6 +157,9 @@ The following generic terms are not acceptable in this project context. Replace 
 - `asset` → `GalleryPhoto` or `InvitationTemplate`
 - `theme` → `ThemeSettings`
 - `config` → `ThemeSettings` or `SiteSection`
+- `table` → `SeatingTable` (reserve the bare word for database tables)
+- `chair` / `seat` → `SeatAssignment`
+- `deadline` / `lock date` → `RSVPCutoff`
 
 ---
 

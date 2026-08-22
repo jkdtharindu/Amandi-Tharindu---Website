@@ -119,6 +119,26 @@ everything else is outstanding. **Do not start new features before the 🔴 item
 - [ ] Story milestones, celebration events, and wishes are still hardcoded HTML — none are
       admin-managed yet (P1-02, P1-03, P1-05, P1-09).
 
+### 🔵 Requested features — after launch (P2, do not build now)
+- [ ] **Seating plan — SeatingTable + SeatAssignment (P2-06).** Admin creates tables with a
+      capacity and assigns each Participant a seat number, grouping by `RelationshipType`
+      (Relations / Colleagues / Neighbours / Friends) so families and colleagues sit together.
+      Needs: unassigned-Participant view, capacity validation, export, optional "your table"
+      on the Invitation page. **Depends on final RSVP data**, so it must come after P2-07.
+- [ ] **RSVP cutoff / headcount lock (P2-07).** ⚠️ *Ambiguous as stated — needs the owner's
+      decision before build.* Either (a) an RSVPCutoff date after which guests cannot change
+      their response, freezing the headcount for catering, or (b) locking the wedding date so
+      the home-page countdown target can't be edited by accident. Confirm which, or both.
+
+### 🟣 Chapter 2 — Productization (separate project, not now)
+- [ ] Owner intends to sell this app to other couples **after** this wedding launches.
+      Full scope recorded in PRD §14. **Build nothing for it during Chapter 1.**
+- [ ] Cheap discipline to keep now, at no extra cost: keep repos (`guestRepo`, `themeRepo`,
+      `sectionsRepo`) as the only DB access path, keep logic out of route handlers, and read
+      couple names from `ThemeSettings` rather than hardcoding them (done 2026-08-23).
+- [ ] Note: multi-tenancy is the most expensive thing to retrofit, and holding other couples'
+      guest data carries data-protection obligations. Chapter 2 needs its own PRD.
+
 ### 🟢 Housekeeping
 - [ ] `context.md` is stale and has never been accurate ("not a git repository"). Use or delete.
 - [ ] Local `master` branch is 1 commit behind `main` with nothing unique — safe to delete.

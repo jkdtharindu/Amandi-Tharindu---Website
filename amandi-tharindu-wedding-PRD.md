@@ -145,6 +145,13 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P2-03 | Scheduled Message Campaigns | Admin sets a date/time for a reminder message to auto-send to all pending guests. |
 | P2-04 | Guest WhatsApp Reply Tracking | Track if guests reply to WhatsApp messages sent via Twilio. |
 | P2-05 | Multi-language Support | Support for Sinhala language option for guests. |
+| P2-06 | Seating Plan — Table & Seat Assignment | Admin arranges tables and assigns a seat/chair number to each Participant. Guests are grouped by their `RelationshipType` (Relations / Colleagues / Neighbours / Friends) so families and colleagues can be seated together. Admin can create tables (name/number, capacity), drag or assign Participants to seats, see unassigned Participants, and export the plan. Depends on RSVP data being final, so it runs *after* the RSVP cutoff. Guests may optionally be shown their table on the Invitation page. |
+| P2-07 | RSVP Cutoff / Headcount Lock | Admin sets a cutoff date after which guests can no longer submit or change an RSVP. Once locked, the headcount is frozen for catering and seating, and the home-page counter reflects the locked figure rather than a live one. Admin can unlock if needed. **Needs clarification before build** — see note below. |
+
+> **P2-07 needs a decision from the project owner.** "Lock the date for counting" can mean either
+> (a) an **RSVP cutoff date** — guests can't change their response after it, freezing the headcount
+> for catering/seating, or (b) **locking the wedding date itself** so the home-page countdown target
+> can't be edited by accident. Confirm which (or both) before implementing.
 
 ---
 
@@ -561,6 +568,54 @@ With love, Amandi & Tharindu 💍🎊
 
 ---
 
-*Document version: 1.0 | Created: August 2026 | Wedding date: Monday, 14 December 2026*
+## 14. Chapter 2 — Productization (explicitly NOT in scope now)
+
+The project owner intends to reuse this application for other couples commercially **after**
+Amandi & Tharindu's wedding has launched and run successfully. This section records that
+intent so architectural decisions don't accidentally foreclose it.
+
+**Nothing in this section is to be built during Chapter 1.** Do not create speculative
+infrastructure for it. Chapter 1 succeeds by delivering one excellent wedding website.
+
+### Chapter boundary
+
+| | Chapter 1 (now) | Chapter 2 (later) |
+|---|---|---|
+| Users | One couple: Amandi & Tharindu | Many couples |
+| Admin | Exactly one admin account | Per-couple accounts, roles, billing |
+| Data | Single set of tables | Tenant-scoped rows |
+| Goal | A reliable, beautiful wedding site | A sellable product |
+
+### What Chapter 2 would require
+
+- `couples` (or `tenants`) table, with every existing table gaining a tenant key
+- Per-tenant isolation enforced at the database level (Supabase RLS policies)
+- Self-service signup, subscription/billing, and plan limits
+- Per-tenant custom domains or subdomains
+- Template/preset system so a new couple starts from a design rather than a blank site
+- Onboarding flow replacing developer setup
+- Support, backups, and data-export obligations that come with holding other people's guest data
+
+### Cheap things to preserve now (no extra work, just discipline)
+
+These cost nothing today and avoid painful rewrites later:
+
+- Keep business logic in `src/` modules separate from route/UI code — already the pattern
+- Keep the repo layer (`guestRepo`, `themeRepo`, `sectionsRepo`) as the only database access
+  path, so adding a tenant filter later is one change per repo rather than hundreds
+- Avoid hardcoding "Amandi & Tharindu" in code — read it from `ThemeSettings` (done as of
+  2026-08-23; the header, footer, and home page now derive from settings)
+- Keep migrations additive and ordered
+
+### Explicit warning
+
+Multi-tenancy is the single most expensive thing to retrofit into an application, **and it
+carries real legal weight** — holding other couples' guest lists and phone numbers makes you
+a data processor with obligations you don't have when it's your own wedding. Treat Chapter 2
+as a separate project with its own PRD, not as a feature added to this one.
+
+---
+
+*Document version: 1.1 | Created: August 2026 | Last updated: 23 August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*
