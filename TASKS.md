@@ -52,14 +52,77 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [ ] Guest management
 - [ ] RSVP dashboard
 - [ ] Messaging center
-- [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres)
-- [x] Section manager — `/admin/sections`: add/edit/toggle-visibility/delete custom content blocks per public page, persisted via `sectionsRepo` (dual-mode)
+- [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres). **Live as of 2026-08-23** — values render site-wide as CSS custom properties.
+- [x] Section manager — `/admin/sections`: add/edit/toggle-visibility/delete custom content blocks per public page, persisted via `sectionsRepo` (dual-mode). **Live as of 2026-08-23** — visible sections render on their public page.
 
 ### Phase 5 — Polish & Launch
 - [ ] Mobile responsiveness review
 - [ ] Content fill-in and final copy
 - [ ] Deployment to Vercel (HITL required)
 - [ ] Final QA and launch readiness
+
+---
+
+## Review Findings Backlog (raised 2026-08-22, reviewed 2026-08-23)
+
+A full project review raised the items below. Ordered by severity. Tier 1 is done;
+everything else is outstanding. **Do not start new features before the 🔴 items.**
+
+### ✅ Done — Tier 1: make shipped features actually work
+- [x] **Theme Editor was write-only.** `getThemeSettings()` was called only by the admin
+      page that renders the form; the public site used a hardcoded stylesheet. Saving a
+      colour changed nothing. Fixed: `buildStyles(theme)` now emits ThemeSettings as CSS
+      custom properties and every page consumes them.
+- [x] **Section Manager was write-only.** Same defect — `listSections()` was admin-only.
+      Fixed: public routes now render their visible SiteSections.
+- [x] **Admin form showed raw property names** (`invitationNameTop`) to the couple.
+      Fixed: `FIELD_LABELS` provides human labels plus hints.
+- [x] **Button text contrast could fail WCAG AA** on an admin-chosen colour.
+      Fixed: `readableTextColor()` picks dark/light ink by measured contrast ratio.
+- [x] **No HTML escaping** on interpolated values. Fixed: `escapeHtml()` + regression test.
+- [x] Countdown, couple names, and footer date now derive from ThemeSettings instead of
+      being hardcoded.
+
+### 🔴 Blocking launch — do these next
+- [ ] **Guest Management (P0-07)** — no way to add a guest exists. The site cannot run a
+      wedding without this. Higher priority than anything already built.
+- [ ] **RSVP Dashboard (P0-08)** — no headcount visibility.
+- [ ] **No persistence.** Guests, RSVPs, theme, and sections live in in-memory arrays.
+      A server restart destroys every RSVP. `DATABASE_URL` is unset and migrations
+      (001–003) have never been applied to any database.
+- [ ] **Decide the Next.js + Supabase migration date.** PRD specifies Next.js 14 +
+      Supabase + Vercel; the build is Express + template literals. Every feature added
+      widens the rewrite. Decide *when*, or consciously amend the PRD to keep Express.
+
+### 🟠 Correctness & scope risks
+- [ ] **Two contradicting PRDs.** `amandi-tharindu-wedding-PRD.md` (governing, chosen
+      2026-08-22) vs `New folder (2)/prd3.md`, which specifies a different palette,
+      invitation-code format, auth model, and features (wax seal, ambient audio).
+      Resolve: fold anything wanted into the main PRD, then remove or clearly mark prd3.
+- [ ] **`New folder (2)/`** — accidental directory name now staged into git. Rename or remove.
+- [ ] **Timeline.** PRD dated 2026-08-09 allowed 35 days (≈13 Sept). Remaining scope far
+      exceeds the remaining time. Physical cards need codes printed well before 14 Dec 2026.
+      Re-plan or cut scope.
+- [ ] Dev fallback password `changeme123` in `src/data/adminStore.js` — safe locally
+      (production requires `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH`), but remove before any deploy.
+- [ ] Admin has no password reset; PRD P0-09 expects one via Supabase Auth.
+
+### 🟡 UI / UX improvements
+- [ ] **Gallery contains literal text placeholders** ("Photo 1"…"Photo 4"). No real image
+      exists anywhere on the site. Needs a GalleryPhoto model + admin management.
+- [ ] **Invitation page is visually orphaned** — uses its own `system-ui` styling and does
+      not share the site shell. It is the most important page and the least designed.
+- [ ] Mobile untested below desktop width. PRD targets 320px and Samsung Internet;
+      Sri Lankan guests are overwhelmingly on Android phones — mobile is the primary platform.
+- [ ] Sticky RSVP bar can overlap content on short screens.
+- [ ] Full WCAG 2.1 AA pass (PRD commitment): alt text, keyboard navigation, focus order.
+- [ ] Story milestones, celebration events, and wishes are still hardcoded HTML — none are
+      admin-managed yet (P1-02, P1-03, P1-05, P1-09).
+
+### 🟢 Housekeeping
+- [ ] `context.md` is stale and has never been accurate ("not a git repository"). Use or delete.
+- [ ] Local `master` branch is 1 commit behind `main` with nothing unique — safe to delete.
+- [ ] Admin work exists only locally; the remote branch was deleted. Re-push for backup.
 
 ## Current Slice Details
 

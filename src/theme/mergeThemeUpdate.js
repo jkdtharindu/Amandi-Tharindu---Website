@@ -2,6 +2,28 @@ const HEX_COLOR_FIELDS = ['primaryColor', 'secondaryColor', 'accentColor', 'invi
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Human-readable labels and hints for the admin form. The couple edits these
+ * fields, so the UI must never expose raw property names.
+ */
+export const FIELD_LABELS = {
+  heroImageUrl: { label: 'Hero image link', hint: 'Web address of the large photo on the home page' },
+  invitationTemplateUrl: { label: 'Invitation card image link', hint: 'Web address of the invitation design' },
+  invitationNameTop: { label: 'Guest name — distance from top', hint: 'For example 45%' },
+  invitationNameLeft: { label: 'Guest name — distance from left', hint: 'For example 50%' },
+  invitationNameFontSize: { label: 'Guest name — text size', hint: 'For example 2rem' },
+  invitationNameColor: { label: 'Guest name — colour', hint: 'Hex colour, for example #5C3317' },
+  primaryColor: { label: 'Main colour', hint: 'Used for buttons and highlights' },
+  secondaryColor: { label: 'Background tint', hint: 'Soft background shade' },
+  accentColor: { label: 'Accent colour', hint: 'Used for small highlights' },
+  fontFamily: { label: 'Heading font', hint: 'For example Cormorant Garamond' },
+  fontStyle: { label: 'Heading style', hint: 'normal or italic' },
+  coupleNames: { label: 'Couple names', hint: 'Shown in the header and footer' },
+  weddingDate: { label: 'Wedding date', hint: 'YYYY-MM-DD — also drives the countdown' },
+  venueName: { label: 'Venue name', hint: '' },
+  venueAddress: { label: 'Venue address', hint: '' },
+};
+
 export const THEME_FIELD_GROUPS = [
   {
     id: 'hero',

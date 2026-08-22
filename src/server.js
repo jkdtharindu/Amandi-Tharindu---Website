@@ -14,7 +14,9 @@ import {
 import { adminStore } from './data/adminStore.js';
 import { verifyAdminCredentials } from './admin-auth/verifyAdminCredentials.js';
 import { getThemeSettings, updateThemeSettings } from './theme/themeRepo.js';
-import { THEME_FIELD_GROUPS } from './theme/mergeThemeUpdate.js';
+import { THEME_FIELD_GROUPS, FIELD_LABELS } from './theme/mergeThemeUpdate.js';
+import { readableTextColor } from './theme/colors.js';
+import { themeSettings as themeDefaults } from './data/themeStore.js';
 import {
   listSections,
   createSection,
@@ -24,6 +26,22 @@ import {
 import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
+
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/** Escapes untrusted values before they are interpolated into HTML. */
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
+}
+
+/** Maps a public route path to the SiteSection page key used by the admin. */
+const SECTION_PAGE_BY_ROUTE = {
+  '/home': 'home',
+  '/story': 'our-story',
+  '/celebration': 'celebration',
+  '/gallery': 'gallery',
+  '/wishes': 'wishes',
+};
 
 async function findAdminByEmail(email) {
   return adminStore.find((a) => a.email.toLowerCase() === String(email).trim().toLowerCase()) || null;
@@ -53,7 +71,7 @@ function requireAdminApi(req, res, next) {
   next();
 }
 
-function adminPageWrapper(title, bodyContent, scripts = '') {
+function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -61,23 +79,22 @@ function adminPageWrapper(title, bodyContent, scripts = '') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${title}</title>
-        <style>${baseStyles}
+        <style>${buildStyles(theme)}
           .admin-shell { max-width: 960px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; }
-          .admin-nav { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 1.5rem; }
-          .admin-nav a, .admin-nav button { text-decoration: none; font-weight: 600; color: #475569; background: none; border: none; font: inherit; cursor: pointer; padding: 0; }
-          .field-group { background: white; border-radius: 20px; padding: 1.5rem; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06); margin-bottom: 1.25rem; }
+          .admin-nav { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--color-line); margin-bottom: 1.5rem; align-items: center; }
+          .admin-nav a, .admin-nav button { text-decoration: none; font-weight: 600; color: var(--color-muted); background: none; border: none; font: inherit; cursor: pointer; padding: 0; }
+          .field-group { background: var(--color-surface); border-radius: 20px; padding: 1.5rem; box-shadow: 0 12px 30px rgba(43, 33, 24, 0.06); margin-bottom: 1.25rem; }
           .field-group h2 { margin: 0 0 1rem; font-size: 1.2rem; }
           .field-row { margin-bottom: 0.85rem; }
           .field-row label { font-size: 0.9rem; }
           .field-row input { padding: 0.6rem 0.75rem; border-radius: 12px; }
-          .save-btn { background: #2563eb; color: white; border: none; border-radius: 999px; padding: 0.6rem 1.25rem; font-weight: 700; cursor: pointer; }
+          .field-hint { display: block; font-weight: 400; color: var(--color-muted); font-size: 0.8rem; margin-top: 0.15rem; }
+          .save-btn { background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: 999px; padding: 0.6rem 1.25rem; font-weight: 700; cursor: pointer; }
           .status-msg { font-size: 0.9rem; margin-top: 0.5rem; min-height: 1.2rem; }
           .status-msg.success { color: #15803d; }
           .status-msg.error { color: #b91c1c; }
-          .section-item { border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem; margin-bottom: 0.85rem; }
+          .section-item { border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; margin-bottom: 0.85rem; }
           .section-item .section-item-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-          table.admin-table { width: 100%; border-collapse: collapse; }
-          table.admin-table th, table.admin-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #e2e8f0; }
         </style>
       </head>
       <body>
@@ -123,60 +140,116 @@ const siteNav = `
   </nav>
 `;
 
-const baseStyles = `
+/**
+ * Builds the site stylesheet from ThemeSettings. Admin-editable values are
+ * emitted as CSS custom properties so a theme change is reflected site-wide.
+ */
+function buildStyles(theme) {
+  const t = { ...themeDefaults, ...(theme || {}) };
+  return `
   :root {
     color-scheme: light;
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: #1f2937;
-    background: #f8fafc;
+    --color-primary: ${t.primaryColor};
+    --color-secondary: ${t.secondaryColor};
+    --color-accent: ${t.accentColor};
+    --color-on-primary: ${readableTextColor(t.primaryColor)};
+    --color-on-accent: ${readableTextColor(t.accentColor)};
+    --color-ink: #2B2118;
+    --color-muted: #5B5147;
+    --color-surface: #FFFFFF;
+    --color-line: rgba(43, 33, 24, 0.12);
+    --font-display: "${t.fontFamily}", Georgia, "Times New Roman", serif;
+    --font-display-style: ${t.fontStyle};
+    --font-body: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-body);
+    color: var(--color-ink);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
-  body { background: radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 30%), #f8fafc; }
+  body { background: var(--color-secondary); color: var(--color-ink); }
   img { max-width: 100%; display: block; }
   a { color: inherit; }
-  .page-shell { max-width: 1180px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; }
-  .page-shell h1, .page-shell h2, .page-shell h3 { color: #0f172a; }
+  .page-shell { max-width: 1180px; margin: 0 auto; padding: 1.75rem 1.5rem 4.5rem; }
+  .page-shell h1, .page-shell h2, .page-shell h3 { color: var(--color-ink); font-family: var(--font-display); font-style: var(--font-display-style); font-weight: 600; }
   .site-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 0; }
-  .site-brand { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #334155; }
+  .site-brand { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-ink); }
   .site-nav { display: flex; flex-wrap: wrap; gap: 1rem; }
-  .site-nav a { text-decoration: none; font-weight: 600; color: #475569; transition: color 0.2s ease; }
-  .site-nav a:hover { color: #2563eb; }
-  .hero-panel { background: white; border-radius: 32px; padding: 2.5rem; box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08); }
-  .hero-panel { text-align: center; max-width: 900px; margin: 0 auto; }
-  .hero-flag { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-size: 0.95rem; margin-bottom: 1.4rem; }
-  .hero-panel h1 { margin: 0 0 1rem; font-size: clamp(2.5rem, 4vw, 4.2rem); line-height: 1.02; }
-  .hero-panel p { margin: 0 0 1.75rem; color: #475569; font-size: 1.05rem; line-height: 1.78; max-width: 68rem; }
+  .site-nav a { text-decoration: none; font-weight: 600; color: var(--color-muted); transition: color 0.2s ease; }
+  .site-nav a:hover { color: var(--color-primary); }
+  .hero-panel { background: var(--color-surface); border-radius: 32px; padding: 2.5rem; box-shadow: 0 30px 90px rgba(43, 33, 24, 0.08); text-align: center; max-width: 900px; margin: 0 auto; }
+  .hero-flag { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 999px; background: var(--color-secondary); color: var(--color-ink); font-size: 0.95rem; margin-bottom: 1.4rem; border: 1px solid var(--color-line); }
+  .hero-panel h1 { margin: 0 0 1rem; font-size: clamp(2.2rem, 4vw, 4rem); line-height: 1.08; }
+  .hero-panel p { margin: 0 0 1.75rem; color: var(--color-muted); font-size: 1.05rem; line-height: 1.78; max-width: 68rem; }
   .button { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: none; border-radius: 999px; padding: 1rem 1.6rem; font-weight: 700; cursor: pointer; text-decoration: none; }
-  .button-primary { background: #2563eb; color: white; }
-  .button-secondary { background: transparent; color: #334155; border: 1px solid rgba(100, 116, 139, 0.22); }
+  .button-primary { background: var(--color-primary); color: var(--color-on-primary); }
+  .button-secondary { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); }
   .section-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
-  .feature-card, .event-card, .gallery-card, .wish-card, .story-card { background: white; border-radius: 28px; padding: 1.75rem; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06); }
-  .gallery-card { min-height: 180px; display: flex; align-items: center; justify-content: center; color: #64748b; }
+  .feature-card, .event-card, .gallery-card, .wish-card, .story-card { background: var(--color-surface); border-radius: 28px; padding: 1.75rem; box-shadow: 0 18px 36px rgba(43, 33, 24, 0.06); }
+  .gallery-card { min-height: 180px; display: flex; align-items: center; justify-content: center; color: var(--color-muted); overflow: hidden; padding: 0; }
+  .gallery-card img { width: 100%; height: 100%; object-fit: cover; }
   .story-card { padding: 1.5rem; }
   .feature-card h2, .event-card h2, .story-card h3 { margin: 0 0 0.75rem; }
-  .feature-card p, .event-card p, .story-card p, .wish-card p { margin: 0; color: #475569; line-height: 1.75; }
+  .feature-card p, .event-card p, .story-card p, .wish-card p { margin: 0; color: var(--color-muted); line-height: 1.75; }
+  .hero-image { border-radius: 28px; margin: 0 auto 2rem; max-height: 420px; object-fit: cover; width: 100%; }
   .countdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
-  .countdown-item { background: #1d4ed8; color: white; border-radius: 24px; padding: 1.3rem; text-align: center; }
-  .countdown-item strong { display: block; font-size: 2rem; line-height: 1; }
-  .section-title { font-size: 1.75rem; margin: 0 0 1rem; }
-  .page-footer { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.95rem; }
+  .countdown-item { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); border-radius: 20px; padding: 1.3rem; text-align: center; font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase; }
+  .countdown-item strong { display: block; font-size: 2.4rem; line-height: 1.1; font-family: var(--font-display); font-weight: 500; letter-spacing: 0; color: var(--color-primary); }
+  .section-title { font-size: 1.75rem; margin: 0 0 1rem; font-family: var(--font-display); }
+  .page-footer { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--color-line); color: var(--color-muted); font-size: 0.95rem; }
   .grid-panel { display: grid; gap: 1.25rem; }
   .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
   .responsive-stack { display: grid; gap: 1.5rem; }
-  label { display: block; margin-bottom: 0.75rem; font-weight: 600; color: #334155; }
-  input[type="text"], input[type="email"], textarea { width: 100%; padding: 0.95rem 1rem; border-radius: 18px; border: 1px solid #cbd5e1; font: inherit; color: #0f172a; }
+  .custom-sections { display: grid; gap: 1.25rem; margin-top: 2.5rem; }
+  label { display: block; margin-bottom: 0.75rem; font-weight: 600; color: var(--color-ink); }
+  input[type="text"], input[type="email"], input[type="password"], textarea, select { width: 100%; padding: 0.95rem 1rem; border-radius: 18px; border: 1px solid var(--color-line); font: inherit; color: var(--color-ink); background: var(--color-surface); }
   textarea { min-height: 120px; resize: vertical; }
   button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
   @media (max-width: 760px) {
-    .page-shell { padding: 1.25rem 1rem 2rem; }
+    .page-shell { padding: 1.25rem 1rem 5rem; }
     .site-header { flex-direction: column; align-items: flex-start; }
     .countdown { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .hero-panel { padding: 1.75rem; }
   }
 `;
+}
 
-function pageWrapper(title, bodyContent, scripts = '') {
+function formatWeddingDate(isoDate) {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return isoDate;
+  return parsed.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Renders admin-managed SiteSections for a public page. Visible sections only,
+ * already ordered by the repo.
+ */
+function renderSections(sections = []) {
+  const visible = sections.filter((section) => section.isVisible);
+  if (visible.length === 0) return '';
+
+  const cards = visible
+    .map(
+      (section) => `
+        <article class="story-card">
+          ${section.title ? `<h3>${escapeHtml(section.title)}</h3>` : ''}
+          ${section.content ? `<p>${escapeHtml(section.content)}</p>` : ''}
+        </article>
+      `
+    )
+    .join('');
+
+  return `<section class="custom-sections">${cards}</section>`;
+}
+
+function pageWrapper(title, bodyContent, scripts = '', theme = null) {
+  const t = { ...themeDefaults, ...(theme || {}) };
+  const coupleNames = escapeHtml(t.coupleNames);
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -184,17 +257,17 @@ function pageWrapper(title, bodyContent, scripts = '') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${title}</title>
-        <style>${baseStyles}</style>
+        <style>${buildStyles(t)}</style>
       </head>
       <body>
         <div class="page-shell">
           <header class="site-header">
-            <div class="site-brand">Amandi & Tharindu</div>
+            <div class="site-brand">${coupleNames}</div>
             ${siteNav}
           </header>
           ${bodyContent}
           <footer class="page-footer">
-            <p>Wedding day: Monday, 14 December 2026 · Amandi & Tharindu’s celebration website</p>
+            <p>Wedding day: ${formatWeddingDate(t.weddingDate)} · ${coupleNames}’s celebration website</p>
           </footer>
         </div>
         ${scripts}
@@ -214,16 +287,32 @@ export function createApp() {
     next();
   });
 
+  // Load ThemeSettings and any admin-managed SiteSections for rendered pages so
+  // admin edits take effect site-wide without each route re-fetching them.
+  app.use(async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    try {
+      res.locals.theme = await getThemeSettings();
+      const sectionPage = SECTION_PAGE_BY_ROUTE[req.path];
+      res.locals.sections = sectionPage ? await listSections(sectionPage) : [];
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   app.get('/', (req, res) => {
     return res.redirect('/home');
   });
 
   app.get('/home', (req, res) => {
+    const theme = res.locals.theme;
     const bodyContent = `
       <section class="hero-panel">
-        <span class="hero-flag">Save the date — 14 December 2026</span>
+        ${theme.heroImageUrl ? `<img class="hero-image" src="${escapeHtml(theme.heroImageUrl)}" alt="${escapeHtml(theme.coupleNames)} on their wedding journey" />` : ''}
+        <span class="hero-flag">Save the date — ${formatWeddingDate(theme.weddingDate)}</span>
         <h1>Join us for a celebration of love, family, and new beginnings.</h1>
-        <p>Welcome to the wedding website for Amandi & Tharindu. Discover our story, event details, gallery, wishes, and access your personalized invitation.</p>
+        <p>Welcome to the wedding website for ${escapeHtml(theme.coupleNames)}. Discover our story, event details, gallery, wishes, and access your personalized invitation.</p>
         <div class="button-group">
           <a class="button button-primary" href="/login">Find Your Invitation</a>
           <a class="button button-secondary" href="/story">Our Story</a>
@@ -253,12 +342,13 @@ export function createApp() {
           <p>Read warm wishes from family and friends, and leave your own message to the couple.</p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
     const scripts = `
       <script>
         function updateCountdown() {
-          const weddingDate = new Date('2026-12-14T15:00:00');
+          const weddingDate = new Date('${theme.weddingDate}T15:00:00');
           const now = new Date();
           const diff = weddingDate - now;
           if (diff <= 0) return;
@@ -276,7 +366,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Amandi & Tharindu — Home', bodyContent, scripts));
+    return res.send(pageWrapper('Amandi & Tharindu — Home', bodyContent, scripts, res.locals.theme));
   });
 
   app.get('/story', (req, res) => {
@@ -300,9 +390,10 @@ export function createApp() {
           <p>A romantic proposal under the stars sealed their promise to spend forever together.</p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Our Story — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper('Our Story — Amandi & Tharindu', bodyContent, '', res.locals.theme));
   });
 
   app.get('/celebration', (req, res) => {
@@ -328,9 +419,10 @@ export function createApp() {
           <p><a href="https://maps.google.com/?q=Moonlight Banquet Hall" target="_blank">View on Google Maps</a></p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('The Celebration — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper('The Celebration — Amandi & Tharindu', bodyContent, '', res.locals.theme));
   });
 
   app.get('/gallery', (req, res) => {
@@ -346,9 +438,10 @@ export function createApp() {
         <div class="gallery-card">Photo 3</div>
         <div class="gallery-card">Photo 4</div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Gallery — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper('Gallery — Amandi & Tharindu', bodyContent, '', res.locals.theme));
   });
 
   app.get('/wishes', (req, res) => {
@@ -372,9 +465,10 @@ export function createApp() {
           <p>So happy for you both — congratulations and best wishes.</p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Wishes — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper('Wishes — Amandi & Tharindu', bodyContent, '', res.locals.theme));
   });
 
   app.get('/login', (req, res) => {
@@ -467,7 +561,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Guest Login — Amandi & Tharindu', bodyContent, scripts));
+    return res.send(pageWrapper('Guest Login — Amandi & Tharindu', bodyContent, scripts, res.locals.theme));
   });
 
   app.post('/api/guest/login', async (req, res) => {
@@ -724,7 +818,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Admin Login — Amandi & Tharindu', bodyContent, scripts));
+    return res.send(pageWrapper('Admin Login — Amandi & Tharindu', bodyContent, scripts, res.locals.theme));
   });
 
   app.post('/api/admin/login', async (req, res) => {
@@ -763,15 +857,17 @@ export function createApp() {
 
     const groupsHtml = THEME_FIELD_GROUPS.map((group) => {
       const fieldsHtml = group.fields
-        .map(
-          (field) => `
+        .map((field) => {
+          const { label, hint } = FIELD_LABELS[field] || { label: field, hint: '' };
+          return `
             <div class="field-row">
-              <label>${field}
-                <input type="text" data-field="${field}" value="${String(settings[field] ?? '').replace(/"/g, '&quot;')}" />
+              <label>${escapeHtml(label)}
+                ${hint ? `<span class="field-hint">${escapeHtml(hint)}</span>` : ''}
+                <input type="text" data-field="${field}" value="${escapeHtml(settings[field] ?? '')}" />
               </label>
             </div>
-          `
-        )
+          `;
+        })
         .join('');
 
       return `
@@ -818,7 +914,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(adminPageWrapper('Theme Editor — Admin', bodyContent, scripts));
+    return res.send(adminPageWrapper('Theme Editor — Admin', bodyContent, scripts, settings));
   });
 
   app.post('/api/admin/theme', requireAdminApi, async (req, res) => {
@@ -937,7 +1033,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(adminPageWrapper('Section Manager — Admin', bodyContent, scripts));
+    return res.send(adminPageWrapper('Section Manager — Admin', bodyContent, scripts, res.locals.theme));
   });
 
   app.post('/api/admin/sections', requireAdminApi, async (req, res) => {
