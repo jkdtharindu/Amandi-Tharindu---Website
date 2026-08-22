@@ -22,6 +22,10 @@ Prototype note: current `src/server.js` runs an Express demo server used by `src
   - **`src/smoke.js`**: smoke test that exercises login + invitation flow
   - **`src/guest-auth/`**: authentication helpers (`loginGuestByCode.js`, `loginGuestByName.js`)
   - **`src/data/guestStore.js`**: in-memory guest fixture (prototype only)
+  - **`src/admin-auth/`**: Admin credential handling (`hashPassword.js` — scrypt hash/verify, `verifyAdminCredentials.js`)
+  - **`src/theme/`**: ThemeSettings — `themeRepo.js` (dual-mode read/write), `mergeThemeUpdate.js` (field allow-list, validation, `FIELD_LABELS` for the admin form), `colors.js` (`readableTextColor` picks button ink by measured WCAG contrast)
+  - **`src/sections/`**: SiteSections — `sectionsRepo.js` (dual-mode CRUD), `validateSection.js` (valid pages and section types)
+  - **`src/data/adminStore.js`, `themeStore.js`, `sectionsStore.js`**: in-memory fixtures used when `DATABASE_URL` is unset (prototype only)
 - **`migrations/`**: SQL migration files matching PRD schema (apply with a migration runner before using a real DB)
 - **`tests/`**: unit and integration tests (TDD slices)
 - **`package.json`**: scripts for build/run/test for the prototype
@@ -49,7 +53,7 @@ npm run smoke
 - Run unit tests (prototype):
 
 ```bash
-npm test         # runs node --test tests/guest-login.test.mjs
+npm test         # runs node --test tests/*.test.mjs (whole suite: unit + API + rendering)
 ```
 
 - Build (TypeScript compile step placeholder):
@@ -107,6 +111,8 @@ If the agent does not receive `yes`, it must abort the action and await explicit
 **Integration points — environment variables & what they control**
 - `NODE_ENV` — `development` | `production` — controls logging and dev optimizations.
 - `SESSION_SECRET` — signing key for session cookies and tokens.
+- `ADMIN_EMAIL` — the single Admin account's email. **Required in production** (`src/data/adminStore.js` throws on boot without it).
+- `ADMIN_PASSWORD_HASH` — scrypt hash of the Admin password, in `salt:hash` hex form. **Required in production.** Generate with `node -e "import('./src/admin-auth/hashPassword.js').then(m => console.log(m.hashPassword('your-password')))"`. Never commit a real value. When both are unset locally, a development-only fallback (`admin@example.com` / `changeme123`) applies.
 - `SUPABASE_URL` — Supabase project URL (Postgres + Auth + Storage endpoint).
 - `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` — Supabase client credentials (service key only for server-side operations; never expose in frontend).
 - `DATABASE_URL` — direct Postgres connection string (if using `pg` for migrations).
