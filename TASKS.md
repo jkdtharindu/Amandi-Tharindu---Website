@@ -48,12 +48,12 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Shared page wrapper and refreshed wedding-style layout for public pages
 
 ### Phase 4 — Admin Experience
-- [ ] Admin authentication
+- [x] Admin authentication — single seeded admin, session-cookie login/logout, CSRF-protected, `/admin/*` pages redirect and `/api/admin/*` routes 401 when unauthenticated
 - [ ] Guest management
 - [ ] RSVP dashboard
 - [ ] Messaging center
-- [ ] Theme editor
-- [ ] Section manager
+- [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres)
+- [x] Section manager — `/admin/sections`: add/edit/toggle-visibility/delete custom content blocks per public page, persisted via `sectionsRepo` (dual-mode)
 
 ### Phase 5 — Polish & Launch
 - [ ] Mobile responsiveness review
@@ -83,6 +83,10 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
  - Added demo Express server (`src/server.js`) and smoke test (`src/smoke.js`) that exercise login + invitation page
 - Implemented RSVP submission flow, sticky reminder bar, and change-response logic on `/invitation/:code`
  - Pinning/adjusting linting and TypeScript devDependencies to compatible versions (ESLint v8 + TS v5)
+ - Implemented admin authentication (`src/admin-auth/`), Theme Editor (`src/theme/`, `/admin/theme`), and Section Manager (`src/sections/`, `/admin/sections`), each backed by dual-mode repos (in-memory locally, Postgres when `DATABASE_URL` is set) matching the existing `guestRepo` pattern
+ - Added migration `migrations/003_create_admin_theme_sections.sql` for `admin_users`, `theme_settings`, `site_sections` (written only — not applied to any database)
+ - Fixed a pre-existing bug where importing `src/server.js` (e.g. from `smoke.js` or any test file) started a real `app.listen()` as a side effect, hanging the process; it now only listens on direct `node src/server.js` execution
+ - Fixed `tests/guest-login-api.test.mjs`, which was failing 403 on every request because it never fetched a CSRF cookie before posting; `npm test` now runs the full `tests/` suite (34/34 passing) instead of a single file
 
 ## Current Blockers
 - Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.

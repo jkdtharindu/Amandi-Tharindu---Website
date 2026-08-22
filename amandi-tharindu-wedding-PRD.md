@@ -64,7 +64,8 @@ The project currently includes a runnable Express-based prototype used for early
 
 - The public pages use a shared `pageWrapper` with a refreshed wedding-themed layout and responsive styles.
 - Guest login by code/name, session cookie creation, CSRF protection, and basic RSVP persistence helpers are present in `src/` for local verification.
-- Admin features, Supabase DB integration, messaging (Twilio/Resend), and production deploys remain in the PRD scope and are P0/P1 items to fully implement.
+- **Admin panel (Theme Editor + Section Manager) is implemented in the prototype** at `/admin` (login), `/admin/theme`, and `/admin/sections`, matching P0-09, P1-10, and P1-11 below with two prototype-scoped adjustments (see note under P1-10 and P1-11): single seeded admin account via env vars instead of Supabase Auth, and image fields (hero image, invitation template) accept a URL string rather than a direct file upload, since Supabase Storage is not yet wired up. Guest management (P0-07), the RSVP dashboard (P0-08), and messaging (P1-06/07/08) remain unimplemented.
+- Supabase DB integration, messaging (Twilio/Resend), and production deploys remain in the PRD scope and are P0/P1 items to fully implement.
 
 Use the prototype for local validation and UI polish; follow `HITL.md` for any actions that could affect production or guest data.
 
@@ -110,7 +111,7 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P0-06 | Sticky RSVP Bar | After login, a sticky bar appears at the bottom of every page until the guest RSVPs. Shows: "Amandi & Tharindu are waiting for your response 💍 — Will you join us?" with Accept and Decline buttons. Disappears permanently once responded. "Change response" link remains on Invitation page. |
 | P0-07 | Admin Guest Management | Admin can: add guests (name, relationship, slot count → auto-generates unique code), edit guests, soft-delete guests, view all guests with RSVP status, filter by status (pending/accepted/declined) and relationship group. |
 | P0-08 | Admin RSVP Dashboard | Real-time stats: total invited, accepted (with headcount), declined, pending. Visual chart. Exportable as CSV. |
-| P0-09 | Admin Auth | Single admin login via Supabase Auth (email + password). Only one admin account. Password reset via email. All `/admin/*` routes protected. |
+| P0-09 | Admin Auth | Single admin login via Supabase Auth (email + password). Only one admin account. Password reset via email. All `/admin/*` routes protected. **Implemented in the prototype** as a single seeded admin account (email/scrypt password hash via `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` env vars, dev-only fallback credentials otherwise), signed session cookie, CSRF-protected login/logout, and route protection on all `/admin/*` and `/api/admin/*` endpoints. Password reset via email is not yet implemented (deferred to the eventual Supabase Auth migration). |
 | P0-10 | WhatsApp Number Capture | On first visit after login, guest is prompted (not forced) to enter their WhatsApp number. Stored against their guest record. Used for future admin messaging. |
 
 ---
@@ -128,8 +129,8 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-07 | Message Templates | 4 pre-built templates: Initial Invite, First Reminder, Final Reminder, Thank You After RSVP. Placeholders: `[Name]`, `[Code]`, `[Link]`, `[Date]`, `[Venue]`. Admin can edit template body. Channel: WhatsApp / SMS / Email selectable. |
 | P1-08 | Auto Thank-You Message | On RSVP acceptance, auto-send thank-you message to guest via WhatsApp (if number provided) or email. Uses "Thank You" template. |
 | P1-09 | Admin Event Manager | Admin adds/edits/deletes celebration events: name, date, time, venue name, venue address (Google Maps URL), venue image upload, icon selection, display order. |
-| P1-10 | Admin Theme Editor | Global site controls: primary/secondary/accent colors, font family, font style, hero image upload, invitation template upload + name overlay position config, layout/frame/pattern selection. Changes reflect site-wide instantly. |
-| P1-11 | Admin Section Manager | Admin can add new custom content sections to any page (title, content, display order, visibility toggle). Enables couple to expand the site post-launch without a developer. |
+| P1-10 | Admin Theme Editor | Global site controls: primary/secondary/accent colors, font family, font style, hero image upload, invitation template upload + name overlay position config, layout/frame/pattern selection. Changes reflect site-wide instantly. **Implemented in the prototype at `/admin/theme`** as one form group per element (Hero Image, Invitation Template + overlay position/font/size/color, Colors, Typography, Wedding Info, Venue), each independently saved. Prototype-scoped deviation: hero/invitation images are entered as a URL rather than uploaded as a file, since Supabase Storage integration is not yet built; layout/frame/pattern selection is not yet implemented. |
+| P1-11 | Admin Section Manager | Admin can add new custom content sections to any page (title, content, display order, visibility toggle). Enables couple to expand the site post-launch without a developer. **Implemented in the prototype at `/admin/sections`** — add/edit/toggle-visibility/delete for the five public pages (`home`, `our-story`, `celebration`, `gallery`, `wishes`) and four section types (`text`, `image`, `gallery`, `custom`). |
 | P1-12 | Sticky Navigation | Navigation bar fixed at top on all pages. Links: Home, Our Story, The Celebration, Gallery, Invitation, Wishes. Elegant font. Mobile hamburger menu. |
 | P1-13 | Mobile Responsiveness | Full functionality on iOS and Android mobile browsers. All pages, forms, admin panel, and RSVP flow work on screens ≥ 320px wide. |
 

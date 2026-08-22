@@ -1,0 +1,18 @@
+export const themeSettings = {
+  id: 'theme-1',
+  primaryColor: '#B8860B',
+  secondaryColor: '#FFF8DC',
+  accentColor: '#8B0000',
+  fontFamily: 'Cormorant Garamond',
+  fontStyle: 'italic',
+  heroImageUrl: '',
+  invitationTemplateUrl: '',
+  invitationNameTop: '45%',
+  invitationNameLeft: '50%',
+  invitationNameFontSize: '2rem',
+  invitationNameColor: '#5C3317',
+  coupleNames: 'Amandi & Tharindu',
+  weddingDate: '2026-12-14',
+  venueName: '',
+  venueAddress: '',
+};

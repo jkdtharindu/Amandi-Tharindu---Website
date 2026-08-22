@@ -11,7 +11,7 @@ beforeEach(() => {
 function requestJSON(options, body) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
-    const req = http.request({ ...options, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, (res) => {
+    const req = http.request({ ...options, headers: { ...(options.headers || {}), 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, (res) => {
       let bodyText = '';
       res.on('data', (chunk) => (bodyText += chunk));
       res.on('end', () => {
@@ -30,13 +30,37 @@ function requestJSON(options, body) {
   });
 }
 
+function parseCookies(setCookieHeaders) {
+  return (setCookieHeaders || []).map((header) => header.split(';')[0]).join('; ');
+}
+
+function csrfFromCookie(cookie) {
+  const match = /csrf_token=([^;]+)/.exec(cookie || '');
+  return match ? match[1] : '';
+}
+
+async function getCsrfCookie(port) {
+  const page = await new Promise((resolve) => {
+    const req = http.request({ hostname: '127.0.0.1', port, path: '/login', method: 'GET' }, (res) => {
+      res.on('data', () => {});
+      res.on('end', () => resolve(res));
+    });
+    req.end();
+  });
+  return parseCookies(page.headers['set-cookie'] || []);
+}
+
 test('POST /api/guest/login accepts code and returns a session', async () => {
   const app = createApp();
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
+  const cookie = await getCsrfCookie(port);
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { code: 'SILVA-001' });
+  const result = await requestJSON(
+    { hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST', headers: { Cookie: cookie, 'x-csrf-token': csrfFromCookie(cookie) } },
+    { code: 'SILVA-001' }
+  );
 
   assert.equal(result.statusCode, 200);
   assert.equal(result.body.success, true);
@@ -51,8 +75,12 @@ test('POST /api/guest/login accepts exact name and returns a session', async () 
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
+  const cookie = await getCsrfCookie(port);
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Nimal Silva' });
+  const result = await requestJSON(
+    { hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST', headers: { Cookie: cookie, 'x-csrf-token': csrfFromCookie(cookie) } },
+    { name: 'Nimal Silva' }
+  );
 
   assert.equal(result.statusCode, 200);
   assert.equal(result.body.success, true);
@@ -67,8 +95,12 @@ test('POST /api/guest/login returns candidates for ambiguous name', async () => 
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
+  const cookie = await getCsrfCookie(port);
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Silva' });
+  const result = await requestJSON(
+    { hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST', headers: { Cookie: cookie, 'x-csrf-token': csrfFromCookie(cookie) } },
+    { name: 'Silva' }
+  );
 
   assert.equal(result.statusCode, 200);
   assert.equal(result.body.success, false);
@@ -84,8 +116,12 @@ test('POST /api/guest/login returns 400 when missing code and name', async () =>
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
+  const cookie = await getCsrfCookie(port);
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, {});
+  const result = await requestJSON(
+    { hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST', headers: { Cookie: cookie, 'x-csrf-token': csrfFromCookie(cookie) } },
+    {}
+  );
 
   assert.equal(result.statusCode, 400);
   assert.equal(result.body.success, false);
@@ -99,12 +135,16 @@ test('POST /api/guest/rsvp accepts a response and returns success', async () => 
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
+  const cookie = await getCsrfCookie(port);
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/rsvp', method: 'POST' }, {
-    code: 'SILVA-001',
-    attending: true,
-    participantNames: ['Nimal Silva', 'Anu Silva'],
-  });
+  const result = await requestJSON(
+    { hostname: '127.0.0.1', port, path: '/api/guest/rsvp', method: 'POST', headers: { Cookie: cookie, 'x-csrf-token': csrfFromCookie(cookie) } },
+    {
+      code: 'SILVA-001',
+      attending: true,
+      participantNames: ['Nimal Silva', 'Anu Silva'],
+    }
+  );
 
   assert.equal(result.statusCode, 200);
   assert.equal(result.body.success, true);
