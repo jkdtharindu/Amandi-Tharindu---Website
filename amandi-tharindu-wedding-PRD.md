@@ -130,10 +130,77 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-07 | Message Templates | 4 pre-built templates: Initial Invite, First Reminder, Final Reminder, Thank You After RSVP. Placeholders: `[Name]`, `[Code]`, `[Link]`, `[Date]`, `[Venue]`. Admin can edit template body. Channel: WhatsApp / SMS / Email selectable. |
 | P1-08 | Auto Thank-You Message | On RSVP acceptance, auto-send thank-you message to guest via WhatsApp (if number provided) or email. Uses "Thank You" template. |
 | P1-09 | Admin Event Manager | Admin adds/edits/deletes celebration events: name, date, time, venue name, venue address (Google Maps URL), venue image upload, icon selection, display order. |
-| P1-10 | Admin Theme Editor | Global site controls: primary/secondary/accent colors, font family, font style, hero image upload, invitation template upload + name overlay position config, layout/frame/pattern selection. Changes reflect site-wide instantly. **Implemented in the prototype at `/admin/theme`** as one form group per element (Hero Image, Invitation Template + overlay position/font/size/color, Colors, Typography, Wedding Info, Venue), each independently saved. Prototype-scoped deviation: hero/invitation images are entered as a URL rather than uploaded as a file, since Supabase Storage integration is not yet built; layout/frame/pattern selection is not yet implemented. |
+| P1-10 | Admin Theme Editor | Global site controls: **ThemePalette selection**, **FontChoice selection**, hero image, invitation template + name overlay config, wedding info, venue. Changes reflect site-wide instantly. **Partially implemented at `/admin/theme`** — see §4.1 for the palette/font requirement added 23 August 2026, which supersedes the raw hex/font-name text fields currently in place. Prototype-scoped deviation: hero/invitation images are entered as a URL rather than uploaded as a file, since Supabase Storage integration is not yet built; layout/frame/pattern selection is not yet implemented. |
 | P1-11 | Admin Section Manager | Admin can add new custom content sections to any page (title, content, display order, visibility toggle). Enables couple to expand the site post-launch without a developer. **Implemented in the prototype at `/admin/sections`** — add/edit/toggle-visibility/delete for the five public pages (`home`, `our-story`, `celebration`, `gallery`, `wishes`) and four section types (`text`, `image`, `gallery`, `custom`). |
 | P1-12 | Sticky Navigation | Navigation bar fixed at top on all pages. Links: Home, Our Story, The Celebration, Gallery, Invitation, Wishes. Elegant font. Mobile hamburger menu. |
 | P1-13 | Mobile Responsiveness | Full functionality on iOS and Android mobile browsers. All pages, forms, admin panel, and RSVP flow work on screens ≥ 320px wide. |
+
+---
+
+---
+
+### 4.1 ThemePalette & FontChoice — requirement added 23 August 2026
+
+**Requested by the project owner.** The admin must choose the wedding's visual identity by
+selecting from a **curated palette**, not by typing hex codes. Selecting a ThemePalette must
+cascade to the entire UI — page background, cards, buttons, navigation, countdown, invitation
+page, sticky RSVP bar, and the admin panel itself. Font choice must likewise be a **selection
+from a curated list**, not free text.
+
+This supersedes the raw `#RRGGBB` and font-name text inputs currently shipped. It aligns the
+governing PRD with the approach already described in the alternate `New folder (2)/prd3.md`.
+
+#### Requirements
+
+1. **ThemePalette picker** — visual swatches, not text entry. Selecting one writes all colour
+   values at once. The current selection is clearly indicated.
+2. **Cascade** — every surface derives from palette tokens. No component may hardcode a colour.
+   (The CSS-custom-property foundation for this landed 23 August 2026; palettes plug into it.)
+3. **FontChoice picker** — a dropdown/radio list of curated pairings, showing each name rendered
+   in its own face so the couple can see it before choosing.
+4. **Webfonts must actually load.** *Currently they do not* — the stylesheet names a font family
+   but nothing is ever fetched, so any non-system font silently falls back to Georgia. Each
+   FontChoice must ship a real font source (self-hosted preferred; the site must not depend on a
+   third-party CDN being reachable from Sri Lanka).
+5. **Accessibility is a gate, not an afterthought.** Every palette must pass WCAG 2.1 AA:
+   body text ≥ 4.5:1 against its background, and primary-colour buttons ≥ 4.5:1 against their own
+   text. Enforced with the existing `contrastRatio()` helper in `src/theme/colors.js`.
+6. **Advanced custom colours remain available** as a secondary option for anyone who wants an
+   exact shade, but palettes are the primary path.
+7. **Live preview before saving** so the couple can compare without committing.
+
+#### Approved palettes
+
+Values below were contrast-verified on 23 August 2026 using `src/theme/colors.js`. All five pass
+AA on every text pairing.
+
+| Palette | Primary | Background | Accent | Ink | text/bg | button | primary/bg |
+|---|---|---|---|---|---|---|---|
+| Chateau Green | `#2F4F3E` | `#F2F0E6` | `#A67C52` | `#1F2A22` | 13.01 | 9.10 | 7.96 |
+| Imperial Gold | `#8A6508` | `#FFF8DC` | `#7A1F1F` | `#2B2118` | 14.78 | 5.32 | 5.00 |
+| Rose Blush | `#8C4A5A` | `#FBF1F0` | `#B08D57` | `#2E2024` | 14.05 | 6.48 | 5.84 |
+| Midnight Silver | `#2C3A4A` | `#F1F3F5` | `#8A94A6` | `#1C242E` | 14.08 | 11.59 | 10.42 |
+| Terracotta | `#9C4A21` | `#FBF2EA` | `#5F7A6B` | `#2E1F17` | 14.34 | 6.15 | 5.56 |
+
+> Note: `Imperial Gold` uses `#8A6508` rather than the original `#B8860B` default. The lighter
+> gold could not reach 4.5:1 for button text against either black or white, so it was darkened
+> until it passed. Any future palette must clear the same bar before being added.
+
+#### Font pairings (candidates)
+
+Display face for headings, paired with a readable body face. Final list is the owner's choice.
+
+| Name | Display | Body | Character |
+|---|---|---|---|
+| Cormorant | Cormorant Garamond | Inter | Delicate, classical — current default |
+| Playfair | Playfair Display | Inter | High contrast, editorial |
+| Cinzel | Cinzel | Inter | Roman capitals, formal |
+| Inter | Inter | Inter | Clean, modern, no serif |
+
+#### Schema impact
+
+`theme_settings` gains `palette_name` and `font_choice` (both TEXT). Existing per-colour columns
+are retained so a custom palette can still be stored, and so no migration destroys current values.
 
 ---
 

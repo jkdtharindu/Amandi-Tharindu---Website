@@ -94,6 +94,20 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `theme`, `config`, `design settings`
 - Example: The `theme_settings` table stores the site-wide visual rules.
 
+### ThemePalette
+- Canonical name: `ThemePalette`
+- Definition: A named, pre-approved set of colours (primary, background, accent, ink) that the Admin selects to set the site's visual identity in one action.
+- Do not call it: `palette`, `colour scheme`, `skin`, `preset`, `swatch`
+- Example: Selecting the `Chateau Green` ThemePalette restyles every page, the invitation, and the admin panel.
+- Note: A ThemePalette is a *selection*, not a set of loose colour fields. Custom colours remain a secondary option; see PRD §4.1.
+
+### FontChoice
+- Canonical name: `FontChoice`
+- Definition: A named pairing of a display face (headings) and a body face, selected by the Admin from a curated list.
+- Do not call it: `font`, `typeface`, `font family`, `typography setting`
+- Example: The `Playfair` FontChoice sets Playfair Display for headings and Inter for body text.
+- Note: A FontChoice must ship an actual loadable font source. Naming a family without loading it silently falls back to a system font.
+
 ### InvitationTemplate
 - Canonical name: `InvitationTemplate`
 - Definition: The base invitation image and overlay configuration used to personalize guest invitations.
@@ -157,6 +171,8 @@ The following generic terms are not acceptable in this project context. Replace 
 - `asset` → `GalleryPhoto` or `InvitationTemplate`
 - `theme` → `ThemeSettings`
 - `config` → `ThemeSettings` or `SiteSection`
+- `palette` / `colour scheme` / `preset` → `ThemePalette`
+- `font` / `typeface` / `font family` → `FontChoice`
 - `table` → `SeatingTable` (reserve the bare word for database tables)
 - `chair` / `seat` → `SeatAssignment`
 - `deadline` / `lock date` → `RSVPCutoff`

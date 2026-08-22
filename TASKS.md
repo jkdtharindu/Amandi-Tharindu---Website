@@ -100,6 +100,29 @@ everything else is outstanding. **Do not start new features before the 🔴 item
       instead of a bare `<h1>`.
 - [x] All interpolated guest data is HTML-escaped.
 
+### 🟠 Requested 2026-08-23 — ThemePalette & FontChoice (supersedes raw hex fields)
+Owner requirement: the admin selects the wedding look from a **curated palette**, and the cascade
+must reach background, fonts, and all UI. Font must be a **selection**, not free text.
+Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
+
+- [ ] **ThemePalette picker** — visual swatches at `/admin/theme`, replacing the three hex text
+      inputs. Selecting one writes all colour values at once. Five palettes approved and
+      contrast-verified 2026-08-23 (see PRD §4.1 for exact values).
+- [ ] **FontChoice picker** — curated list rendered in its own face, replacing the free-text
+      font-family input.
+- [ ] **🔴 Webfonts are never loaded.** Verified 2026-08-23: `src/server.js` emits
+      `--font-display: "Cormorant Garamond", …` but the page contains no `<link>`, no
+      `@font-face`, and no font file. Every visitor without that font installed silently gets
+      Georgia. **A FontChoice picker is meaningless until this is fixed.** Prefer self-hosted
+      fonts — the site must not depend on a third-party CDN being reachable from Sri Lanka.
+- [ ] Migration: `theme_settings` gains `palette_name` and `font_choice` (TEXT). Keep the existing
+      per-colour columns so custom values survive and no data is destroyed.
+- [ ] Keep custom hex entry as a secondary "advanced" option — do not remove working functionality.
+- [ ] Live preview before saving.
+- [ ] Contrast gate: any palette added later must clear WCAG AA via `contrastRatio()` before ship.
+      Note the original default `#B8860B` **failed** this bar for button text and was darkened to
+      `#8A6508` in the approved Imperial Gold palette.
+
 ### 🔴 Blocking launch — do these next
 - [ ] **`/invitation/:code` does not require a guest session.** Anyone holding or guessing a
       valid InvitationCode can view a guest's page. The previous code computed a `loggedIn`
