@@ -4,7 +4,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## Project Status
 - Status: Scoping / Initial implementation started
-- Current focus: Guest access flow and public page polish
+- Current focus: RSVP dashboard (P0-08) and database persistence
 - Priority: Build the first vertical slice end-to-end
 
 ## Working Principles
@@ -49,7 +49,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ### Phase 4 — Admin Experience
 - [x] Admin authentication — single seeded admin, session-cookie login/logout, CSRF-protected, `/admin/*` pages redirect and `/api/admin/*` routes 401 when unauthenticated
-- [ ] Guest management
+- [x] Guest management — `/admin/guests`: add/edit/soft-delete guests, auto-generated `[SURNAME]-[###]` codes, filter by RSVP status and RelationshipType, search by name or code. **Live as of 2026-08-23** — backed by `guestRepo` admin functions (dual-mode).
 - [ ] RSVP dashboard
 - [ ] Messaging center
 - [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres). **Live as of 2026-08-23** — values render site-wide as CSS custom properties.

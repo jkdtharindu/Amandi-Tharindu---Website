@@ -10,6 +10,10 @@ import {
   findRsvpResponseByGuestId,
   updateGuestRsvpStatus,
   upsertRsvpResponse,
+  listGuestsForAdmin,
+  createGuest,
+  updateGuest,
+  softDeleteGuest,
 } from './guest-auth/guestRepo.js';
 import { adminStore } from './data/adminStore.js';
 import { verifyAdminCredentials } from './admin-auth/verifyAdminCredentials.js';
@@ -24,6 +28,7 @@ import {
   deleteSection,
 } from './sections/sectionsRepo.js';
 import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js';
+import { VALID_RELATIONSHIP_TYPES } from './guest-auth/validateGuestInput.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
 
@@ -95,6 +100,12 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
           .status-msg.error { color: #b91c1c; }
           .section-item { border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; margin-bottom: 0.85rem; }
           .section-item .section-item-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+          .guest-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+          .guest-table th, .guest-table td { text-align: left; padding: 0.65rem 0.5rem; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+          .guest-table th { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+          .guest-filters { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 1rem; }
+          .guest-row-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+          .badge-deleted { color: #b91c1c; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; }
         </style>
       </head>
       <body>
@@ -103,6 +114,7 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
             <strong>Admin</strong>
             <a href="/admin/theme">Theme</a>
             <a href="/admin/sections">Sections</a>
+            <a href="/admin/guests">Guests</a>
             <button id="admin-logout" type="button">Log out</button>
           </header>
           ${bodyContent}
@@ -1118,6 +1130,227 @@ export function createApp() {
       return res.status(404).json(result);
     }
     return res.json(result);
+  });
+
+  app.get('/api/admin/guests', requireAdminApi, async (req, res) => {
+    const guests = await listGuestsForAdmin({
+      rsvpStatus: req.query.rsvpStatus || undefined,
+      relationship: req.query.relationship || undefined,
+      search: req.query.search || undefined,
+    });
+    return res.json({ success: true, guests });
+  });
+
+  app.post('/api/admin/guests', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await createGuest(req.body || {});
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.patch('/api/admin/guests/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await updateGuest(req.params.id, req.body || {});
+    if (!result.success) {
+      return res.status(result.reason === 'guest_not_found' ? 404 : 400).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.delete('/api/admin/guests/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await softDeleteGuest(req.params.id);
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.get('/admin/guests', requireAdminPage, async (req, res) => {
+    const guests = await listGuestsForAdmin({
+      rsvpStatus: req.query.rsvpStatus || undefined,
+      relationship: req.query.relationship || undefined,
+      search: req.query.search || undefined,
+    });
+
+    const relationshipOptions = VALID_RELATIONSHIP_TYPES.map(
+      (value) => `<option value="${value}" ${req.query.relationship === value ? 'selected' : ''}>${value}</option>`
+    ).join('');
+    const statusOptions = ['pending', 'accepted', 'declined']
+      .map((value) => `<option value="${value}" ${req.query.rsvpStatus === value ? 'selected' : ''}>${value}</option>`)
+      .join('');
+
+    const rowsHtml = guests
+      .map((guest) => {
+        const updatedLabel = guest.updatedAt || guest.createdAt || '—';
+        return `
+          <tr data-id="${escapeHtml(guest.id)}" data-name="${escapeHtml(guest.name)}" data-relationship="${escapeHtml(guest.relationship)}" data-slot-count="${escapeHtml(String(guest.slotCount))}" class="${guest.isDeleted ? 'guest-deleted' : ''}">
+            <td>
+              <strong>${escapeHtml(guest.name)}</strong>
+              ${guest.isDeleted ? '<div class="badge-deleted">Deleted</div>' : ''}
+            </td>
+            <td><code>${escapeHtml(guest.code)}</code></td>
+            <td>${escapeHtml(guest.relationship)}</td>
+            <td>${escapeHtml(String(guest.slotCount))}</td>
+            <td>${escapeHtml(guest.rsvpStatus)}</td>
+            <td>${escapeHtml(guest.whatsappNumber || '—')}</td>
+            <td>${escapeHtml(String(updatedLabel))}</td>
+            <td>
+              <div class="guest-row-actions">
+                <button class="button button-secondary" data-action="edit" type="button">Edit</button>
+                ${guest.isDeleted ? '' : '<button class="button button-secondary" data-action="delete" type="button">Delete</button>'}
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join('') || '<tr><td colspan="8">No guests match these filters.</td></tr>';
+
+    const bodyContent = `
+      <h1>Guest Management</h1>
+      <p>Add guests, assign invitation codes, and review RSVP status.</p>
+
+      <form id="guest-filters" class="field-group guest-filters">
+        <div class="field-row">
+          <label>Search
+            <input id="filter-search" type="search" value="${escapeHtml(req.query.search || '')}" placeholder="Name or code" />
+          </label>
+        </div>
+        <div class="field-row">
+          <label>RSVP status
+            <select id="filter-rsvp-status">
+              <option value="">All</option>
+              ${statusOptions}
+            </select>
+          </label>
+        </div>
+        <div class="field-row">
+          <label>Relationship
+            <select id="filter-relationship">
+              <option value="">All</option>
+              ${relationshipOptions}
+            </select>
+          </label>
+        </div>
+        <div class="field-row" style="align-self: end;">
+          <button class="save-btn" type="submit">Apply filters</button>
+        </div>
+      </form>
+
+      <form id="new-guest-form" class="field-group">
+        <h2>Add Guest</h2>
+        <div class="field-row"><label>Name<input id="new-guest-name" type="text" required /></label></div>
+        <div class="field-row">
+          <label>Relationship
+            <select id="new-guest-relationship">${relationshipOptions}</select>
+          </label>
+        </div>
+        <div class="field-row"><label>Slot count<input id="new-guest-slots" type="number" min="1" value="1" /></label></div>
+        <button class="save-btn" type="submit">Add Guest</button>
+        <div class="status-msg" data-status></div>
+      </form>
+
+      <div class="field-group">
+        <h2>Guest List (${guests.length})</h2>
+        <table class="guest-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Code</th>
+              <th>Relationship</th>
+              <th>Slots</th>
+              <th>RSVP</th>
+              <th>WhatsApp</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+
+    const scripts = `
+      <script>
+        document.getElementById('guest-filters').addEventListener('submit', (event) => {
+          event.preventDefault();
+          const params = new URLSearchParams();
+          const search = document.getElementById('filter-search').value.trim();
+          const rsvpStatus = document.getElementById('filter-rsvp-status').value;
+          const relationship = document.getElementById('filter-relationship').value;
+          if (search) params.set('search', search);
+          if (rsvpStatus) params.set('rsvpStatus', rsvpStatus);
+          if (relationship) params.set('relationship', relationship);
+          const query = params.toString();
+          window.location.href = query ? '/admin/guests?' + query : '/admin/guests';
+        });
+
+        document.getElementById('new-guest-form').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const status = event.target.querySelector('[data-status]');
+          const res = await fetch('/api/admin/guests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+            body: JSON.stringify({
+              name: document.getElementById('new-guest-name').value.trim(),
+              relationship: document.getElementById('new-guest-relationship').value,
+              slotCount: Number(document.getElementById('new-guest-slots').value),
+            }),
+          });
+          const body = await res.json();
+          if (res.ok && body.success) {
+            window.location.reload();
+            return;
+          }
+          status.textContent = (body.errors && body.errors.map((e) => e.field + ': ' + e.reason).join(', ')) || body.message || 'Could not add guest.';
+          status.className = 'status-msg error';
+        });
+
+        document.querySelectorAll('.guest-table tbody tr[data-id]').forEach((row) => {
+          const id = row.getAttribute('data-id');
+          const editBtn = row.querySelector('[data-action="edit"]');
+          const deleteBtn = row.querySelector('[data-action="delete"]');
+
+          if (editBtn) {
+            editBtn.addEventListener('click', async () => {
+              const name = window.prompt('Guest name', row.getAttribute('data-name'));
+              if (name === null) return;
+              const relationship = window.prompt('Relationship (Relations, Colleagues, Neighbours, Friends)', row.getAttribute('data-relationship'));
+              if (relationship === null) return;
+              const slotCount = window.prompt('Slot count', row.getAttribute('data-slot-count'));
+              if (slotCount === null) return;
+              const res = await fetch('/api/admin/guests/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+                body: JSON.stringify({ name: name.trim(), relationship: relationship.trim(), slotCount: Number(slotCount) }),
+              });
+              if (res.ok) window.location.reload();
+            });
+          }
+
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+              if (!window.confirm('Soft-delete this guest? They will no longer be able to log in.')) return;
+              await fetch('/api/admin/guests/' + id, {
+                method: 'DELETE',
+                headers: { 'x-csrf-token': csrfToken },
+              });
+              window.location.reload();
+            });
+          }
+        });
+      </script>
+    `;
+
+    return res.send(adminPageWrapper('Guest Management — Admin', bodyContent, scripts, res.locals.theme));
   });
 
   return app;

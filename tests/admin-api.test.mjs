@@ -4,11 +4,15 @@ import http from 'http';
 import { createApp } from '../src/server.js';
 import { themeSettings } from '../src/data/themeStore.js';
 import { siteSections } from '../src/data/sectionsStore.js';
+import { guestStore } from '../src/data/guestStore.js';
 
 const DEFAULT_ADMIN = { email: 'admin@example.com', password: 'changeme123' };
+const ORIGINAL_GUESTS = structuredClone(guestStore);
 
 beforeEach(() => {
   siteSections.length = 0;
+  guestStore.length = 0;
+  guestStore.push(...structuredClone(ORIGINAL_GUESTS));
 });
 
 function requestJSON({ options, body, cookie }) {
@@ -154,5 +158,72 @@ test('theme and section admin endpoints reject unauthenticated requests', async 
       cookie: csrfCookie,
     });
     assert.equal(sectionsResult.statusCode, 401);
+  });
+});
+
+test('admin guest management create, update, list, and soft-delete flow', async () => {
+  await withServer(async (port) => {
+    const csrfCookie = await getCsrfCookie(port);
+    const csrfToken = csrfFromCookie(csrfCookie);
+
+    const loginResult = await requestJSON({
+      options: { hostname: '127.0.0.1', port, path: '/api/admin/login', method: 'POST', headers: { 'x-csrf-token': csrfToken } },
+      body: DEFAULT_ADMIN,
+      cookie: csrfCookie,
+    });
+    const adminCookie = parseCookies(loginResult.headers['set-cookie'] || []);
+    const allCookies = [csrfCookie, adminCookie].filter(Boolean).join('; ');
+
+    const createResult = await requestJSON({
+      options: { hostname: '127.0.0.1', port, path: '/api/admin/guests', method: 'POST', headers: { 'x-csrf-token': csrfToken } },
+      body: { name: 'Admin Test Silva', relationship: 'Relations', slotCount: 2 },
+      cookie: allCookies,
+    });
+    assert.equal(createResult.statusCode, 200);
+    assert.equal(createResult.body.success, true);
+    assert.match(createResult.body.guest.code, /^SILVA-\d{3}$/);
+    const guestId = createResult.body.guest.id;
+
+    const listResult = await requestJSON({
+      options: { hostname: '127.0.0.1', port, path: '/api/admin/guests?search=Admin%20Test', method: 'GET' },
+      cookie: allCookies,
+    });
+    assert.equal(listResult.statusCode, 200);
+    assert.ok(listResult.body.guests.some((guest) => guest.id === guestId));
+
+    const patchResult = await requestJSON({
+      options: { hostname: '127.0.0.1', port, path: `/api/admin/guests/${guestId}`, method: 'PATCH', headers: { 'x-csrf-token': csrfToken } },
+      body: { slotCount: 3 },
+      cookie: allCookies,
+    });
+    assert.equal(patchResult.statusCode, 200);
+    assert.equal(patchResult.body.guest.slotCount, 3);
+
+    const deleteResult = await requestJSON({
+      options: { hostname: '127.0.0.1', port, path: `/api/admin/guests/${guestId}`, method: 'DELETE', headers: { 'x-csrf-token': csrfToken } },
+      cookie: allCookies,
+    });
+    assert.equal(deleteResult.statusCode, 200);
+    assert.equal(deleteResult.body.guest.isDeleted, true);
+  });
+});
+
+test('guest admin endpoints reject unauthenticated requests', async () => {
+  await withServer(async (port) => {
+    const csrfCookie = await getCsrfCookie(port);
+    const csrfToken = csrfFromCookie(csrfCookie);
+
+    const listResult = await requestJSON({
+      options: { hostname: '127.0.0.1', port, path: '/api/admin/guests', method: 'GET' },
+      cookie: csrfCookie,
+    });
+    assert.equal(listResult.statusCode, 401);
+
+    const createResult = await requestJSON({
+      options: { hostname: '127.0.0.1', port, path: '/api/admin/guests', method: 'POST', headers: { 'x-csrf-token': csrfToken } },
+      body: { name: 'Blocked Guest', relationship: 'Friends', slotCount: 1 },
+      cookie: csrfCookie,
+    });
+    assert.equal(createResult.statusCode, 401);
   });
 });
