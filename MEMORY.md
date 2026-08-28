@@ -56,6 +56,14 @@ Reason:
 Alternative considered: 
 
 
+[2026-08-28] Decision: Save the owner-pasted "Modern Royal Romance" UI/UX design brief verbatim as `WEDDING_UI_UX_DESIGN_BRIEF.md` and cross-reference it from PRD §4.1 and TASKS.md, rather than adopting its hex values directly into the theme system.
+Reason: PRD §4.1 (2026-08-23) already requires colours to come from a curated, contrast-verified `ThemePalette` picker, not raw hex — this brief is written entirely in raw hex and its gold accent (`#C5A059` on `#FBF9F5`) measured 2.34:1 via `src/theme/colors.js`'s `contrastRatio()`, failing the same AA bar that made the project darken Imperial Gold from `#B8860B` to `#8A6508`. The brief also names fonts not yet in the FontChoice candidate list and describes product surfaces (QR boarding-pass invite, guest seating visualizer, admin drag-and-drop floor-plan export) beyond current P2-06 scope. Preserving the brief as its own file keeps the requirement intact for future sessions without silently overriding the picker-only decision or the accessibility gate.
+Alternative considered: Directly editing `theme_settings`/CSS to the brief's hex values (rejected — bypasses the picker requirement and ships a colour combination that fails the project's own accessibility gate); ignoring the brief (rejected — it's an explicit owner requirement that needs to persist, just not silently auto-applied).
+
+[2026-08-28] Decision: Approve "Modern Royal Romance" as the sixth `ThemePalette` in PRD §4.1, with its gold accent darkened from `#C5A059` to `#866D3D`.
+Reason: Owner explicitly confirmed ("Yes, darken the gold and add it as a sixth approved palette") after being shown the 2.34:1 contrast failure. Darkened the gold proportionally — same RGB channel ratios, scaled to 68% of original value, the identical technique already used to take Imperial Gold from `#B8860B` to `#8A6508` — landing at `#866D3D` (4.68:1 against the `#FBF9F5` background, clears WCAG AA). Primary and Ink both use the brief's single burgundy `#4A1525` (14.01:1), intentionally not split into a separate near-black Ink the way the other five palettes are, because the brief specifies one "Deep Contrast" colour for both roles. Recorded in PRD §4.1's approved-palette table and `TASKS.md`. The picker/cascade UI itself remains unbuilt — this and the other five palettes are documentation only until that ships.
+Alternative considered: Keeping the original `#C5A059` and restricting it to non-text decorative use only (rejected by owner in favour of a straightforward accessible fix, matching precedent).
+
 5) Last session summary (leave blank — Claude will fill this in)
 
 [YYYY-MM-DD] Summary: 

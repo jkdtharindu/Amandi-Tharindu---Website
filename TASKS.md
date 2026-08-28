@@ -122,6 +122,15 @@ Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
 - [ ] Contrast gate: any palette added later must clear WCAG AA via `contrastRatio()` before ship.
       Note the original default `#B8860B` **failed** this bar for button text and was darkened to
       `#8A6508` in the approved Imperial Gold palette.
+- [x] **"Modern Royal Romance" palette approved** (owner-submitted brief, 2026-08-28) — full spec
+      saved at `WEDDING_UI_UX_DESIGN_BRIEF.md`, added as the sixth row in PRD §4.1's approved-palette
+      table. Its original gold accent `#C5A059` failed AA as text (2.34:1); darkened to `#866D3D`
+      (4.68:1), same technique already used for Imperial Gold. Still needs the picker/cascade UI
+      itself to exist before this palette is selectable (see items above — unbuilt).
+- [ ] The brief also specs new fonts (`Bodoni Moda`, `Montserrat`, `Plus Jakarta Sans`) not yet in
+      the FontChoice candidate list, and product surfaces beyond current scope (QR boarding-pass
+      invite, guest-facing seating visualizer, admin drag-and-drop floor-plan canvas w/ PDF+Excel
+      export) that go further than P2-06. Get an owner decision before building any of it.
 
 ### 🔴 Blocking launch — do these next
 - [ ] **`/invitation/:code` does not require a guest session.** Anyone holding or guessing a

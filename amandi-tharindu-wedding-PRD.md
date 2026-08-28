@@ -181,10 +181,21 @@ AA on every text pairing.
 | Rose Blush | `#8C4A5A` | `#FBF1F0` | `#B08D57` | `#2E2024` | 14.05 | 6.48 | 5.84 |
 | Midnight Silver | `#2C3A4A` | `#F1F3F5` | `#8A94A6` | `#1C242E` | 14.08 | 11.59 | 10.42 |
 | Terracotta | `#9C4A21` | `#FBF2EA` | `#5F7A6B` | `#2E1F17` | 14.34 | 6.15 | 5.56 |
+| Modern Royal Romance | `#4A1525` | `#FBF9F5` | `#866D3D` | `#4A1525` | 14.01 | 14.74 | 14.01 |
 
 > Note: `Imperial Gold` uses `#8A6508` rather than the original `#B8860B` default. The lighter
 > gold could not reach 4.5:1 for button text against either black or white, so it was darkened
 > until it passed. Any future palette must clear the same bar before being added.
+
+> Note: `Modern Royal Romance` (approved 2026-08-28) is adapted from the owner-submitted brief at
+> [`WEDDING_UI_UX_DESIGN_BRIEF.md`](WEDDING_UI_UX_DESIGN_BRIEF.md). Its accent was originally
+> `#C5A059` (2.34:1 against the background — failed AA); darkened proportionally (same channel
+> ratio, lower value — the same technique used for Imperial Gold) to `#866D3D` (4.68:1). Primary
+> and Ink intentionally share one burgundy (`#4A1525`), matching the brief's single "Deep Contrast
+> (Text & Key Accents)" colour rather than splitting it into a separate near-black Ink the way the
+> other five palettes do. Unlike the other rows, this palette's Accent is also verified against
+> the background (4.68:1, clears the 4.5:1 text bar) because the brief uses gold as literal text
+> (countdown numbers), not just borders/decoration.
 
 #### Font pairings (candidates)
 
@@ -201,6 +212,20 @@ Display face for headings, paired with a readable body face. Final list is the o
 
 `theme_settings` gains `palette_name` and `font_choice` (both TEXT). Existing per-colour columns
 are retained so a custom palette can still be stored, and so no migration destroys current values.
+
+#### "Modern Royal Romance" palette — approved 28 August 2026
+
+Owner pasted a full UI/UX design brief for a burgundy/ivory/antique-gold look, saved verbatim at
+[`WEDDING_UI_UX_DESIGN_BRIEF.md`](WEDDING_UI_UX_DESIGN_BRIEF.md). Its original gold accent
+(`#C5A059` on `#FBF9F5`, 2.34:1) failed the AA gate every other approved palette clears; it was
+darkened to `#866D3D` (4.68:1) using the same proportional-darkening technique applied to Imperial
+Gold, then added to the "Approved palettes" table below as the sixth entry. See that file's
+"Reconciliation note" for full contrast figures. Still open: the brief names fonts
+(`Bodoni Moda`, `Montserrat`, `Plus Jakarta Sans`) not yet in the font-pairing candidate list
+below, and describes product surfaces (QR boarding-pass invite, guest seating visualizer, admin
+drag-and-drop floor-plan export) beyond current P2-06 scope — those still need an owner decision
+before being built. Note the picker/cascade implementation itself (item 1–2 above) is still
+unbuilt; all six palettes above are documentation only until that ships.
 
 ---
 
