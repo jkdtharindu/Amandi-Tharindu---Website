@@ -20,6 +20,7 @@ import { verifyAdminCredentials } from './admin-auth/verifyAdminCredentials.js';
 import { getThemeSettings, updateThemeSettings } from './theme/themeRepo.js';
 import { THEME_FIELD_GROUPS, FIELD_LABELS } from './theme/mergeThemeUpdate.js';
 import { readableTextColor } from './theme/colors.js';
+import { THEME_PALETTES, FONT_CHOICES } from './theme/palettes.js';
 import { themeSettings as themeDefaults } from './data/themeStore.js';
 import {
   listSections,
@@ -106,6 +107,18 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
           .guest-filters { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 1rem; }
           .guest-row-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
           .badge-deleted { color: #b91c1c; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; }
+          .palette-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+          .palette-swatch { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; padding: 0.85rem; border-radius: 14px; border: 2px solid var(--color-line); background: var(--color-surface); cursor: pointer; text-align: left; font: inherit; color: var(--color-ink); }
+          .palette-swatch.selected { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary) inset; }
+          .swatch-colors { display: flex; gap: 0.3rem; }
+          .swatch-colors span { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); display: inline-block; }
+          .swatch-name { font-weight: 600; font-size: 0.85rem; }
+          .font-choice-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0; }
+          .font-choice-option { padding: 0.6rem 1.1rem; border-radius: 999px; border: 2px solid var(--color-line); background: var(--color-surface); cursor: pointer; font-size: 1.05rem; color: var(--color-ink); }
+          .font-choice-option.selected { border-color: var(--color-primary); background: var(--color-secondary); }
+          .theme-preview { margin: 1rem 0; padding: 1.25rem 1.5rem; border-radius: 16px; background: var(--preview-secondary, var(--color-secondary)); border: 1px solid var(--color-line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+          .preview-heading { font-family: var(--font-display); color: var(--preview-primary, var(--color-primary)); font-size: 1.3rem; }
+          .preview-button { display: inline-block; background: var(--preview-primary, var(--color-primary)); color: #fff; border-radius: 999px; padding: 0.6rem 1.25rem; font-weight: 700; font-size: 0.9rem; }
         </style>
       </head>
       <body>
@@ -245,6 +258,84 @@ function buildStyles(theme) {
     .hero-panel { padding: 1.75rem; }
   }
 `;
+}
+
+/**
+ * Renders the ThemePalette picker (PRD §4.1): swatches, not text entry.
+ * Selecting one writes all three colours at once via a hidden input that
+ * the existing generic form-submit script already picks up.
+ */
+function renderPaletteGroup(group, settings) {
+  const swatches = THEME_PALETTES.map((palette) => {
+    const selected = settings.paletteName === palette.id;
+    return `
+      <button type="button" class="palette-swatch${selected ? ' selected' : ''}"
+        data-palette-id="${escapeHtml(palette.id)}"
+        data-primary="${escapeHtml(palette.primaryColor)}"
+        data-secondary="${escapeHtml(palette.secondaryColor)}"
+        data-accent="${escapeHtml(palette.accentColor)}">
+        <span class="swatch-colors">
+          <span style="background:${escapeHtml(palette.primaryColor)}"></span>
+          <span style="background:${escapeHtml(palette.secondaryColor)}"></span>
+          <span style="background:${escapeHtml(palette.accentColor)}"></span>
+        </span>
+        <span class="swatch-name">${escapeHtml(palette.name)}</span>
+      </button>
+    `;
+  }).join('');
+
+  const activePalette = THEME_PALETTES.find((p) => p.id === settings.paletteName);
+  const previewPrimary = activePalette ? activePalette.primaryColor : settings.primaryColor;
+  const previewSecondary = activePalette ? activePalette.secondaryColor : settings.secondaryColor;
+
+  return `
+    <form class="field-group" data-group="${group.id}">
+      <h2>${group.label}</h2>
+      <p class="field-hint">Pick a look — sets the colours below in one step. Custom hex values remain available under Advanced Colours.</p>
+      <input type="hidden" data-field="paletteName" value="${escapeHtml(settings.paletteName ?? '')}" />
+      <div class="palette-grid">${swatches}</div>
+      <div class="theme-preview" data-palette-preview style="--preview-primary:${escapeHtml(previewPrimary)};--preview-secondary:${escapeHtml(previewSecondary)}">
+        <span class="preview-heading">Amandi &amp; Tharindu</span>
+        <span class="preview-button">Explore RSVP</span>
+      </div>
+      <button class="save-btn" type="submit">Save Wedding Palette</button>
+      <div class="status-msg" data-status></div>
+    </form>
+  `;
+}
+
+/**
+ * Renders the FontChoice picker (PRD §4.1): a curated list, each name shown
+ * in its own face. Webfonts are not yet self-hosted (PRD §4.1 item 4), so a
+ * non-system face still falls back to Georgia until that ships.
+ */
+function renderFontChoiceGroup(group, settings) {
+  const options = FONT_CHOICES.map((font) => {
+    const selected = settings.fontChoice === font.id;
+    return `
+      <button type="button" class="font-choice-option${selected ? ' selected' : ''}"
+        data-font-id="${escapeHtml(font.id)}"
+        data-display-font="${escapeHtml(font.displayFont)}"
+        data-font-style="${escapeHtml(font.fontStyle)}"
+        style="font-family:'${escapeHtml(font.displayFont)}', Georgia, serif; font-style:${escapeHtml(font.fontStyle)};">
+        ${escapeHtml(font.name)}
+      </button>
+    `;
+  }).join('');
+
+  return `
+    <form class="field-group" data-group="${group.id}">
+      <h2>${group.label}</h2>
+      <p class="field-hint">Pick a heading font from the curated list — shown in its own face below.</p>
+      <input type="hidden" data-field="fontChoice" value="${escapeHtml(settings.fontChoice ?? '')}" />
+      <div class="font-choice-grid">${options}</div>
+      <div class="theme-preview" data-font-preview style="font-family:'${escapeHtml(settings.fontFamily)}', Georgia, serif; font-style:${escapeHtml(settings.fontStyle)};">
+        Amandi &amp; Tharindu
+      </div>
+      <button class="save-btn" type="submit">Save Font Pairing</button>
+      <div class="status-msg" data-status></div>
+    </form>
+  `;
 }
 
 function formatWeddingDate(isoDate) {
@@ -919,6 +1010,9 @@ export function createApp() {
     const settings = await getThemeSettings();
 
     const groupsHtml = THEME_FIELD_GROUPS.map((group) => {
+      if (group.id === 'palette') return renderPaletteGroup(group, settings);
+      if (group.id === 'font-choice') return renderFontChoiceGroup(group, settings);
+
       const fieldsHtml = group.fields
         .map((field) => {
           const { label, hint } = FIELD_LABELS[field] || { label: field, hint: '' };
@@ -971,6 +1065,37 @@ export function createApp() {
             } else {
               status.textContent = (body.errors && body.errors.map((e) => e.field + ': ' + e.reason).join(', ')) || 'Save failed.';
               status.className = 'status-msg error';
+            }
+          });
+        });
+
+        // ThemePalette picker: clicking a swatch stages the selection (hidden
+        // input + live preview) without saving. Save button persists it.
+        document.querySelectorAll('.palette-swatch').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const form = btn.closest('form');
+            const hidden = form.querySelector('input[data-field="paletteName"]');
+            hidden.value = btn.getAttribute('data-palette-id');
+            form.querySelectorAll('.palette-swatch').forEach((b) => b.classList.toggle('selected', b === btn));
+            const preview = form.querySelector('[data-palette-preview]');
+            if (preview) {
+              preview.style.setProperty('--preview-primary', btn.getAttribute('data-primary'));
+              preview.style.setProperty('--preview-secondary', btn.getAttribute('data-secondary'));
+            }
+          });
+        });
+
+        // FontChoice picker: same staged-preview pattern as the palette picker.
+        document.querySelectorAll('.font-choice-option').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const form = btn.closest('form');
+            const hidden = form.querySelector('input[data-field="fontChoice"]');
+            hidden.value = btn.getAttribute('data-font-id');
+            form.querySelectorAll('.font-choice-option').forEach((b) => b.classList.toggle('selected', b === btn));
+            const preview = form.querySelector('[data-font-preview]');
+            if (preview) {
+              preview.style.fontFamily = "'" + btn.getAttribute('data-display-font') + "', Georgia, serif";
+              preview.style.fontStyle = btn.getAttribute('data-font-style');
             }
           });
         });

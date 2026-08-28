@@ -1,8 +1,10 @@
 export const themeSettings = {
   id: 'theme-1',
+  paletteName: '',
   primaryColor: '#B8860B',
   secondaryColor: '#FFF8DC',
   accentColor: '#8B0000',
+  fontChoice: '',
   fontFamily: 'Cormorant Garamond',
   fontStyle: 'italic',
   heroImageUrl: '',

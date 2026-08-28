@@ -40,3 +40,55 @@ test('mergeThemeUpdate does not mutate the original settings object', () => {
   mergeThemeUpdate(themeSettings, { fontFamily: 'Playfair Display' });
   assert.deepEqual(themeSettings, original);
 });
+
+test('mergeThemeUpdate cascades a ThemePalette selection to all three colours', () => {
+  const { settings, errors } = mergeThemeUpdate(themeSettings, { paletteName: 'modern-royal-romance' });
+  assert.deepEqual(errors, []);
+  assert.equal(settings.paletteName, 'modern-royal-romance');
+  assert.equal(settings.primaryColor, '#4A1525');
+  assert.equal(settings.secondaryColor, '#FBF9F5');
+  assert.equal(settings.accentColor, '#866D3D');
+});
+
+test('mergeThemeUpdate rejects an unknown paletteName', () => {
+  const { errors } = mergeThemeUpdate(themeSettings, { paletteName: 'not-a-palette' });
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].field, 'paletteName');
+  assert.equal(errors[0].reason, 'invalid_palette');
+});
+
+test('mergeThemeUpdate clears paletteName back to custom with an empty value', () => {
+  const withPalette = mergeThemeUpdate(themeSettings, { paletteName: 'terracotta' }).settings;
+  const { settings } = mergeThemeUpdate(withPalette, { paletteName: '' });
+  assert.equal(settings.paletteName, '');
+  assert.equal(settings.primaryColor, '#9C4A21', 'clearing the palette should not revert already-cascaded colours');
+});
+
+test('mergeThemeUpdate cascades a FontChoice selection to fontFamily and fontStyle', () => {
+  const { settings, errors } = mergeThemeUpdate(themeSettings, { fontChoice: 'playfair' });
+  assert.deepEqual(errors, []);
+  assert.equal(settings.fontChoice, 'playfair');
+  assert.equal(settings.fontFamily, 'Playfair Display');
+  assert.equal(settings.fontStyle, 'normal');
+});
+
+test('mergeThemeUpdate rejects an unknown fontChoice', () => {
+  const { errors } = mergeThemeUpdate(themeSettings, { fontChoice: 'comic-sans' });
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].field, 'fontChoice');
+  assert.equal(errors[0].reason, 'invalid_font_choice');
+});
+
+test('editing a colour directly detaches it from its curated palette', () => {
+  const withPalette = mergeThemeUpdate(themeSettings, { paletteName: 'terracotta' }).settings;
+  const { settings } = mergeThemeUpdate(withPalette, { primaryColor: '#123456' });
+  assert.equal(settings.paletteName, '', 'a manual hex edit should mark the palette as custom');
+  assert.equal(settings.primaryColor, '#123456');
+});
+
+test('editing a font directly detaches it from its curated font pairing', () => {
+  const withFont = mergeThemeUpdate(themeSettings, { fontChoice: 'cinzel' }).settings;
+  const { settings } = mergeThemeUpdate(withFont, { fontFamily: 'Georgia' });
+  assert.equal(settings.fontChoice, '', 'a manual font edit should mark the pairing as custom');
+  assert.equal(settings.fontFamily, 'Georgia');
+});

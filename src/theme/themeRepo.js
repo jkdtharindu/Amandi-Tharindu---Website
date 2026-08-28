@@ -8,9 +8,11 @@ function mapRow(row) {
   if (!row) return null;
   return {
     id: row.id,
+    paletteName: row.palette_name || '',
     primaryColor: row.primary_color,
     secondaryColor: row.secondary_color,
     accentColor: row.accent_color,
+    fontChoice: row.font_choice || '',
     fontFamily: row.font_family,
     fontStyle: row.font_style,
     heroImageUrl: row.hero_image_url || '',
@@ -50,16 +52,18 @@ export async function updateThemeSettings(patch) {
 
   await query(
     `UPDATE theme_settings SET
-      primary_color = $1, secondary_color = $2, accent_color = $3,
-      font_family = $4, font_style = $5, hero_image_url = $6,
-      invitation_template_url = $7, invitation_name_top = $8, invitation_name_left = $9,
-      invitation_name_font_size = $10, invitation_name_color = $11,
-      couple_names = $12, wedding_date = $13, venue_name = $14, venue_address = $15
-    WHERE id = $16`,
+      palette_name = $1, primary_color = $2, secondary_color = $3, accent_color = $4,
+      font_choice = $5, font_family = $6, font_style = $7, hero_image_url = $8,
+      invitation_template_url = $9, invitation_name_top = $10, invitation_name_left = $11,
+      invitation_name_font_size = $12, invitation_name_color = $13,
+      couple_names = $14, wedding_date = $15, venue_name = $16, venue_address = $17
+    WHERE id = $18`,
     [
+      settings.paletteName,
       settings.primaryColor,
       settings.secondaryColor,
       settings.accentColor,
+      settings.fontChoice,
       settings.fontFamily,
       settings.fontStyle,
       settings.heroImageUrl,

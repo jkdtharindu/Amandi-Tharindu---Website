@@ -52,7 +52,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Guest management — `/admin/guests`: add/edit/soft-delete guests, auto-generated `[SURNAME]-[###]` codes, filter by RSVP status and RelationshipType, search by name or code. **Live as of 2026-08-23** — backed by `guestRepo` admin functions (dual-mode).
 - [ ] RSVP dashboard
 - [ ] Messaging center
-- [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres). **Live as of 2026-08-23** — values render site-wide as CSS custom properties.
+- [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Wedding Palette, Advanced Colours, Font Pairing, Advanced Font, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format, palette/font ids) and persisted via `themeRepo` (dual-mode: in-memory or Postgres). **Live as of 2026-08-23**, ThemePalette/FontChoice pickers added 2026-08-28 — values render site-wide as CSS custom properties.
 - [x] Section manager — `/admin/sections`: add/edit/toggle-visibility/delete custom content blocks per public page, persisted via `sectionsRepo` (dual-mode). **Live as of 2026-08-23** — visible sections render on their public page.
 
 ### Phase 5 — Polish & Launch
@@ -105,28 +105,43 @@ Owner requirement: the admin selects the wedding look from a **curated palette**
 must reach background, fonts, and all UI. Font must be a **selection**, not free text.
 Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
 
-- [ ] **ThemePalette picker** — visual swatches at `/admin/theme`, replacing the three hex text
-      inputs. Selecting one writes all colour values at once. Five palettes approved and
-      contrast-verified 2026-08-23 (see PRD §4.1 for exact values).
-- [ ] **FontChoice picker** — curated list rendered in its own face, replacing the free-text
-      font-family input.
-- [ ] **🔴 Webfonts are never loaded.** Verified 2026-08-23: `src/server.js` emits
+- [x] **ThemePalette picker** — visual swatches at `/admin/theme` (`renderPaletteGroup` in
+      `src/server.js`), replacing the three hex text inputs as the primary path. Selecting one
+      writes `primaryColor`/`secondaryColor`/`accentColor` at once via `mergeThemeUpdate`'s cascade
+      (`src/theme/mergeThemeUpdate.js`). All six palettes (five original + Modern Royal Romance)
+      render and are covered by `tests/theme-picker.test.mjs`. **Live as of 2026-08-28.**
+- [x] **FontChoice picker** — curated list at `/admin/theme` (`renderFontChoiceGroup`), each option
+      rendered in its own face, replacing the free-text font-family input as the primary path.
+      Selecting one cascades `fontFamily`/`fontStyle`. **Live as of 2026-08-28** — see the webfont
+      caveat directly below, which limits what visitors actually see.
+- [ ] **🔴 Webfonts are still never loaded.** Unchanged since 2026-08-23: `src/server.js` emits
       `--font-display: "Cormorant Garamond", …` but the page contains no `<link>`, no
       `@font-face`, and no font file. Every visitor without that font installed silently gets
-      Georgia. **A FontChoice picker is meaningless until this is fixed.** Prefer self-hosted
-      fonts — the site must not depend on a third-party CDN being reachable from Sri Lanka.
-- [ ] Migration: `theme_settings` gains `palette_name` and `font_choice` (TEXT). Keep the existing
-      per-colour columns so custom values survive and no data is destroyed.
-- [ ] Keep custom hex entry as a secondary "advanced" option — do not remove working functionality.
-- [ ] Live preview before saving.
-- [ ] Contrast gate: any palette added later must clear WCAG AA via `contrastRatio()` before ship.
-      Note the original default `#B8860B` **failed** this bar for button text and was darkened to
-      `#8A6508` in the approved Imperial Gold palette.
+      Georgia — so the new FontChoice picker (above) currently only changes which *fallback-safe*
+      face is requested, not what most visitors will actually see. Prefer self-hosted fonts — the
+      site must not depend on a third-party CDN being reachable from Sri Lanka. Still the top
+      priority to make the FontChoice picker meaningful.
+- [x] Migration written: `migrations/004_add_theme_palette_font_choice.sql` adds `palette_name` and
+      `font_choice` (TEXT) to `theme_settings`, keeping existing per-colour columns intact. **Not
+      applied to any database** — HITL.md requires approval first; the in-memory store (used
+      locally, no `DATABASE_URL` set) already carries both fields.
+- [x] Custom hex entry kept as a secondary "Advanced Colours (custom hex)" / "Advanced Font
+      (custom)" group below the pickers — editing it directly detaches that field from whichever
+      palette/font pairing it was cascaded from (marks it back to "Custom").
+- [x] Live preview before saving — palette swatches and font options update a preview panel
+      instantly on click via client-side JS; nothing is persisted until the group's Save button
+      is pressed.
+- [x] Contrast gate — enforced by `tests/theme-palettes.test.mjs`, which asserts every palette's
+      ink-on-background and button-text ratios clear 4.5:1 via `contrastRatio()`. The original
+      default `#B8860B` **failed** this bar for button text and was darkened to `#8A6508` in the
+      approved Imperial Gold palette; the same class of regression is now caught by a test, not
+      just manual verification.
 - [x] **"Modern Royal Romance" palette approved** (owner-submitted brief, 2026-08-28) — full spec
       saved at `WEDDING_UI_UX_DESIGN_BRIEF.md`, added as the sixth row in PRD §4.1's approved-palette
       table. Its original gold accent `#C5A059` failed AA as text (2.34:1); darkened to `#866D3D`
-      (4.68:1), same technique already used for Imperial Gold. Still needs the picker/cascade UI
-      itself to exist before this palette is selectable (see items above — unbuilt).
+      (4.68:1), same technique already used for Imperial Gold. **Selectable in the live picker as
+      of 2026-08-28** — verified in the browser: selecting it cascades burgundy/ivory/gold to the
+      public `/home` page.
 - [ ] The brief also specs new fonts (`Bodoni Moda`, `Montserrat`, `Plus Jakarta Sans`) not yet in
       the FontChoice candidate list, and product surfaces beyond current scope (QR boarding-pass
       invite, guest-facing seating visualizer, admin drag-and-drop floor-plan canvas w/ PDF+Excel

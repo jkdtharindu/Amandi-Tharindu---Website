@@ -1,3 +1,5 @@
+import { findPalette, findFontChoice } from './palettes.js';
+
 const HEX_COLOR_FIELDS = ['primaryColor', 'secondaryColor', 'accentColor', 'invitationNameColor'];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -13,9 +15,11 @@ export const FIELD_LABELS = {
   invitationNameLeft: { label: 'Guest name — distance from left', hint: 'For example 50%' },
   invitationNameFontSize: { label: 'Guest name — text size', hint: 'For example 2rem' },
   invitationNameColor: { label: 'Guest name — colour', hint: 'Hex colour, for example #5C3317' },
+  paletteName: { label: 'Wedding palette', hint: 'Pick a look — sets the colours below in one step' },
   primaryColor: { label: 'Main colour', hint: 'Used for buttons and highlights' },
   secondaryColor: { label: 'Background tint', hint: 'Soft background shade' },
   accentColor: { label: 'Accent colour', hint: 'Used for small highlights' },
+  fontChoice: { label: 'Font pairing', hint: 'Pick a heading font from the curated list' },
   fontFamily: { label: 'Heading font', hint: 'For example Cormorant Garamond' },
   fontStyle: { label: 'Heading style', hint: 'normal or italic' },
   coupleNames: { label: 'Couple names', hint: 'Shown in the header and footer' },
@@ -42,13 +46,23 @@ export const THEME_FIELD_GROUPS = [
     ],
   },
   {
+    id: 'palette',
+    label: 'Wedding Palette',
+    fields: ['paletteName'],
+  },
+  {
     id: 'colors',
-    label: 'Colors',
+    label: 'Advanced Colours (custom hex)',
     fields: ['primaryColor', 'secondaryColor', 'accentColor'],
   },
   {
+    id: 'font-choice',
+    label: 'Font Pairing',
+    fields: ['fontChoice'],
+  },
+  {
     id: 'typography',
-    label: 'Typography',
+    label: 'Advanced Font (custom)',
     fields: ['fontFamily', 'fontStyle'],
   },
   {
@@ -74,6 +88,39 @@ export function mergeThemeUpdate(current, patch) {
 
     const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
 
+    if (key === 'paletteName') {
+      if (!value) {
+        next.paletteName = '';
+        continue;
+      }
+      const palette = findPalette(value);
+      if (!palette) {
+        errors.push({ field: key, reason: 'invalid_palette' });
+        continue;
+      }
+      next.paletteName = palette.id;
+      next.primaryColor = palette.primaryColor;
+      next.secondaryColor = palette.secondaryColor;
+      next.accentColor = palette.accentColor;
+      continue;
+    }
+
+    if (key === 'fontChoice') {
+      if (!value) {
+        next.fontChoice = '';
+        continue;
+      }
+      const font = findFontChoice(value);
+      if (!font) {
+        errors.push({ field: key, reason: 'invalid_font_choice' });
+        continue;
+      }
+      next.fontChoice = font.id;
+      next.fontFamily = font.displayFont;
+      next.fontStyle = font.fontStyle;
+      continue;
+    }
+
     if (HEX_COLOR_FIELDS.includes(key) && value && !HEX_COLOR_PATTERN.test(value)) {
       errors.push({ field: key, reason: 'invalid_hex_color' });
       continue;
@@ -85,6 +132,16 @@ export function mergeThemeUpdate(current, patch) {
     }
 
     next[key] = value;
+
+    // Editing a colour or font field directly (the advanced/custom path)
+    // detaches it from whichever curated palette or font pairing it was
+    // last set from, so the picker doesn't keep showing a stale selection.
+    if (['primaryColor', 'secondaryColor', 'accentColor'].includes(key)) {
+      next.paletteName = '';
+    }
+    if (['fontFamily', 'fontStyle'].includes(key)) {
+      next.fontChoice = '';
+    }
   }
 
   return { settings: next, errors };
