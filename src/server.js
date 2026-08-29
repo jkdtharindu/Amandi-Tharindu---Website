@@ -1476,7 +1476,7 @@ export function createApp() {
     });
 
     const theme = res.locals.theme || {};
-    const codeSurnamePosition = theme.invitationCodeSurnamePosition || 'last';
+    const codeSurnamePosition = theme.invitationCodeSurnamePosition || 'first';
     const codeGroupPrefix = Boolean(theme.invitationCodeGroupPrefix);
     // Show the admin what the next code will actually look like, using a
     // worked example rather than describing the rule in prose.
@@ -1560,8 +1560,8 @@ export function createApp() {
         <div class="field-row">
           <label>Which part of the name to use
             <select id="code-surname-position">
+                            <option value="first" ${codeSurnamePosition === 'first' ? 'selected' : ''}>First word — Wickramasinghe … Nimal → WICKRAMASINGHE</option>
               <option value="last" ${codeSurnamePosition === 'last' ? 'selected' : ''}>Last word — Nimal Silva → SILVA</option>
-              <option value="first" ${codeSurnamePosition === 'first' ? 'selected' : ''}>First word — Wickramasinghe … Nimal → WICKRAMASINGHE</option>
             </select>
             <span class="field-hint">Sri Lankan names often place the family name first.</span>
           </label>

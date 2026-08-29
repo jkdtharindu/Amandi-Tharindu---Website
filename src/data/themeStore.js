@@ -19,6 +19,6 @@ export const themeSettings = {
   venueAddress: '',
   // InvitationCode format — see src/guest-auth/generateInvitationCode.js.
   // Changing these affects codes generated afterwards, never existing ones.
-  invitationCodeSurnamePosition: 'last',
+  invitationCodeSurnamePosition: 'first',
   invitationCodeGroupPrefix: false,
 };

@@ -25,7 +25,7 @@ function mapRow(row) {
     weddingDate: row.wedding_date,
     venueName: row.venue_name || '',
     venueAddress: row.venue_address || '',
-    invitationCodeSurnamePosition: row.invitation_code_surname_position || 'last',
+    invitationCodeSurnamePosition: row.invitation_code_surname_position || 'first',
     invitationCodeGroupPrefix: row.invitation_code_group_prefix === true,
   };
 }

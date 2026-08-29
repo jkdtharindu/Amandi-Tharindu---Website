@@ -100,29 +100,28 @@ function setFormat(port, cookie, patch) {
   });
 }
 
-test('the default format is unchanged for existing behaviour', async () => {
+test('the default format takes the first name token', async () => {
+  // Owner decision 2026-08-29 — 'first' is the shipped default.
   await withServer(async (port) => {
     const cookie = await loginAdmin(port);
-    const res = await addGuest(port, cookie, { name: 'Ajith Perera', relationship: 'Relations', slotCount: 2 });
-
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.body.guest.code, 'PERERA-001');
-  });
-});
-
-test('switching to surname-first changes newly generated codes', async () => {
-  await withServer(async (port) => {
-    const cookie = await loginAdmin(port);
-
-    const saved = await setFormat(port, cookie, { invitationCodeSurnamePosition: 'first' });
-    assert.equal(saved.statusCode, 200);
-
     const res = await addGuest(port, cookie, {
       name: 'Wickramasinghe Arachchige Nimal',
       relationship: 'Relations',
       slotCount: 2,
     });
+
+    assert.equal(res.statusCode, 200);
     assert.equal(res.body.guest.code, 'WICKRAMASINGHE-001');
+  });
+});
+
+test('switching to surname-last is still available for names written that way', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    await setFormat(port, cookie, { invitationCodeSurnamePosition: 'last' });
+
+    const res = await addGuest(port, cookie, { name: 'Ajith Perera', relationship: 'Relations', slotCount: 2 });
+    assert.equal(res.body.guest.code, 'PERERA-001');
   });
 });
 
@@ -134,8 +133,8 @@ test('enabling the group prefix tags new codes by relationship', async () => {
     const relation = await addGuest(port, cookie, { name: 'Ajith Perera', relationship: 'Relations', slotCount: 1 });
     const colleague = await addGuest(port, cookie, { name: 'Sunil Perera', relationship: 'Colleagues', slotCount: 1 });
 
-    assert.equal(relation.body.guest.code, 'R-PERERA-001');
-    assert.equal(colleague.body.guest.code, 'C-PERERA-001', 'each group keeps its own sequence');
+    assert.equal(relation.body.guest.code, 'R-AJITH-001');
+    assert.equal(colleague.body.guest.code, 'C-SUNIL-001', 'each group keeps its own sequence');
   });
 });
 
@@ -148,7 +147,7 @@ test('CRITICAL: changing the format never rewrites a code that already exists', 
     const before = await addGuest(port, cookie, { name: 'Ajith Perera', relationship: 'Relations', slotCount: 1 });
     const originalCode = before.body.guest.code;
 
-    await setFormat(port, cookie, { invitationCodeSurnamePosition: 'first', invitationCodeGroupPrefix: true });
+    await setFormat(port, cookie, { invitationCodeSurnamePosition: 'last', invitationCodeGroupPrefix: true });
 
     const list = await request(port, { path: '/api/admin/guests', headers: { Cookie: cookie } });
     const stillThere = list.body.guests.find((guest) => guest.id === before.body.guest.id);
@@ -187,7 +186,7 @@ test('a blank code field falls back to generation rather than erroring', async (
     });
 
     assert.equal(res.statusCode, 200);
-    assert.equal(res.body.guest.code, 'PERERA-001');
+    assert.equal(res.body.guest.code, 'AJITH-001');
   });
 });
 
@@ -267,7 +266,7 @@ test('renaming a guest leaves their code alone', async () => {
       body: { name: 'Ajith Fernando' },
     });
 
-    assert.equal(patched.body.guest.code, 'PERERA-001', 'a code is only ever replaced deliberately');
+    assert.equal(patched.body.guest.code, 'AJITH-001', 'a code is only ever replaced deliberately');
   });
 });
 

@@ -3,15 +3,19 @@
  *
  * A code is printed on a physical wedding card and is the guest's login
  * credential, so it is fixed the moment cards go to print. Until then the
- * format is configurable, because the default rule (surname = last word) is
- * wrong for many Sri Lankan names, where the ancestral/ge name comes first.
+ * format is configurable.
+ *
+ * The default takes the FIRST name token, because Sinhalese names commonly
+ * place the ancestral/ge name first — taking the last word there would build
+ * the code from the given name and make it unrecognisable on the card.
+ * Set surnamePosition to 'last' for names written the other way round.
  *
  * Changing a setting only affects codes generated afterwards — an existing
  * guest keeps the code that may already be on their card.
  */
 
 /** Where in the guest's name to look for the token used as the code prefix. */
-export const SURNAME_POSITIONS = ['last', 'first'];
+export const SURNAME_POSITIONS = ['first', 'last'];
 
 /** Single-letter code prefix per RelationshipType, when groupPrefix is on. */
 export const GROUP_PREFIX_LETTERS = {
@@ -21,7 +25,7 @@ export const GROUP_PREFIX_LETTERS = {
   Friends: 'F',
 };
 
-export const CODE_FORMAT_DEFAULTS = { surnamePosition: 'last', groupPrefix: false };
+export const CODE_FORMAT_DEFAULTS = { surnamePosition: 'first', groupPrefix: false };
 
 /** Codes must survive being read off a printed card and typed on a phone. */
 const MANUAL_CODE_PATTERN = /^[A-Z0-9-]{1,40}$/;
@@ -34,8 +38,8 @@ function toCodeToken(word) {
 /**
  * Extracts the name token used as the code prefix.
  *
- * `position` is 'last' (default, the original behaviour) or 'first'. Falls back
- * to GUEST so a nameless or symbol-only entry cannot produce a bare "-001".
+ * `position` is 'first' (default) or 'last'. Falls back to GUEST so a nameless
+ * or symbol-only entry cannot produce a bare "-001".
  */
 export function extractSurname(name, position = CODE_FORMAT_DEFAULTS.surnamePosition) {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);

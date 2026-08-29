@@ -16,9 +16,12 @@ import {
 // setting produces, and — just as importantly — that changing a setting never
 // rewrites a code that already exists.
 
-test('the default format is unchanged: surname last, no group prefix', () => {
-  assert.deepEqual(CODE_FORMAT_DEFAULTS, { surnamePosition: 'last', groupPrefix: false });
-  assert.equal(generateInvitationCode('Nimal Silva', []), 'SILVA-001');
+test('the default format is surname-first, no group prefix', () => {
+  // Owner decision 2026-08-29: 'first' is the default, because Sinhalese names
+  // commonly place the ancestral/ge name first.
+  assert.deepEqual(CODE_FORMAT_DEFAULTS, { surnamePosition: 'first', groupPrefix: false });
+  assert.equal(generateInvitationCode('Nimal Silva', []), 'NIMAL-001');
+  assert.equal(generateInvitationCode('Wickramasinghe Arachchige Nimal', []), 'WICKRAMASINGHE-001');
 });
 
 test('surnamePosition "first" takes the leading name token instead', () => {
@@ -32,7 +35,7 @@ test('surnamePosition "first" takes the leading name token instead', () => {
 
 test('surnamePosition "last" still takes the trailing token', () => {
   assert.equal(extractSurname('Wickramasinghe Arachchige Nimal', 'last'), 'NIMAL');
-  assert.equal(extractSurname('  Kumara Perera  '), 'PERERA');
+  assert.equal(extractSurname('  Kumara Perera  ', 'last'), 'PERERA');
 });
 
 test('a single-word name works under either setting', () => {
@@ -48,7 +51,8 @@ test('an empty or symbol-only name falls back to GUEST rather than producing "-0
 });
 
 test('groupPrefix prepends a single letter for the relationship group', () => {
-  const opts = (relationship) => ({ groupPrefix: true, relationship });
+  // surnamePosition pinned so this covers the group letter only.
+  const opts = (relationship) => ({ groupPrefix: true, relationship, surnamePosition: 'last' });
 
   assert.equal(generateInvitationCode('Nimal Silva', [], opts('Relations')), 'R-SILVA-001');
   assert.equal(generateInvitationCode('Nimal Silva', [], opts('Colleagues')), 'C-SILVA-001');
@@ -57,19 +61,20 @@ test('groupPrefix prepends a single letter for the relationship group', () => {
 });
 
 test('groupPrefix is skipped when the relationship is unknown, rather than emitting "UNDEFINED-"', () => {
-  assert.equal(generateInvitationCode('Nimal Silva', [], { groupPrefix: true }), 'SILVA-001');
-  assert.equal(generateInvitationCode('Nimal Silva', [], { groupPrefix: true, relationship: 'Nonsense' }), 'SILVA-001');
+  const base = { groupPrefix: true, surnamePosition: 'last' };
+  assert.equal(generateInvitationCode('Nimal Silva', [], base), 'SILVA-001');
+  assert.equal(generateInvitationCode('Nimal Silva', [], { ...base, relationship: 'Nonsense' }), 'SILVA-001');
 });
 
 test('numbering runs per prefix, so groups do not share a sequence', () => {
   const existing = ['R-SILVA-001', 'R-SILVA-002', 'C-SILVA-001'];
 
   assert.equal(
-    generateInvitationCode('Nimal Silva', existing, { groupPrefix: true, relationship: 'Relations' }),
+    generateInvitationCode('Nimal Silva', existing, { groupPrefix: true, relationship: 'Relations', surnamePosition: 'last' }),
     'R-SILVA-003'
   );
   assert.equal(
-    generateInvitationCode('Nimal Silva', existing, { groupPrefix: true, relationship: 'Colleagues' }),
+    generateInvitationCode('Nimal Silva', existing, { groupPrefix: true, relationship: 'Colleagues', surnamePosition: 'last' }),
     'C-SILVA-002'
   );
 });
@@ -77,13 +82,13 @@ test('numbering runs per prefix, so groups do not share a sequence', () => {
 test('a plain surname sequence is not disturbed by prefixed codes of the same surname', () => {
   // 'SILVA-'.startsWith check must not match 'R-SILVA-001', or the unprefixed
   // sequence would jump.
-  assert.equal(generateInvitationCode('Nimal Silva', ['R-SILVA-007'], {}), 'SILVA-001');
+  assert.equal(generateInvitationCode('Nimal Silva', ['R-SILVA-007'], { surnamePosition: 'last' }), 'SILVA-001');
 });
 
 test('a generated code never collides with an existing one, whatever the format', () => {
   // Switching format mid-list must not re-issue a code already on a card.
   const existing = ['SILVA-001', 'SILVA-002', 'R-SILVA-001'];
-  const next = generateInvitationCode('Nimal Silva', existing, {});
+  const next = generateInvitationCode('Nimal Silva', existing, { surnamePosition: 'last' });
   assert.ok(!existing.includes(next), 'must be unique');
   assert.equal(next, 'SILVA-003');
 });
@@ -132,5 +137,5 @@ test('groupPrefix accepts checkbox-style truthy values from a form post', () => 
 });
 
 test('SURNAME_POSITIONS is the single source of truth for the picker', () => {
-  assert.deepEqual(SURNAME_POSITIONS, ['last', 'first']);
+  assert.deepEqual(SURNAME_POSITIONS, ['first', 'last'], 'default listed first');
 });

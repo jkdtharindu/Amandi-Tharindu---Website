@@ -181,7 +181,7 @@ test('admin guest management create, update, list, and soft-delete flow', async 
     });
     assert.equal(createResult.statusCode, 200);
     assert.equal(createResult.body.success, true);
-    assert.match(createResult.body.guest.code, /^SILVA-\d{3}$/);
+    assert.match(createResult.body.guest.code, /^ADMIN-\d{3}$/, 'first name token of \"Admin Test Silva\"');
     const guestId = createResult.body.guest.id;
 
     const listResult = await requestJSON({

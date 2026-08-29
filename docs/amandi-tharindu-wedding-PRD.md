@@ -511,9 +511,10 @@ ADMIN ROUTES (all protected by Supabase Auth session)
 ### P0-07 — Admin Guest Management
 - [ ] Admin can add a guest: name (required), relationship (dropdown), slot_count (number) → code auto-generated
 - [x] Generated code format: `[SURNAME]-[3-digit-number]` e.g., `SILVA-001` — **now configurable
-      (2026-08-29)**. Which part of the name supplies [SURNAME] is a setting (`last`, the default
-      and original behaviour, or `first` for names that place the ancestral/ge name first, as many
-      Sri Lankan names do). An optional group prefix adds `R-`/`C-`/`N-`/`F-` by RelationshipType;
+      (2026-08-29)**. Which part of the name supplies [SURNAME] is a setting: `first` is
+      **the default** (owner decision 2026-08-29), because many Sri Lankan names place the
+      ancestral/ge name first, so "Wickramasinghe Arachchige Nimal" yields `WICKRAMASINGHE-001`.
+      `last` — the original behaviour — remains available for names written the other way round. An optional group prefix adds `R-`/`C-`/`N-`/`F-` by RelationshipType;
       it is **off by default** because the code is the one thing a guest reads on their own card.
       An admin can also set any code by hand per guest. Changing the format never rewrites an
       existing code. Settings live on `/admin/guests`; see `TASKS.md`.

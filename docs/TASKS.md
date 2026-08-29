@@ -426,7 +426,9 @@ The original rule took the **last** word of the name as the surname. That is wro
 Lankan names, which place the ancestral/*ge* name first: "Wickramasinghe Arachchige Nimal"
 generated `NIMAL-001` from the given name rather than `WICKRAMASINGHE-001`.
 
-- [x] **Surname position setting** — `last` (default, original behaviour) or `first`.
+- [x] **Surname position setting** — `first` (**the default**, set by owner decision
+      2026-08-29) or `last` (the original behaviour). `first` suits names that place the
+      ancestral/*ge* name first, as many Sri Lankan names do.
 - [x] **Optional group prefix** — adds `R-` / `C-` / `N-` / `F-` for Relations / Colleagues /
       Neighbours / Friends. **Off by default, deliberately:** the code is the one thing a guest
       reads on their own card, and a visible group letter tells them which tier they were filed
@@ -460,8 +462,14 @@ Generated codes are also checked against every code on record, including soft-de
   server template literal, which collapses to a plain `s` — the preview would have split names on
   the letter "s". Replaced with a whitespace-free split.
 
-⏳ **Still open for the owner:** decide the final format against a sample of the real guest list
-before any cards are printed. The default remains `last` + no group prefix, i.e. unchanged.
+**Default changed 2026-08-29 (owner decision):** surname position is now `first`, so a guest
+entered as "Wickramasinghe Arachchige Nimal" receives `WICKRAMASINGHE-001` out of the box
+rather than `NIMAL-001`. The group prefix stays off. `last` remains available for names
+written the other way round, and the per-guest manual override covers anything neither rule
+fits. Existing codes were not touched — the seeded `SILVA-001`/`SILVA-002` still read the same.
+
+⏳ **Still open for the owner:** sanity-check the default against a sample of real guest names
+before any cards are printed. After printing, codes are fixed for good.
 
 ### Slice 19: RSVP Dashboard (P0-08) — ✅ DONE 2026-08-29
 

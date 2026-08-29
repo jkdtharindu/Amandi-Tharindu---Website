@@ -18,15 +18,22 @@ beforeEach(() => {
   guestStore.push(...structuredClone(ORIGINAL_GUESTS));
 });
 
-test('extractSurname uses the last word of the guest name', () => {
-  assert.equal(extractSurname('Nimal Silva'), 'SILVA');
-  assert.equal(extractSurname('  Kumara Perera  '), 'PERERA');
+test('extractSurname takes the first name token by default', () => {
+  // Default flipped to 'first' 2026-08-29: Sinhalese names commonly place the
+  // ancestral/ge name first. Both positions are covered in
+  // tests/invitation-code-format.test.mjs.
+  assert.equal(extractSurname('Nimal Silva'), 'NIMAL');
+  assert.equal(extractSurname('  Kumara Perera  '), 'KUMARA');
+  assert.equal(extractSurname('Nimal Silva', 'last'), 'SILVA');
 });
 
 test('generateInvitationCode assigns the next three-digit suffix for a surname', () => {
-  assert.equal(generateInvitationCode('Nimal Silva', ['SILVA-001']), 'SILVA-002');
-  assert.equal(generateInvitationCode('New Silva', []), 'SILVA-001');
-  assert.equal(generateInvitationCode('Ana Perera', ['SILVA-001', 'PERERA-003']), 'PERERA-004');
+  // Explicit surnamePosition so this test covers the numbering rule only, and
+  // does not silently change meaning if the default is ever flipped again.
+  const last = { surnamePosition: 'last' };
+  assert.equal(generateInvitationCode('Nimal Silva', ['SILVA-001'], last), 'SILVA-002');
+  assert.equal(generateInvitationCode('New Silva', [], last), 'SILVA-001');
+  assert.equal(generateInvitationCode('Ana Perera', ['SILVA-001', 'PERERA-003'], last), 'PERERA-004');
 });
 
 test('validateGuestInput requires name, relationship, and slotCount', () => {
@@ -51,7 +58,7 @@ test('VALID_RELATIONSHIP_TYPES matches ubiquitous language', () => {
 test('createGuest auto-generates a unique invitation code', async () => {
   const result = await createGuest({ name: 'Sunil Silva', relationship: 'Friends', slotCount: 3 });
   assert.equal(result.success, true);
-  assert.match(result.guest.code, /^SILVA-\d{3}$/);
+  assert.match(result.guest.code, /^SUNIL-\d{3}$/, 'first name token by default');
   assert.equal(result.guest.rsvpStatus, 'pending');
   assert.equal(result.guest.isDeleted, false);
 });

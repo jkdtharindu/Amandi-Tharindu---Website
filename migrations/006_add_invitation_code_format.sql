@@ -15,7 +15,7 @@
 -- running migrations.
 
 ALTER TABLE theme_settings
-  ADD COLUMN IF NOT EXISTS invitation_code_surname_position text NOT NULL DEFAULT 'last',
+  ADD COLUMN IF NOT EXISTS invitation_code_surname_position text NOT NULL DEFAULT 'first',
   ADD COLUMN IF NOT EXISTS invitation_code_group_prefix boolean NOT NULL DEFAULT false;
 
 -- Guard the only two supported values, so a bad write cannot produce codes in
