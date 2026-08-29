@@ -66,6 +66,11 @@ The project currently includes a runnable Express-based prototype used for early
 - Guest login by code/name, session cookie creation, CSRF protection, and basic RSVP persistence helpers are present in `src/` for local verification.
 - **Admin panel (Theme Editor + Section Manager) is implemented in the prototype** at `/admin` (login), `/admin/theme`, and `/admin/sections`, matching P0-09, P1-10, and P1-11 below with two prototype-scoped adjustments (see note under P1-10 and P1-11): single seeded admin account via env vars instead of Supabase Auth, and image fields (hero image, invitation template) accept a URL string rather than a direct file upload, since Supabase Storage is not yet wired up. Guest management (P0-07), the RSVP dashboard (P0-08), and messaging (P1-06/07/08) remain unimplemented.
 - **As of 23 August 2026**, ThemeSettings and SiteSections are rendered by the public site (they were briefly saved but never read back), and the personalized invitation (P0-02) renders the InvitationTemplate with the name overlay. Known gap: `/invitation/:code` does not yet require a guest session — anyone holding a valid InvitationCode can view that page. Tracked in `TASKS.md`; changing it is HITL-gated.
+- **As of 28–29 August 2026**, the ThemePalette/FontChoice picker required by §4.1 is live at
+  `/admin/theme` (curated swatches + font list, replacing raw hex/font-name entry as the primary
+  path), all six palettes pass the WCAG AA gate, all four font families are self-hosted as
+  `.woff2` files (no third-party CDN dependency), and "Modern Royal Romance" is now the site's
+  actual default theme rather than an opt-in selection.
 - Supabase DB integration, messaging (Twilio/Resend), and production deploys remain in the PRD scope and are P0/P1 items to fully implement.
 
 Use the prototype for local validation and UI polish; follow `HITL.md` for any actions that could affect production or guest data.
@@ -110,7 +115,7 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P0-04 | RSVP Form — Decline | Guest can decline. System shows a warm thank-you message: acknowledges their decision graciously and thanks them for responding. RSVP marked as declined in DB. |
 | P0-05 | RSVP Change / Update | Guest can change their RSVP at any time from the Invitation page (accept → decline or vice versa, or update participant names). Previous response overwritten. New confirmation message auto-sent. |
 | P0-06 | Sticky RSVP Bar | After login, a sticky bar appears at the bottom of every page until the guest RSVPs. Shows: "Amandi & Tharindu are waiting for your response 💍 — Will you join us?" with Accept and Decline buttons. Disappears permanently once responded. "Change response" link remains on Invitation page. |
-| P0-07 | Admin Guest Management | Admin can: add guests (name, relationship, slot count → auto-generates unique code), edit guests, soft-delete guests, view all guests with RSVP status, filter by status (pending/accepted/declined) and relationship group. |
+| P0-07 | Admin Guest Management | Admin can: add guests (name, relationship, slot count → auto-generates unique code), edit guests, soft-delete guests, view all guests with RSVP status, filter by status (pending/accepted/declined) and relationship group. **Implemented 23 August 2026** — `/admin/guests` provides add/edit/soft-delete, `[SURNAME]-[###]` code auto-generation (`generateInvitationCode`), and filtering by `rsvpStatus`/`relationship` plus search by name or code, backed by `guestRepo` (dual-mode). CSV export is not part of this feature — it belongs to the still-unbuilt RSVP Dashboard (P0-08). |
 | P0-08 | Admin RSVP Dashboard | Real-time stats: total invited, accepted (with headcount), declined, pending. Visual chart. Exportable as CSV. |
 | P0-09 | Admin Auth | Single admin login via Supabase Auth (email + password). Only one admin account. Password reset via email. All `/admin/*` routes protected. **Implemented in the prototype** as a single seeded admin account (email/scrypt password hash via `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` env vars, dev-only fallback credentials otherwise), signed session cookie, CSRF-protected login/logout, and route protection on all `/admin/*` and `/api/admin/*` endpoints. Password reset via email is not yet implemented (deferred to the eventual Supabase Auth migration). |
 | P0-10 | WhatsApp Number Capture | On first visit after login, guest is prompted (not forced) to enter their WhatsApp number. Stored against their guest record. Used for future admin messaging. |
@@ -158,7 +163,7 @@ governing PRD with the approach already described in the alternate `New folder (
    (The CSS-custom-property foundation for this landed 23 August 2026; palettes plug into it.)
 3. **FontChoice picker** — a dropdown/radio list of curated pairings, showing each name rendered
    in its own face so the couple can see it before choosing.
-4. **Webfonts must actually load.** ✅ Fixed 2026-08-28 — self-hosted, not CDN-dependent. All four
+4. **Webfonts must actually load.** ✅ Fixed 2026-08-29 — self-hosted, not CDN-dependent. All four
    FontChoice families ship as `.woff2` in `public/fonts/`, served via `express.static` and loaded
    through `@font-face` rules from `src/theme/fontFaces.js`. No `fonts.googleapis.com` request.
 5. **Accessibility is a gate, not an afterthought.** Every palette must pass WCAG 2.1 AA:
@@ -195,6 +200,11 @@ AA on every text pairing.
 > other five palettes do. Unlike the other rows, this palette's Accent is also verified against
 > the background (4.68:1, clears the 4.5:1 text bar) because the brief uses gold as literal text
 > (countdown numbers), not just borders/decoration.
+
+> Note: as of 29 August 2026, `Modern Royal Romance` is the site's **actual out-of-the-box
+> default** — not just a selectable option. A fresh install with no admin action shows burgundy
+> `#4A1525` / ivory `#FBF9F5` / gold `#866D3D`, `fontChoice: 'cormorant'`. See §7's `theme_settings`
+> defaults.
 
 #### Font pairings (candidates)
 
@@ -405,9 +415,11 @@ message_logs (
 -- Global Theme Settings (single row)
 theme_settings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  primary_color text DEFAULT '#B8860B',
-  secondary_color text DEFAULT '#FFF8DC',
-  accent_color text DEFAULT '#8B0000',
+  palette_name text DEFAULT 'modern-royal-romance',  -- added in migration 004; NULL/'' = Custom
+  primary_color text DEFAULT '#4A1525',
+  secondary_color text DEFAULT '#FBF9F5',
+  accent_color text DEFAULT '#866D3D',
+  font_choice text DEFAULT 'cormorant',              -- added in migration 004; NULL/'' = Custom
   font_family text DEFAULT 'Cormorant Garamond',
   font_style text DEFAULT 'italic',
   hero_image_url text,
@@ -708,6 +720,6 @@ as a separate project with its own PRD, not as a feature added to this one.
 
 ---
 
-*Document version: 1.1 | Created: August 2026 | Last updated: 23 August 2026 | Wedding date: Monday, 14 December 2026*
+*Document version: 1.2 | Created: August 2026 | Last updated: 29 August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*

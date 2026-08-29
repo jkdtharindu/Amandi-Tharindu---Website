@@ -3,9 +3,9 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Scoping / Initial implementation started
+- Status: Core guest + admin flows implemented in the Express prototype; RSVP dashboard, messaging, and DB persistence remain
 - Current focus: RSVP dashboard (P0-08) and database persistence
-- Priority: Build the first vertical slice end-to-end
+- Priority: Close the 🔴 Blocking launch items below before starting new feature work
 
 ## Working Principles
 - Use strict TDD for each slice
@@ -13,10 +13,10 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Prefer small, shippable increments over large speculative work
 
 ## PRD Alignment Summary
-- Phase 1 complete; Phase 2 now includes code login, name login, and ambiguous-name recovery.
-- Core launch scope still requires the personalized invitation page, RSVP flow, sticky RSVP bar, admin auth, guest/dashboard management, and messaging/theme features.
-- Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel.
-- Estimated completion: ~30% of the current checklist, ~15-20% of full PRD launch scope.
+- Phases 1–3 complete: code/name login with ambiguous-name recovery, personalized invitation, RSVP accept/decline/change, sticky RSVP bar, and all public pages.
+- Phase 4 mostly complete: admin auth, guest management (P0-07), theme editor + ThemePalette/FontChoice pickers, and section manager are all live. RSVP dashboard (P0-08) and messaging center (P1-06/07/08) are the remaining admin gaps.
+- Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel — no migration date decided yet.
+- No database persistence yet — everything lives in in-memory stores; migrations 001–004 are written but unapplied.
 
 ## Implementation Backlog (updated)
 
@@ -166,8 +166,6 @@ Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
       flag and never used it, so this check has never actually been enforced. PRD §11 requires
       guest routes be protected and cross-guest access prevented. **Changing this affects guest
       access, so HITL.md applies — get explicit approval before implementing.**
-- [ ] **Guest Management (P0-07)** — no way to add a guest exists. The site cannot run a
-      wedding without this. Higher priority than anything already built.
 - [ ] **RSVP Dashboard (P0-08)** — no headcount visibility.
 - [ ] **No persistence.** Guests, RSVPs, theme, and sections live in in-memory arrays.
       A server restart destroys every RSVP. `DATABASE_URL` is unset and migrations
