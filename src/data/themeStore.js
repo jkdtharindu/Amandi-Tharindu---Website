@@ -17,4 +17,8 @@ export const themeSettings = {
   weddingDate: '2026-12-14',
   venueName: '',
   venueAddress: '',
+  // InvitationCode format — see src/guest-auth/generateInvitationCode.js.
+  // Changing these affects codes generated afterwards, never existing ones.
+  invitationCodeSurnamePosition: 'last',
+  invitationCodeGroupPrefix: false,
 };

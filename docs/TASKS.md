@@ -415,6 +415,54 @@ enough to open an invitation — and, worse, to overwrite that family's RSVP.
       untouched. Surfaced on the invitation page as "Signed in as *name* — Not you? Sign out",
       which matters on a shared family phone. Covered by `tests/guest-logout.test.mjs` (5 cases).
 
+### ✅ Done — configurable InvitationCode format (2026-08-29)
+
+Raised by the project owner after seeing generated codes read wrongly. A code is printed on a
+physical card and is the guest's login credential, so **the format is free to change only until
+cards go to print** — after that it is fixed for good. Made configurable now, while it costs
+nothing.
+
+The original rule took the **last** word of the name as the surname. That is wrong for many Sri
+Lankan names, which place the ancestral/*ge* name first: "Wickramasinghe Arachchige Nimal"
+generated `NIMAL-001` from the given name rather than `WICKRAMASINGHE-001`.
+
+- [x] **Surname position setting** — `last` (default, original behaviour) or `first`.
+- [x] **Optional group prefix** — adds `R-` / `C-` / `N-` / `F-` for Relations / Colleagues /
+      Neighbours / Friends. **Off by default, deliberately:** the code is the one thing a guest
+      reads on their own card, and a visible group letter tells them which tier they were filed
+      under. The grouping is already available where it is actually needed — `/admin/guests`
+      filters by relationship and the CSV export carries a Relationship column.
+- [x] **Per-guest manual override** — an admin can set any code by hand (letters, digits,
+      hyphens, ≤40 chars), on create or by editing an existing guest. This is the escape hatch
+      for any name the automatic rule reads wrongly, which the variety of Sri Lankan naming
+      conventions makes inevitable.
+- [x] **Settings UI on `/admin/guests`**, where codes are actually created — picker, toggle, and
+      a live worked preview of the next code rather than a prose description of the rule.
+      Saved via the existing theme/site-settings endpoint; no new endpoint needed.
+- [x] Migration `006_add_invitation_code_format.sql` adds the two columns with a CHECK
+      constraint on the surname position. **Written only — not applied**, per `HITL.md`.
+
+**The guarantee, pinned by tests:** changing the format *never* rewrites a code that already
+exists, and a code is only ever replaced by a deliberate edit — never as a side effect of
+renaming a guest. If a format change rewrote a printed code, that guest could never sign in.
+Generated codes are also checked against every code on record, including soft-deleted guests
+(their card may already be printed), so a code can never be re-issued.
+
+- Numbering runs per prefix, so each surname — and each group, when the prefix is on — keeps its
+  own sequence, and `SILVA-` does not match `R-SILVA-001` and inflate the plain sequence.
+- Tests: `tests/invitation-code-format.test.mjs` (19 unit cases) and
+  `tests/invitation-code-admin.test.mjs` (13 end-to-end cases). Full suite **145/145 green**.
+- Verified in a browser: the live preview tracks both settings, the saved setting persists across
+  a reload, a new guest named "Wickramasinghe Arachchige Nimal" received `WICKRAMASINGHE-001`,
+  a manual override produced `AMMA-01`, and the seeded `SILVA-001` / `SILVA-002` were untouched
+  throughout.
+- Caught by lint during the work: the emitted client-side preview script contained `\s` inside a
+  server template literal, which collapses to a plain `s` — the preview would have split names on
+  the letter "s". Replaced with a whitespace-free split.
+
+⏳ **Still open for the owner:** decide the final format against a sample of the real guest list
+before any cards are printed. The default remains `last` + no group prefix, i.e. unchanged.
+
 ### Slice 19: RSVP Dashboard (P0-08) — ✅ DONE 2026-08-29
 
 ⚠️ **BEFORE STARTING THIS SLICE:**

@@ -1,4 +1,5 @@
 import { findPalette, findFontChoice } from './palettes.js';
+import { SURNAME_POSITIONS } from '../guest-auth/generateInvitationCode.js';
 
 const HEX_COLOR_FIELDS = ['primaryColor', 'secondaryColor', 'accentColor', 'invitationNameColor'];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
@@ -26,6 +27,14 @@ export const FIELD_LABELS = {
   weddingDate: { label: 'Wedding date', hint: 'YYYY-MM-DD — also drives the countdown' },
   venueName: { label: 'Venue name', hint: '' },
   venueAddress: { label: 'Venue address', hint: '' },
+  invitationCodeSurnamePosition: {
+    label: 'Invitation code — which part of the name',
+    hint: 'Sri Lankan names often put the family name first; pick whichever gives a recognisable code',
+  },
+  invitationCodeGroupPrefix: {
+    label: 'Invitation code — add group letter',
+    hint: 'Prefixes R/C/N/F for Relations, Colleagues, Neighbours, Friends. Visible to the guest on their card.',
+  },
 };
 
 export const THEME_FIELD_GROUPS = [
@@ -74,6 +83,11 @@ export const THEME_FIELD_GROUPS = [
     id: 'venue',
     label: 'Venue',
     fields: ['venueName', 'venueAddress'],
+  },
+  {
+    id: 'invitation-code',
+    label: 'Invitation Code Format',
+    fields: ['invitationCodeSurnamePosition', 'invitationCodeGroupPrefix'],
   },
 ];
 
@@ -128,6 +142,17 @@ export function mergeThemeUpdate(current, patch) {
 
     if (key === 'weddingDate' && value && !DATE_PATTERN.test(value)) {
       errors.push({ field: key, reason: 'invalid_date' });
+      continue;
+    }
+
+    if (key === 'invitationCodeSurnamePosition' && !SURNAME_POSITIONS.includes(value)) {
+      errors.push({ field: key, reason: 'invalid_surname_position' });
+      continue;
+    }
+
+    if (key === 'invitationCodeGroupPrefix') {
+      // An unchecked HTML checkbox posts nothing and a checked one posts 'on'.
+      next[key] = value === true || value === 'on' || value === 'true' || value === '1';
       continue;
     }
 

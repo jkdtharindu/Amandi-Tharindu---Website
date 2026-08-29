@@ -510,7 +510,15 @@ ADMIN ROUTES (all protected by Supabase Auth session)
 
 ### P0-07 — Admin Guest Management
 - [ ] Admin can add a guest: name (required), relationship (dropdown), slot_count (number) → code auto-generated
-- [ ] Generated code format: `[SURNAME]-[3-digit-number]` e.g., `SILVA-001`
+- [x] Generated code format: `[SURNAME]-[3-digit-number]` e.g., `SILVA-001` — **now configurable
+      (2026-08-29)**. Which part of the name supplies [SURNAME] is a setting (`last`, the default
+      and original behaviour, or `first` for names that place the ancestral/ge name first, as many
+      Sri Lankan names do). An optional group prefix adds `R-`/`C-`/`N-`/`F-` by RelationshipType;
+      it is **off by default** because the code is the one thing a guest reads on their own card.
+      An admin can also set any code by hand per guest. Changing the format never rewrites an
+      existing code. Settings live on `/admin/guests`; see `TASKS.md`.
+      ⏳ **Decide the final format against real guest names before cards are printed** — after
+      printing, codes are fixed.
 - [ ] Admin can edit any guest field (name, relationship, slot count)
 - [ ] Admin can soft-delete a guest (hidden from guest-facing site, preserved in DB)
 - [ ] Guest list shows: name, code, relationship, slot count, RSVP status, WhatsApp number, last updated

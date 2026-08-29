@@ -25,6 +25,8 @@ function mapRow(row) {
     weddingDate: row.wedding_date,
     venueName: row.venue_name || '',
     venueAddress: row.venue_address || '',
+    invitationCodeSurnamePosition: row.invitation_code_surname_position || 'last',
+    invitationCodeGroupPrefix: row.invitation_code_group_prefix === true,
   };
 }
 
@@ -56,8 +58,9 @@ export async function updateThemeSettings(patch) {
       font_choice = $5, font_family = $6, font_style = $7, hero_image_url = $8,
       invitation_template_url = $9, invitation_name_top = $10, invitation_name_left = $11,
       invitation_name_font_size = $12, invitation_name_color = $13,
-      couple_names = $14, wedding_date = $15, venue_name = $16, venue_address = $17
-    WHERE id = $18`,
+      couple_names = $14, wedding_date = $15, venue_name = $16, venue_address = $17,
+      invitation_code_surname_position = $18, invitation_code_group_prefix = $19
+    WHERE id = $20`,
     [
       settings.paletteName,
       settings.primaryColor,
@@ -76,6 +79,8 @@ export async function updateThemeSettings(patch) {
       settings.weddingDate,
       settings.venueName,
       settings.venueAddress,
+      settings.invitationCodeSurnamePosition,
+      settings.invitationCodeGroupPrefix,
       settings.id,
     ]
   );

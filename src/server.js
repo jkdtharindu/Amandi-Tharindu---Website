@@ -38,6 +38,7 @@ import {
 } from './sections/sectionsRepo.js';
 import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js';
 import { VALID_RELATIONSHIP_TYPES } from './guest-auth/validateGuestInput.js';
+import { generateInvitationCode } from './guest-auth/generateInvitationCode.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
 const GUEST_SESSION_COOKIE = 'guest_session';
@@ -177,6 +178,11 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
           .status-msg.error { color: #b91c1c; }
           .section-item { border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; margin-bottom: 0.85rem; }
           .section-item .section-item-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+          .checkbox-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+          .checkbox-row input { width: auto; }
+          .field-hint-inline { font-weight: 400; color: var(--color-muted); font-size: 0.8rem; }
+          .code-preview { font-size: 0.9rem; color: var(--color-muted); margin: 0.75rem 0; }
+          .code-preview strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--color-ink); font-size: 1rem; }
           .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
           .stat-tile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; }
           .stat-label { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-muted); }
@@ -1426,7 +1432,14 @@ export function createApp() {
     if (!verifyCsrfToken(req)) {
       return res.status(403).json({ success: false, reason: 'csrf_invalid' });
     }
-    const result = await createGuest(req.body || {});
+    // Fetched rather than read from res.locals, which the theme middleware
+    // only populates for GET/HEAD — this is a POST. The format then travels
+    // with the call, so the repo needs no dependency on the settings store.
+    const theme = await getThemeSettings();
+    const result = await createGuest(req.body || {}, {
+      surnamePosition: theme.invitationCodeSurnamePosition,
+      groupPrefix: theme.invitationCodeGroupPrefix,
+    });
     if (!result.success) {
       return res.status(400).json(result);
     }
@@ -1460,6 +1473,17 @@ export function createApp() {
       rsvpStatus: req.query.rsvpStatus || undefined,
       relationship: req.query.relationship || undefined,
       search: req.query.search || undefined,
+    });
+
+    const theme = res.locals.theme || {};
+    const codeSurnamePosition = theme.invitationCodeSurnamePosition || 'last';
+    const codeGroupPrefix = Boolean(theme.invitationCodeGroupPrefix);
+    // Show the admin what the next code will actually look like, using a
+    // worked example rather than describing the rule in prose.
+    const codePreview = generateInvitationCode('Nimal Silva', [], {
+      surnamePosition: codeSurnamePosition,
+      groupPrefix: codeGroupPrefix,
+      relationship: 'Relations',
     });
 
     const relationshipOptions = VALID_RELATIONSHIP_TYPES.map(
@@ -1526,6 +1550,34 @@ export function createApp() {
         </div>
       </form>
 
+      <form id="code-format-form" class="field-group">
+        <h2>Invitation Code Format</h2>
+        <p class="field-hint">
+          Codes are printed on the cards and are how guests sign in, so this can be changed
+          freely now but is fixed once cards go to print.
+          <strong>Changing it never alters codes that already exist</strong> — only new ones.
+        </p>
+        <div class="field-row">
+          <label>Which part of the name to use
+            <select id="code-surname-position">
+              <option value="last" ${codeSurnamePosition === 'last' ? 'selected' : ''}>Last word — Nimal Silva → SILVA</option>
+              <option value="first" ${codeSurnamePosition === 'first' ? 'selected' : ''}>First word — Wickramasinghe … Nimal → WICKRAMASINGHE</option>
+            </select>
+            <span class="field-hint">Sri Lankan names often place the family name first.</span>
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="checkbox-row">
+            <input id="code-group-prefix" type="checkbox" ${codeGroupPrefix ? 'checked' : ''} />
+            Add a group letter (R / C / N / F)
+          </label>
+          <span class="field-hint">Sorts codes by relationship — but the guest sees which group you filed them under.</span>
+        </div>
+        <p class="code-preview">Next code would look like: <strong id="code-preview-value">${escapeHtml(codePreview)}</strong></p>
+        <button class="save-btn" type="submit">Save format</button>
+        <p class="status-msg" data-status></p>
+      </form>
+
       <form id="new-guest-form" class="field-group">
         <h2>Add Guest</h2>
         <div class="field-row"><label>Name<input id="new-guest-name" type="text" required /></label></div>
@@ -1535,6 +1587,12 @@ export function createApp() {
           </label>
         </div>
         <div class="field-row"><label>Slot count<input id="new-guest-slots" type="number" min="1" value="1" /></label></div>
+        <div class="field-row">
+          <label>Invitation code <span class="field-hint-inline">optional</span>
+            <input id="new-guest-code" type="text" placeholder="Leave blank to generate: ${escapeHtml(codePreview)}" />
+            <span class="field-hint">Set one by hand when the generated code reads wrongly. Letters, numbers and hyphens.</span>
+          </label>
+        </div>
         <button class="save-btn" type="submit">Add Guest</button>
         <div class="status-msg" data-status></div>
       </form>
@@ -1561,6 +1619,48 @@ export function createApp() {
 
     const scripts = `
       <script>
+        // Live preview of the code format, mirroring generateInvitationCode()
+        // for the worked example only. The server remains the sole authority
+        // for codes that are actually issued.
+        const GROUP_LETTERS = { Relations: 'R', Colleagues: 'C', Neighbours: 'N', Friends: 'F' };
+        const positionSelect = document.getElementById('code-surname-position');
+        const prefixCheckbox = document.getElementById('code-group-prefix');
+        const previewValue = document.getElementById('code-preview-value');
+
+        function renderCodePreview() {
+          const parts = 'Nimal Silva'.trim().split(' ').filter(Boolean);
+          const surname = (positionSelect.value === 'first' ? parts[0] : parts[parts.length - 1]).toUpperCase();
+          const letter = prefixCheckbox.checked ? GROUP_LETTERS.Relations + '-' : '';
+          previewValue.textContent = letter + surname + '-001';
+
+          const codeInput = document.getElementById('new-guest-code');
+          if (codeInput) codeInput.placeholder = 'Leave blank to generate: ' + previewValue.textContent;
+        }
+
+        positionSelect.addEventListener('change', renderCodePreview);
+        prefixCheckbox.addEventListener('change', renderCodePreview);
+
+        document.getElementById('code-format-form').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const status = event.target.querySelector('[data-status]');
+          const res = await fetch('/api/admin/theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+            body: JSON.stringify({
+              invitationCodeSurnamePosition: positionSelect.value,
+              invitationCodeGroupPrefix: prefixCheckbox.checked,
+            }),
+          });
+          const body = await res.json();
+          if (res.ok && body.success) {
+            status.textContent = 'Saved. New codes will use this format; existing codes are unchanged.';
+            status.className = 'status-msg success';
+          } else {
+            status.textContent = body.message || body.reason || 'Could not save the format.';
+            status.className = 'status-msg error';
+          }
+        });
+
         document.getElementById('guest-filters').addEventListener('submit', (event) => {
           event.preventDefault();
           const params = new URLSearchParams();
@@ -1582,6 +1682,7 @@ export function createApp() {
             headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
             body: JSON.stringify({
               name: document.getElementById('new-guest-name').value.trim(),
+              code: document.getElementById('new-guest-code').value.trim(),
               relationship: document.getElementById('new-guest-relationship').value,
               slotCount: Number(document.getElementById('new-guest-slots').value),
             }),
