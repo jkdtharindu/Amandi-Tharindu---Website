@@ -5,7 +5,8 @@
 
 > **FOR AI AGENTS:** This document is self-contained. Read it fully before writing any code.
 > No additional explanation will be provided. All decisions, constraints, and acceptance criteria are defined below.
-> Stack: Next.js 14 (App Router) · Supabase · Vercel · Twilio · Resend
+> Stack: Express (server-rendered) · Postgres (via Supabase's DB, not its Auth/SDK) · Supabase Storage · Hosting TBD · Twilio · Resend
+> **Amended 2026-08-29** — originally Next.js 14 + Supabase (Auth+DB+Storage) + Vercel. See §6 "Stack" for the full decision note. Sections below (§13 Folder Structure, §9 Security, admin-auth flows) still describe the original Next.js/Supabase Auth plan and have **not** all been individually rewritten yet — treat any mention of Next.js App Router, Supabase Auth, or Vercel middleware elsewhere in this document as superseded by §6 until noted otherwise. Tracked in `TASKS.md`.
 > Deadline: 35 days from project start. Wedding date: Monday, 14 December 2026.
 
 ---
@@ -66,11 +67,6 @@ The project currently includes a runnable Express-based prototype used for early
 - Guest login by code/name, session cookie creation, CSRF protection, and basic RSVP persistence helpers are present in `src/` for local verification.
 - **Admin panel (Theme Editor + Section Manager) is implemented in the prototype** at `/admin` (login), `/admin/theme`, and `/admin/sections`, matching P0-09, P1-10, and P1-11 below with two prototype-scoped adjustments (see note under P1-10 and P1-11): single seeded admin account via env vars instead of Supabase Auth, and image fields (hero image, invitation template) accept a URL string rather than a direct file upload, since Supabase Storage is not yet wired up. Guest management (P0-07), the RSVP dashboard (P0-08), and messaging (P1-06/07/08) remain unimplemented.
 - **As of 23 August 2026**, ThemeSettings and SiteSections are rendered by the public site (they were briefly saved but never read back), and the personalized invitation (P0-02) renders the InvitationTemplate with the name overlay. Known gap: `/invitation/:code` does not yet require a guest session — anyone holding a valid InvitationCode can view that page. Tracked in `TASKS.md`; changing it is HITL-gated.
-- **As of 28–29 August 2026**, the ThemePalette/FontChoice picker required by §4.1 is live at
-  `/admin/theme` (curated swatches + font list, replacing raw hex/font-name entry as the primary
-  path), all six palettes pass the WCAG AA gate, all four font families are self-hosted as
-  `.woff2` files (no third-party CDN dependency), and "Modern Royal Romance" is now the site's
-  actual default theme rather than an opt-in selection.
 - Supabase DB integration, messaging (Twilio/Resend), and production deploys remain in the PRD scope and are P0/P1 items to fully implement.
 
 Use the prototype for local validation and UI polish; follow `HITL.md` for any actions that could affect production or guest data.
@@ -115,9 +111,9 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P0-04 | RSVP Form — Decline | Guest can decline. System shows a warm thank-you message: acknowledges their decision graciously and thanks them for responding. RSVP marked as declined in DB. |
 | P0-05 | RSVP Change / Update | Guest can change their RSVP at any time from the Invitation page (accept → decline or vice versa, or update participant names). Previous response overwritten. New confirmation message auto-sent. |
 | P0-06 | Sticky RSVP Bar | After login, a sticky bar appears at the bottom of every page until the guest RSVPs. Shows: "Amandi & Tharindu are waiting for your response 💍 — Will you join us?" with Accept and Decline buttons. Disappears permanently once responded. "Change response" link remains on Invitation page. |
-| P0-07 | Admin Guest Management | Admin can: add guests (name, relationship, slot count → auto-generates unique code), edit guests, soft-delete guests, view all guests with RSVP status, filter by status (pending/accepted/declined) and relationship group. **Implemented 23 August 2026** — `/admin/guests` provides add/edit/soft-delete, `[SURNAME]-[###]` code auto-generation (`generateInvitationCode`), and filtering by `rsvpStatus`/`relationship` plus search by name or code, backed by `guestRepo` (dual-mode). CSV export is not part of this feature — it belongs to the still-unbuilt RSVP Dashboard (P0-08). |
+| P0-07 | Admin Guest Management | Admin can: add guests (name, relationship, slot count → auto-generates unique code), edit guests, soft-delete guests, view all guests with RSVP status, filter by status (pending/accepted/declined) and relationship group. |
 | P0-08 | Admin RSVP Dashboard | Real-time stats: total invited, accepted (with headcount), declined, pending. Visual chart. Exportable as CSV. |
-| P0-09 | Admin Auth | Single admin login via Supabase Auth (email + password). Only one admin account. Password reset via email. All `/admin/*` routes protected. **Implemented in the prototype** as a single seeded admin account (email/scrypt password hash via `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` env vars, dev-only fallback credentials otherwise), signed session cookie, CSRF-protected login/logout, and route protection on all `/admin/*` and `/api/admin/*` endpoints. Password reset via email is not yet implemented (deferred to the eventual Supabase Auth migration). |
+| P0-09 | Admin Auth | Single admin login (email + password). Only one admin account. Password reset via email. All `/admin/*` routes protected. **Implemented in the prototype** as a single seeded admin account (email/scrypt password hash via `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` env vars, dev-only fallback credentials otherwise), signed session cookie, CSRF-protected login/logout, and route protection on all `/admin/*` and `/api/admin/*` endpoints. **Amended 2026-08-29:** forward plan is no longer "migrate to Supabase Auth" — the project stays on the existing session-cookie pattern backed by Postgres, since Supabase Auth was part of the Next.js migration that's now out of scope. Password reset via email is still not implemented; if wanted, build it against the current auth pattern (e.g. signed reset token + Resend email) rather than deferring to Supabase Auth. |
 | P0-10 | WhatsApp Number Capture | On first visit after login, guest is prompted (not forced) to enter their WhatsApp number. Stored against their guest record. Used for future admin messaging. |
 
 ---
@@ -135,7 +131,7 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-07 | Message Templates | 4 pre-built templates: Initial Invite, First Reminder, Final Reminder, Thank You After RSVP. Placeholders: `[Name]`, `[Code]`, `[Link]`, `[Date]`, `[Venue]`. Admin can edit template body. Channel: WhatsApp / SMS / Email selectable. |
 | P1-08 | Auto Thank-You Message | On RSVP acceptance, auto-send thank-you message to guest via WhatsApp (if number provided) or email. Uses "Thank You" template. |
 | P1-09 | Admin Event Manager | Admin adds/edits/deletes celebration events: name, date, time, venue name, venue address (Google Maps URL), venue image upload, icon selection, display order. |
-| P1-10 | Admin Theme Editor | Global site controls: **ThemePalette selection**, **FontChoice selection**, hero image, invitation template + name overlay config, wedding info, venue. Changes reflect site-wide instantly. **Partially implemented at `/admin/theme`** — see §4.1 for the palette/font requirement added 23 August 2026, which supersedes the raw hex/font-name text fields currently in place. Prototype-scoped deviation: hero/invitation images are entered as a URL rather than uploaded as a file, since Supabase Storage integration is not yet built; layout/frame/pattern selection is not yet implemented. |
+| P1-10 | Admin Theme Editor | Global site controls: **ThemePalette selection**, **FontChoice selection**, hero image, invitation template + name overlay config, wedding info, venue. Changes reflect site-wide instantly. **Partially implemented at `/admin/theme`** — see §4.1 for the palette/font requirement added 23 August 2026, which supersedes the raw hex/font-name text fields currently in place. Prototype-scoped deviation: hero/invitation images are entered as a URL rather than uploaded as a file, since Supabase Storage integration is not yet built; layout/frame/pattern selection is not yet implemented. **Scoped for build 2026-08-29 — see `TASKS.md` Slices 13–17** (Storage setup, upload endpoint, reusable upload component, plus the still-unbuilt Gallery, childhood photo, and venue image admin pages). |
 | P1-11 | Admin Section Manager | Admin can add new custom content sections to any page (title, content, display order, visibility toggle). Enables couple to expand the site post-launch without a developer. **Implemented in the prototype at `/admin/sections`** — add/edit/toggle-visibility/delete for the five public pages (`home`, `our-story`, `celebration`, `gallery`, `wishes`) and four section types (`text`, `image`, `gallery`, `custom`). |
 | P1-12 | Sticky Navigation | Navigation bar fixed at top on all pages. Links: Home, Our Story, The Celebration, Gallery, Invitation, Wishes. Elegant font. Mobile hamburger menu. |
 | P1-13 | Mobile Responsiveness | Full functionality on iOS and Android mobile browsers. All pages, forms, admin panel, and RSVP flow work on screens ≥ 320px wide. |
@@ -163,9 +159,10 @@ governing PRD with the approach already described in the alternate `New folder (
    (The CSS-custom-property foundation for this landed 23 August 2026; palettes plug into it.)
 3. **FontChoice picker** — a dropdown/radio list of curated pairings, showing each name rendered
    in its own face so the couple can see it before choosing.
-4. **Webfonts must actually load.** ✅ Fixed 2026-08-29 — self-hosted, not CDN-dependent. All four
-   FontChoice families ship as `.woff2` in `public/fonts/`, served via `express.static` and loaded
-   through `@font-face` rules from `src/theme/fontFaces.js`. No `fonts.googleapis.com` request.
+4. **Webfonts must actually load.** *Currently they do not* — the stylesheet names a font family
+   but nothing is ever fetched, so any non-system font silently falls back to Georgia. Each
+   FontChoice must ship a real font source (self-hosted preferred; the site must not depend on a
+   third-party CDN being reachable from Sri Lanka).
 5. **Accessibility is a gate, not an afterthought.** Every palette must pass WCAG 2.1 AA:
    body text ≥ 4.5:1 against its background, and primary-colour buttons ≥ 4.5:1 against their own
    text. Enforced with the existing `contrastRatio()` helper in `src/theme/colors.js`.
@@ -185,26 +182,10 @@ AA on every text pairing.
 | Rose Blush | `#8C4A5A` | `#FBF1F0` | `#B08D57` | `#2E2024` | 14.05 | 6.48 | 5.84 |
 | Midnight Silver | `#2C3A4A` | `#F1F3F5` | `#8A94A6` | `#1C242E` | 14.08 | 11.59 | 10.42 |
 | Terracotta | `#9C4A21` | `#FBF2EA` | `#5F7A6B` | `#2E1F17` | 14.34 | 6.15 | 5.56 |
-| Modern Royal Romance | `#4A1525` | `#FBF9F5` | `#866D3D` | `#4A1525` | 14.01 | 14.74 | 14.01 |
 
 > Note: `Imperial Gold` uses `#8A6508` rather than the original `#B8860B` default. The lighter
 > gold could not reach 4.5:1 for button text against either black or white, so it was darkened
 > until it passed. Any future palette must clear the same bar before being added.
-
-> Note: `Modern Royal Romance` (approved 2026-08-28) is adapted from the owner-submitted brief at
-> [`WEDDING_UI_UX_DESIGN_BRIEF.md`](WEDDING_UI_UX_DESIGN_BRIEF.md). Its accent was originally
-> `#C5A059` (2.34:1 against the background — failed AA); darkened proportionally (same channel
-> ratio, lower value — the same technique used for Imperial Gold) to `#866D3D` (4.68:1). Primary
-> and Ink intentionally share one burgundy (`#4A1525`), matching the brief's single "Deep Contrast
-> (Text & Key Accents)" colour rather than splitting it into a separate near-black Ink the way the
-> other five palettes do. Unlike the other rows, this palette's Accent is also verified against
-> the background (4.68:1, clears the 4.5:1 text bar) because the brief uses gold as literal text
-> (countdown numbers), not just borders/decoration.
-
-> Note: as of 29 August 2026, `Modern Royal Romance` is the site's **actual out-of-the-box
-> default** — not just a selectable option. A fresh install with no admin action shows burgundy
-> `#4A1525` / ivory `#FBF9F5` / gold `#866D3D`, `fontChoice: 'cormorant'`. See §7's `theme_settings`
-> defaults.
 
 #### Font pairings (candidates)
 
@@ -221,20 +202,6 @@ Display face for headings, paired with a readable body face. Final list is the o
 
 `theme_settings` gains `palette_name` and `font_choice` (both TEXT). Existing per-colour columns
 are retained so a custom palette can still be stored, and so no migration destroys current values.
-
-#### "Modern Royal Romance" palette — approved 28 August 2026
-
-Owner pasted a full UI/UX design brief for a burgundy/ivory/antique-gold look, saved verbatim at
-[`WEDDING_UI_UX_DESIGN_BRIEF.md`](WEDDING_UI_UX_DESIGN_BRIEF.md). Its original gold accent
-(`#C5A059` on `#FBF9F5`, 2.34:1) failed the AA gate every other approved palette clears; it was
-darkened to `#866D3D` (4.68:1) using the same proportional-darkening technique applied to Imperial
-Gold, then added to the "Approved palettes" table below as the sixth entry. See that file's
-"Reconciliation note" for full contrast figures. Still open: the brief names fonts
-(`Bodoni Moda`, `Montserrat`, `Plus Jakarta Sans`) not yet in the font-pairing candidate list
-below, and describes product surfaces (QR boarding-pass invite, guest seating visualizer, admin
-drag-and-drop floor-plan export) beyond current P2-06 scope — those still need an owner decision
-before being built. Note the picker/cascade implementation itself (item 1–2 above) is still
-unbuilt; all six palettes above are documentation only until that ships.
 
 ---
 
@@ -280,16 +247,32 @@ The following are explicitly NOT being built:
 
 ## 6. Technical Constraints & Assumptions
 
-### Stack (Non-Negotiable)
+### Stack (Amended 2026-08-29 — see decision note below)
 ```
-Frontend:      Next.js 14 (App Router, TypeScript)
-Database:      Supabase (Postgres + Auth + Storage)
-Hosting:       Vercel (free tier sufficient for ~350 guests)
+Frontend:      Express + server-rendered templates (existing prototype stack — NOT migrating to Next.js)
+Database:      Postgres, accessed via Supabase's Postgres connection (not Supabase Auth or Supabase client SDK)
+Hosting:       TBD — Vercel is Next.js-oriented; confirm a suitable host for an Express app (e.g. Railway, Render, Fly.io) before deploy planning
 WhatsApp:      Twilio WhatsApp API (Business API template messages)
 SMS:           Twilio SMS
 Email:         Resend (free tier: 3,000 emails/month)
-File Storage:  Supabase Storage (invitation templates, venue images, gallery photos)
+File Storage:  Supabase Storage (invitation templates, venue images, gallery photos) — accessed via direct API calls, not the Next.js-specific SDK patterns
 ```
+
+> **Decision (2026-08-29):** The project stays on Express rather than migrating to Next.js 14.
+> Rationale: fixed wedding date (14 Dec 2026) and ~350 guests don't justify a rewrite; the
+> existing Express prototype already has working guest auth, RSVP flow, and admin panel.
+> Persistence moves from in-memory arrays to Postgres directly (via `pg` or Supabase's
+> connection string), skipping Supabase Auth and the Next.js-flavored Supabase client SDK.
+> Supabase is used **only** as a hosted Postgres + Storage provider, not as a full-stack
+> framework dependency. **Hosting choice still needs to be revisited** — Vercel is built
+> around Next.js/serverless; an Express app needs a host that supports a long-running
+> Node process (Railway, Render, Fly.io, or a Vercel Node function setup, if kept). Decide
+> before deploy planning.
+>
+> This changes the "Supabase Auth" line in P0-09 (admin auth) and any other PRD section that
+> assumed Supabase Auth or the Next.js App Router — those should be read as **Postgres +
+> the existing session-cookie auth pattern**, not literally as written, until this document
+> is fully reconciled. Full reconciliation is tracked in `TASKS.md`.
 
 ### Constraints
 - **Budget:** Near-zero running cost. All services on free tiers where possible.
@@ -415,11 +398,9 @@ message_logs (
 -- Global Theme Settings (single row)
 theme_settings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  palette_name text DEFAULT 'modern-royal-romance',  -- added in migration 004; NULL/'' = Custom
-  primary_color text DEFAULT '#4A1525',
-  secondary_color text DEFAULT '#FBF9F5',
-  accent_color text DEFAULT '#866D3D',
-  font_choice text DEFAULT 'cormorant',              -- added in migration 004; NULL/'' = Custom
+  primary_color text DEFAULT '#B8860B',
+  secondary_color text DEFAULT '#FFF8DC',
+  accent_color text DEFAULT '#8B0000',
   font_family text DEFAULT 'Cormorant Garamond',
   font_style text DEFAULT 'italic',
   hero_image_url text,
@@ -720,6 +701,6 @@ as a separate project with its own PRD, not as a feature added to this one.
 
 ---
 
-*Document version: 1.2 | Created: August 2026 | Last updated: 29 August 2026 | Wedding date: Monday, 14 December 2026*
+*Document version: 1.1 | Created: August 2026 | Last updated: 23 August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*

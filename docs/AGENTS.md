@@ -20,7 +20,7 @@ Prototype note: current `src/server.js` runs an Express demo server used by `src
 - **`src/`**: Prototype server and helpers. Key files:
   - **`src/server.js`**: demo Express server (quick local demo)
   - **`src/smoke.js`**: smoke test that exercises login + invitation flow
-  - **`src/guest-auth/`**: authentication helpers (`loginGuestByCode.js`, `loginGuestByName.js`)
+  - **`src/guest-auth/`**: authentication helpers (`loginGuestByCode.js`, `loginGuestByName.js` — **name-based login is removed from PRD as of 2026-08-29; `loginGuestByName.js` is prototype-only and must not be ported to Next.js**)
   - **`src/data/guestStore.js`**: in-memory guest fixture (prototype only)
   - **`src/admin-auth/`**: Admin credential handling (`hashPassword.js` — scrypt hash/verify, `verifyAdminCredentials.js`)
   - **`src/theme/`**: ThemeSettings — `themeRepo.js` (dual-mode read/write), `mergeThemeUpdate.js` (field allow-list, validation, `FIELD_LABELS` for the admin form), `colors.js` (`readableTextColor` picks button ink by measured WCAG contrast)
@@ -29,7 +29,7 @@ Prototype note: current `src/server.js` runs an Express demo server used by `src
 - **`migrations/`**: SQL migration files matching PRD schema (apply with a migration runner before using a real DB)
 - **`tests/`**: unit and integration tests (TDD slices)
 - **`package.json`**: scripts for build/run/test for the prototype
-- **`TASKS.md`, `HITL.md`, `UBIQUITOUS_LANGUAGE.md`, `amandi-tharindu-wedding-PRD.md`**: project planning, guardrails, and domain vocabulary — read these first
+- **`TASKS.md`, `HITL.md`, `HITL_NOTES_WEDDING.md`, `WEDDING_UBIQUITOUS_LANGUAGE.md`, `WEDDING_DATABASE_SCHEMA.md`, `WEDDING_UI_UX_SPEC.md`, `WEDDING_MODEL_SELECTION.md`, `amandi-tharindu-wedding-PRD.md`**: project planning, guardrails, design spec, and domain vocabulary — read these first
 
 **Build / run / test / deploy (current prototype)**
 - Install dependencies:
@@ -80,7 +80,7 @@ npm run start     # Next.js production server or deploy to Vercel
 ```
 
 **Universal coding conventions (language-agnostic)**
-- **Domain-first naming:** Use canonical names from `UBIQUITOUS_LANGUAGE.md`. Prefer `Guest`, `InvitationCode`, `RSVP`, `RSVPStatus`, `RSVPResponse`, `Participant`, `ThemeSettings`, `InvitationTemplate`, `MessageTemplate`, `MessageLog`, `SiteSection`.
+- **Domain-first naming:** Use canonical names from `WEDDING_UBIQUITOUS_LANGUAGE.md`. Key terms: `Guest`, `InvitationCode`, `DisplayName`, `InvitationType`, `InvitedBy`, `RelationshipCategory`, `SubGroup`, `GuestPartition`, `RSVPStatus`, `RSVPResponse`, `SlotCount`, `Participant`, `ThemeSettings`, `InvitationTemplate`, `NameOverlay`, `EnvelopeAnimation`, `RSVPBar`, `RSVPReveal`, `WhatsAppConfirmationButton`, `MessageTemplate`, `MessageLog`, `SiteSection`. Never use: `user`, `invitee` (in code), `attendee`, `name` (in place of `display_name`), `relationship` (use `relationship_category`).
 - **One concept, one name:** Do not introduce synonyms for domain entities (avoid `user`, `person`, `account` in place of `Guest` / `Admin`).
 - **Tests first:** Follow strict TDD — write failing tests before implementing behavior for each slice.
 - **Small commits / small PRs:** Each slice should be an end-to-end, test-covered change.
@@ -164,7 +164,7 @@ npm run test:e2e
 ```
 
 **Onboarding checklist for a new human or AI agent (10-minute productivity checklist)**
-1. Read `amandi-tharindu-wedding-PRD.md` and `UBIQUITOUS_LANGUAGE.md`.
+1. Read `amandi-tharindu-wedding-PRD.md`, `WEDDING_UBIQUITOUS_LANGUAGE.md`, and `WEDDING_DATABASE_SCHEMA.md`.
 2. Run `npm install` and `npm run smoke` to validate the local prototype.
 3. Review `migrations/` and `tests/` to understand schema and TDD slices.
 4. Do NOT run migrations or send messages without HITL approval.
