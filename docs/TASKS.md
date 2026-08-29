@@ -4,12 +4,24 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## Project Status
 - Status: Scoping / Initial implementation started
-- Current focus (updated 2026-08-29, latest): **Slice 19 (RSVP Dashboard) is done**, and Slice 18
+- Current focus (updated 2026-08-30, latest): **Slice 19 (RSVP Dashboard) is done**, and Slice 18
   is 2/3 done — Guest Management, the guest session fix, and guest logout are all shipped and
   green. The one remaining piece of Slice 18, **Postgres persistence, is blocked**: there is no
-  database yet, so every feature above still runs on in-memory stores and a restart wipes RSVPs.
-  **Next: get a `DATABASE_URL`, then finish persistence.** Image upload work (Slices 13–17)
-  resumes after that.
+  database yet (no `.env` present, only `.env.example`; `dotenv` is a declared dependency but
+  still never imported; the migration runner still has no ledger), so every feature above still
+  runs on in-memory stores and a restart wipes RSVPs. **Next: get a `DATABASE_URL`, then finish
+  persistence.** Image upload work (Slices 13–17) resumes after that.
+- ThemePalette and FontChoice pickers plus self-hosted webfonts (§4.1) **shipped 2026-08-29**
+  (commits `1f1dae8`, `9433593`) — this was previously tracked below as outstanding; see the
+  updated "ThemePalette & FontChoice" section.
+- ⚠️ **Uncommitted work found in the working tree 2026-08-30, not part of the current build
+  order:** a functionally complete Table Arrangement feature (`src/table-arrangement/`,
+  `migrations/007_create_table_arrangements.sql`, wired into `/admin/table-arrangement`) and a
+  Messaging schema draft (`migrations/005_create_messaging.sql`). Neither is committed. See the
+  new entry under Correctness & scope risks — **do not build further on either without
+  confirming with the project owner**, since Seating Plan is explicitly filed as P2
+  post-launch and Messaging requires HITL before any send capability.
+- Full test suite: **152/152 green** (2026-08-30).
 - Stack decision (2026-08-29): staying on Express + Postgres; not migrating to Next.js. See PRD §6 and Recent Decisions below.
 - Priority: Build the first vertical slice end-to-end
 
@@ -20,9 +32,13 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## PRD Alignment Summary
 - Phase 1 complete; Phase 2 now includes code login, name login, and ambiguous-name recovery.
-- Core launch scope still requires the personalized invitation page, RSVP flow, sticky RSVP bar, admin auth, guest/dashboard management, and messaging/theme features.
-- Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel.
-- Estimated completion: ~30% of the current checklist, ~15-20% of full PRD launch scope.
+- Personalized invitation page, RSVP flow, sticky RSVP bar, admin auth, guest management, RSVP
+  dashboard, theme editor (incl. palette/font pickers), and section manager are all shipped.
+  Core launch scope still outstanding: Postgres persistence (blocked), messaging, and every
+  image-upload slice (Storage, upload endpoint, upload UI, Gallery admin, Story/Events admin).
+- Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel — superseded 2026-08-29, staying on Express + Postgres (see Stack decision above).
+- Estimated completion (updated 2026-08-30): ~35% of the current checklist, ~20% of full PRD
+  launch scope. Persistence remains the hard blocker in front of most of what's left.
 
 ## Implementation Backlog (updated)
 
@@ -111,28 +127,29 @@ everything else is outstanding. **Do not start new features before the 🔴 item
       instead of a bare `<h1>`.
 - [x] All interpolated guest data is HTML-escaped.
 
-### 🟠 Requested 2026-08-23 — ThemePalette & FontChoice (supersedes raw hex fields)
+### ✅ Done 2026-08-29 — ThemePalette & FontChoice (supersedes raw hex fields)
 Owner requirement: the admin selects the wedding look from a **curated palette**, and the cascade
 must reach background, fonts, and all UI. Font must be a **selection**, not free text.
 Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
 
-- [ ] **ThemePalette picker** — visual swatches at `/admin/theme`, replacing the three hex text
-      inputs. Selecting one writes all colour values at once. Five palettes approved and
-      contrast-verified 2026-08-23 (see PRD §4.1 for exact values).
-- [ ] **FontChoice picker** — curated list rendered in its own face, replacing the free-text
-      font-family input.
-- [ ] **🔴 Webfonts are never loaded.** Verified 2026-08-23: `src/server.js` emits
-      `--font-display: "Cormorant Garamond", …` but the page contains no `<link>`, no
-      `@font-face`, and no font file. Every visitor without that font installed silently gets
-      Georgia. **A FontChoice picker is meaningless until this is fixed.** Prefer self-hosted
-      fonts — the site must not depend on a third-party CDN being reachable from Sri Lanka.
-- [ ] Migration: `theme_settings` gains `palette_name` and `font_choice` (TEXT). Keep the existing
-      per-colour columns so custom values survive and no data is destroyed.
-- [ ] Keep custom hex entry as a secondary "advanced" option — do not remove working functionality.
-- [ ] Live preview before saving.
-- [ ] Contrast gate: any palette added later must clear WCAG AA via `contrastRatio()` before ship.
-      Note the original default `#B8860B` **failed** this bar for button text and was darkened to
-      `#8A6508` in the approved Imperial Gold palette.
+- [x] **ThemePalette picker** — visual swatches at `/admin/theme`, replacing the three hex text
+      inputs. Selecting one writes all colour values at once. Six palettes approved and
+      contrast-verified (Modern Royal Romance added 2026-08-29 as the default, see PRD §4.1 for
+      exact values). Commit `1f1dae8`.
+- [x] **FontChoice picker** — curated list rendered in its own face, replacing the free-text
+      font-family input. Commit `1f1dae8`.
+- [x] **Webfonts are self-hosted.** Commit `9433593`: `@font-face` rules and font files are
+      actually served (`src/theme/fontFaces.js`), covered by a case in
+      `tests/theme-rendering.test.mjs`. No third-party CDN dependency.
+- [x] Migration: `004_add_theme_palette_font_choice.sql` adds `palette_name` and `font_choice`
+      (TEXT). Existing per-colour columns kept so custom values survive.
+- [x] Custom hex entry kept as a secondary "advanced" option.
+- [x] Live preview before saving.
+- [x] Contrast gate: `contrastRatio()` covers palettes added later. The original default
+      `#B8860B` **failed** this bar for button text and was darkened to `#8A6508` in the
+      approved Imperial Gold palette.
+- Tests: `mergeThemeUpdate` palette/font cascade and rejection cases, plus the self-hosted
+  webfont test — part of the 152/152 green suite (2026-08-30).
 
 ### 🔴 Blocking launch — build order confirmed 2026-08-29 (see Recent Decisions)
 Priority order agreed with project owner: fix the blockers below **before** resuming Slices
@@ -162,6 +179,54 @@ Priority order agreed with project owner: fix the blockers below **before** resu
       Dashboard are done.
 
 ### 🟠 Correctness & scope risks
+- [ ] **Uncommitted, out-of-sequence work found in the working tree (2026-08-30).** Two features
+      exist as uncommitted files with no entry in the build order above:
+      - `src/table-arrangement/` (repo + Excel/TSV export) and
+        `migrations/007_create_table_arrangements.sql`, fully wired into
+        `/admin/table-arrangement` (nav link, CRUD routes, seat assignment UI). This is Seating
+        Plan / P2-06, which is explicitly filed under "🔵 after launch, do not build now" below
+        — built anyway, and with **zero tests**, breaking this project's stated TDD principle.
+      - `migrations/005_create_messaging.sql` — schema and the 4 seeded templates for Slice 12
+        (Messaging Center). No application code yet, so lower risk, but Slice 12 is documented
+        "not started" and any send capability needs HITL approval first.
+      Resolve: confirm with the project owner whether to keep building Table Arrangement now
+      (and backfill tests + update this doc's build order) or shelve it until after Slices
+      13–19/launch as originally planned. Until decided, treat both as **not part of the
+      committed plan** — do not build further on either.
+
+#### Table Arrangement — fixes required before this feature can ship (found 2026-08-30)
+Code-reviewed while auditing the uncommitted work above. None of this is exposed yet (no live
+DB, nothing committed), but it must be fixed — in priority order — before Table Arrangement
+leaves "uncommitted prototype" status, regardless of whether it ships now or after launch.
+
+- [ ] 🔴 **CSRF protection missing on all five mutating routes.** Every other admin mutation in
+      `src/server.js` calls `verifyCsrfToken(req)`; the table-arrangement
+      create/update/delete/assign/unassign routes ([server.js:1866](../src/server.js#L1866),
+      [:1885](../src/server.js#L1885), [:1899](../src/server.js#L1899),
+      [:1908](../src/server.js#L1908), [:1926](../src/server.js#L1926)) don't, and the
+      frontend fetch calls never send an `x-csrf-token` header either. Fix both ends.
+- [ ] 🔴 **A guest can be double-booked at two tables.** `assignGuestToSeat`
+      (`src/table-arrangement/tableArrangementRepo.js:116`) writes `guest_id` onto any seat with
+      no check that the guest already holds a different seat.
+- [ ] 🟠 **`UNIQUE(table_number, theme_id)` doesn't actually prevent duplicate table numbers.**
+      `theme_id` (migration `007_create_table_arrangements.sql:12`) is never set anywhere in the
+      repo — always `NULL` — and Postgres treats `NULL <> NULL` for uniqueness, so the
+      constraint is a no-op. Either drop `theme_id` or enforce uniqueness on `table_number` alone.
+- [ ] 🟠 **Assign endpoint doesn't re-check RSVP status.** The "unassigned guests" dropdown is
+      pre-filtered to accepted, non-deleted guests at page load, but the assign API itself
+      accepts any `guestId` — a stale page or direct API call can seat a declined, pending, or
+      soft-deleted guest.
+- [ ] 🟠 **Export is mislabeled.** `GET /api/admin/table-arrangement/export`
+      ([server.js:1943](../src/server.js#L1943)) sends plain TSV
+      (`Content-Type: text/tab-separated-values`) but names the download
+      `table-arrangements.xlsx`. `tableArrangementExport.js`'s own header comment admits real
+      `.xlsx` generation (via `exceljs`) was never wired up.
+- [ ] 🟡 Table capacity can't be edited after creation — `updateSeatingTable` only accepts
+      `tableName`; there's no way to add/remove seats to resize an existing table.
+- [ ] 🟡 The `:tableId` segment in the seat assign/unassign routes is never validated against the
+      seat's actual table — cosmetic only, the seat is looked up by `seatId` alone.
+- [ ] 🟡 Zero test coverage for the entire feature — no file under `tests/` exercises
+      `src/table-arrangement/` at all, breaking this project's stated TDD principle.
 - [ ] **Two contradicting PRDs.** `amandi-tharindu-wedding-PRD.md` (governing, chosen
       2026-08-22) vs `New folder (2)/prd3.md`, which specifies a different palette,
       invitation-code format, auth model, and features (wax seal, ambient audio).
@@ -198,6 +263,8 @@ Priority order agreed with project owner: fix the blockers below **before** resu
       (Relations / Colleagues / Neighbours / Friends) so families and colleagues sit together.
       Needs: unassigned-Participant view, capacity validation, export, optional "your table"
       on the Invitation page. **Depends on final RSVP data**, so it must come after P2-07.
+      ⚠️ See "Uncommitted, out-of-sequence work" under Correctness & scope risks above — an
+      untested implementation of this already exists uncommitted in the working tree.
 - [ ] **RSVP cutoff / headcount lock (P2-07).** ⚠️ *Ambiguous as stated — needs the owner's
       decision before build.* Either (a) an RSVPCutoff date after which guests cannot change
       their response, freezing the headcount for catering, or (b) locking the wedding date so
@@ -299,7 +366,7 @@ Priority order agreed with project owner: fix the blockers below **before** resu
   - Admin-chosen colours cannot produce button text that fails WCAG AA contrast (`readableTextColor()`)
   - Form shows human-readable field labels, not raw property names
 - Status: ✅ Done and confirmed live (2026-08-23) after a write-only regression was found and fixed (see Review Findings Backlog below)
-- 🟠 Superseding requirement (requested 2026-08-23, not yet built): raw hex/font-name text inputs must be replaced with a curated **ThemePalette** picker and **FontChoice** picker — see PRD §4.1. Five palettes are approved and contrast-verified; the picker UI itself is still outstanding.
+- ✅ Superseding requirement (requested 2026-08-23) **shipped 2026-08-29**: raw hex/font-name text inputs replaced with a curated **ThemePalette** picker and **FontChoice** picker — see PRD §4.1 and the "ThemePalette & FontChoice" section above. Six palettes approved and contrast-verified.
 - Prototype-scoped deviation: hero/invitation images are entered as a URL rather than uploaded as a file (Supabase Storage not yet wired)
 
 ### Slice 9: Admin Section Manager (P1-11)
@@ -609,6 +676,17 @@ before any cards are printed. After printing, codes are fixed for good.
 - Keep this file updated after each completed slice.
 
 ## Recent Decisions
+- **2026-08-30:** Doc sync pass — no new build work. Corrected staleness: ThemePalette/FontChoice
+  pickers and self-hosted webfonts (§4.1) were marked outstanding here but had actually shipped
+  2026-08-29 (commits `1f1dae8`, `9433593`); updated both the dedicated section and the Slice 8
+  entry to ✅. Relabeled the RSVP dashboard's Accepted/Declined tiles from "families" to "guest
+  units" (a guest invitation unit can be single/couple/family per the ubiquitous language doc,
+  so "families" was inaccurate) — commit `a99e302`. Flagged uncommitted, out-of-sequence work
+  found in the working tree: a complete but untested Table Arrangement feature (P2-06, filed as
+  "do not build now") and a Messaging schema draft (Slice 12, "not started") — see Correctness &
+  scope risks above; not resolved, awaiting an owner decision. Full suite confirmed 152/152
+  green. Persistence blocker (no `DATABASE_URL`, `dotenv` still unused, no migration ledger)
+  is unchanged since 2026-08-29 — still the top blocker.
 - **2026-08-29 (later):** Before resuming any build work, reprioritized against the 🔴
   blocking-launch list. Decisions made with the project owner:
   1. **Stack: stay on Express, do not migrate to Next.js.** Persistence goes to Postgres
