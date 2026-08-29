@@ -148,7 +148,7 @@ function renderRsvpChart(stats) {
 
   return `
     <svg viewBox="0 0 400 ${height}" role="img" width="100%" style="max-width: 460px;"
-         aria-label="RSVP breakdown: ${bars.map((bar) => `${bar.label} ${bar.value}`).join(', ')} families">
+         aria-label="RSVP breakdown: ${bars.map((bar) => `${bar.label} ${bar.value}`).join(', ')} guest units">
       ${rows}
     </svg>
   `;
@@ -1785,9 +1785,9 @@ export function createApp() {
 
       <div class="stat-grid">
         ${statTile('Total Invited', 'totalInvited', stats.totalInvited, 'guest units')}
-        ${statTile('Accepted', 'acceptedFamilies', stats.acceptedFamilies, 'families')}
+        ${statTile('Accepted', 'acceptedFamilies', stats.acceptedFamilies, 'guest units')}
         ${statTile('Headcount', 'acceptedHeadcount', stats.acceptedHeadcount, 'people attending')}
-        ${statTile('Declined', 'declinedFamilies', stats.declinedFamilies, 'families')}
+        ${statTile('Declined', 'declinedFamilies', stats.declinedFamilies, 'guest units')}
         ${statTile('Pending', 'pendingFamilies', stats.pendingFamilies, 'yet to respond')}
         ${statTile('Responded', 'responseRate', stats.responseRate, 'percent of guests', '%')}
       </div>
