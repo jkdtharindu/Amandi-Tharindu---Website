@@ -4,14 +4,16 @@ import http from 'http';
 import { createApp } from '../src/server.js';
 import { guestStore } from '../src/data/guestStore.js';
 import { themeSettings } from '../src/data/themeStore.js';
+import { TEST_ADMIN, seedTestAdmin } from './helpers/adminFixture.mjs';
 
 // Configurable InvitationCode format, end to end through the admin API.
 
-const DEFAULT_ADMIN = { email: 'admin@example.com', password: 'changeme123' };
+const DEFAULT_ADMIN = { email: TEST_ADMIN.email, password: TEST_ADMIN.password };
 const ORIGINAL_GUESTS = structuredClone(guestStore);
 const ORIGINAL_THEME = { ...themeSettings };
 
 beforeEach(() => {
+  seedTestAdmin();
   guestStore.length = 0;
   guestStore.push(...structuredClone(ORIGINAL_GUESTS));
   Object.assign(themeSettings, ORIGINAL_THEME);

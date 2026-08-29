@@ -112,7 +112,7 @@ If the agent does not receive `yes`, it must abort the action and await explicit
 - `NODE_ENV` — `development` | `production` — controls logging and dev optimizations.
 - `SESSION_SECRET` — signing key for session cookies and tokens.
 - `ADMIN_EMAIL` — the single Admin account's email. **Required in production** (`src/data/adminStore.js` throws on boot without it).
-- `ADMIN_PASSWORD_HASH` — scrypt hash of the Admin password, in `salt:hash` hex form. **Required in production.** Generate with `node -e "import('./src/admin-auth/hashPassword.js').then(m => console.log(m.hashPassword('your-password')))"`. Never commit a real value. When both are unset locally, a development-only fallback (`admin@example.com` / `changeme123`) applies.
+- `ADMIN_PASSWORD_HASH` — scrypt hash of the Admin password, in `salt:hash` hex form. **Required in production.** Generate with `npm run admin:hash`, which prompts for the password rather than taking it as an argument. Never commit a real value. **There is no fallback account:** when either var is unset the admin store is empty and every login returns `503 admin_not_configured`. This applies locally too — the dev-only fallback was removed on 2026-08-29.
 - `SUPABASE_URL` — Supabase project URL (Postgres + Auth + Storage endpoint).
 - `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` — Supabase client credentials (service key only for server-side operations; never expose in frontend).
 - `DATABASE_URL` — direct Postgres connection string (if using `pg` for migrations).

@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import http from 'http';
 import { createApp } from '../src/server.js';
 import { themeSettings } from '../src/data/themeStore.js';
+import { TEST_ADMIN, seedTestAdmin } from './helpers/adminFixture.mjs';
 
-const DEFAULT_ADMIN = { email: 'admin@example.com', password: 'changeme123' };
+const DEFAULT_ADMIN = { email: TEST_ADMIN.email, password: TEST_ADMIN.password };
 const DEFAULTS = { ...themeSettings };
 
 beforeEach(() => {
+  seedTestAdmin();
   Object.assign(themeSettings, DEFAULTS);
 });
 

@@ -170,8 +170,14 @@ Priority order agreed with project owner: fix the blockers below **before** resu
 - [ ] **Timeline.** PRD dated 2026-08-09 allowed 35 days (≈13 Sept). Remaining scope far
       exceeds the remaining time. Physical cards need codes printed well before 14 Dec 2026.
       Re-plan or cut scope.
-- [ ] Dev fallback password `changeme123` in `src/data/adminStore.js` — safe locally
-      (production requires `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH`), but remove before any deploy.
+- [x] **Dev fallback admin password removed (2026-08-29).** `adminStore` is now empty unless
+      `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` are set; admin login fails closed with
+      `503 admin_not_configured`, and `/admin` tells the operator to run `npm run admin:hash`.
+      It was safe in that production refused to boot without the env vars, but the password
+      sat in a public repo and would have granted admin on any deployment where `NODE_ENV`
+      was not exactly `production`. `tests/admin-no-fallback.test.mjs` scans `src/` for
+      baked-in passwords so it cannot return, and exercises the real env-var path in a child
+      process — which no test previously covered, since the others seed the store directly.
 - [ ] Admin has no password reset; PRD P0-09 expects one via Supabase Auth.
 
 ### 🟡 UI / UX improvements
@@ -281,7 +287,7 @@ Priority order agreed with project owner: fix the blockers below **before** resu
   - All `/admin/*` pages redirect to login when unauthenticated; all `/api/admin/*` routes return 401
   - Dev-only fallback credentials exist locally but must never reach a deployed environment
 - Status: ✅ Done in the prototype. Deviates from PRD P0-09 in two ways, both logged as prototype-scoped: (1) single seeded account instead of Supabase Auth, (2) no password reset flow yet (deferred to the eventual Supabase Auth migration)
-- 🟠 Known issue (open): dev fallback password (`changeme123` in `src/data/adminStore.js`) must be removed before any deploy
+- ✅ Resolved 2026-08-29: the dev fallback password was removed. There is no default admin account; `npm run admin:hash` creates one. See the Review Findings Backlog entry.
 
 ### Slice 8: Admin Theme Editor (P1-10)
 - User value: The couple can restyle the entire site — colours, fonts, hero image, invitation name-overlay position, wedding info, venue — without a developer.

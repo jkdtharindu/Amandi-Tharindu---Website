@@ -5,11 +5,13 @@ import { createApp } from '../src/server.js';
 import { themeSettings } from '../src/data/themeStore.js';
 import { siteSections } from '../src/data/sectionsStore.js';
 import { guestStore } from '../src/data/guestStore.js';
+import { TEST_ADMIN, seedTestAdmin } from './helpers/adminFixture.mjs';
 
-const DEFAULT_ADMIN = { email: 'admin@example.com', password: 'changeme123' };
+const DEFAULT_ADMIN = { email: TEST_ADMIN.email, password: TEST_ADMIN.password };
 const ORIGINAL_GUESTS = structuredClone(guestStore);
 
 beforeEach(() => {
+  seedTestAdmin();
   siteSections.length = 0;
   guestStore.length = 0;
   guestStore.push(...structuredClone(ORIGINAL_GUESTS));

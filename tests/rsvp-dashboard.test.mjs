@@ -4,10 +4,11 @@ import http from 'http';
 import { createApp } from '../src/server.js';
 import { guestStore } from '../src/data/guestStore.js';
 import { rsvpResponses } from '../src/data/rsvpStore.js';
+import { TEST_ADMIN, seedTestAdmin } from './helpers/adminFixture.mjs';
 
 // Slice 19 — Admin RSVP Dashboard (P0-08).
 
-const DEFAULT_ADMIN = { email: 'admin@example.com', password: 'changeme123' };
+const DEFAULT_ADMIN = { email: TEST_ADMIN.email, password: TEST_ADMIN.password };
 const ORIGINAL_GUESTS = structuredClone(guestStore);
 
 const EXTRA_GUESTS = [
@@ -38,6 +39,7 @@ const EXTRA_GUESTS = [
 ];
 
 beforeEach(() => {
+  seedTestAdmin();
   guestStore.length = 0;
   guestStore.push(...structuredClone(ORIGINAL_GUESTS), ...structuredClone(EXTRA_GUESTS));
   rsvpResponses.length = 0;

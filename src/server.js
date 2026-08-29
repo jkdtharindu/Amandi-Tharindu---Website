@@ -20,7 +20,7 @@ import {
 } from './guest-auth/guestRepo.js';
 import { computeRsvpStats } from './rsvp/rsvpStats.js';
 import { buildGuestCsv } from './rsvp/guestCsv.js';
-import { adminStore } from './data/adminStore.js';
+import { adminStore, isAdminConfigured } from './data/adminStore.js';
 import { verifyAdminCredentials } from './admin-auth/verifyAdminCredentials.js';
 import { getThemeSettings, updateThemeSettings } from './theme/themeRepo.js';
 import { THEME_FIELD_GROUPS, FIELD_LABELS } from './theme/mergeThemeUpdate.js';
@@ -1096,6 +1096,11 @@ export function createApp() {
         <h1>Sign in to manage the wedding site.</h1>
       </section>
       <section class="story-card">
+        ${
+          isAdminConfigured()
+            ? ''
+            : `<p class="status-msg error">No admin account is configured yet. Run <code>npm run admin:hash</code>, then put the printed ADMIN_EMAIL and ADMIN_PASSWORD_HASH lines in your <code>.env</code> and restart.</p>`
+        }
         <form id="admin-login-form" class="responsive-stack">
           <label>Email<input id="admin-email" type="email" autocomplete="username" /></label>
           <label>Password<input id="admin-password" type="password" autocomplete="current-password" /></label>
@@ -1140,6 +1145,17 @@ export function createApp() {
   app.post('/api/admin/login', async (req, res) => {
     if (!verifyCsrfToken(req)) {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    // There is no fallback admin password. When the account is unconfigured,
+    // say so plainly rather than returning "incorrect email or password" for
+    // credentials that could never have worked.
+    if (!isAdminConfigured()) {
+      return res.status(503).json({
+        success: false,
+        reason: 'admin_not_configured',
+        message: 'No admin account is configured. Run `npm run admin:hash` and set ADMIN_EMAIL and ADMIN_PASSWORD_HASH.',
+      });
     }
 
     const { email, password } = req.body || {};

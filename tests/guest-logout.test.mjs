@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'http';
 import { createApp } from '../src/server.js';
 import { rsvpResponses } from '../src/data/rsvpStore.js';
+import { TEST_ADMIN, seedTestAdmin } from './helpers/adminFixture.mjs';
 
 // Slice 18 follow-up — guest logout.
 //
@@ -12,6 +13,7 @@ import { rsvpResponses } from '../src/data/rsvpStore.js';
 // browser cookies by hand.
 
 beforeEach(() => {
+  seedTestAdmin();
   rsvpResponses.length = 0;
 });
 
@@ -156,9 +158,9 @@ test('logout does not disturb an admin session', async () => {
       path: '/api/admin/login',
       method: 'POST',
       headers: { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) },
-      body: { email: 'admin@example.com', password: 'changeme123' },
+      body: { email: TEST_ADMIN.email, password: TEST_ADMIN.password },
     });
-    assert.equal(adminLogin.statusCode, 200, 'sanity: dev admin login works');
+    assert.equal(adminLogin.statusCode, 200, 'sanity: the seeded test admin can log in');
 
     const bothCookie = mergeCookies(cookie, adminLogin.headers['set-cookie']);
     const logout = await request(port, {

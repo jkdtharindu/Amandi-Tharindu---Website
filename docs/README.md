@@ -19,8 +19,9 @@ to that stack is the next major decision point (see TASKS.md "Current Blockers")
 | Guest login | Code-only (`/login`) | Code-only + QR (`/invitation/[code]`) |
 | Fonts | Falls back to Georgia (not loaded) | Self-hosted Cormorant Garamond, Montserrat, Great Vibes |
 
-> **⚠️ The dev fallback password (`changeme123` in `src/data/adminStore.js`) must be removed
-> before any deployment.** It is safe only for local use.
+> **There is no default admin password.** The account exists only when `ADMIN_EMAIL` and
+> `ADMIN_PASSWORD_HASH` are set; otherwise admin login fails closed. Run `npm run admin:hash`
+> to create one. (A dev-only fallback was removed on 2026-08-29.)
 
 ---
 
@@ -57,16 +58,24 @@ cmd /c "npm run smoke"
 
 ## Admin panel (prototype)
 
-Available at `/admin`. With `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` unset locally, a
-**development-only** fallback account applies:
+Available at `/admin`. There is **no default account** — you must create one, locally as well
+as in production:
+
+```bash
+npm run admin:hash
+```
+
+It prompts for an email and password (never passed as an argument, so neither reaches your
+shell history), then prints the two lines to paste into `.env`:
 
 ```
-email:    admin@example.com
-password: changeme123
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD_HASH=<salt:hash>
 ```
 
-> This fallback must **never** reach production. Both env vars are required in production —
-> the app refuses to boot without them.
+> Until both are set, `adminStore` is empty, every admin login returns
+> `503 admin_not_configured`, and `/admin` shows how to fix it. Production additionally
+> refuses to boot without them. `.env` is gitignored — never commit a real hash.
 
 Generate a password hash:
 

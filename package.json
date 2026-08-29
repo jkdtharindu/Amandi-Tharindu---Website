@@ -14,7 +14,8 @@
     "migrate": "node scripts/run-migrations.js",
     "hitl:migrate": "node scripts/hitl-preflight.js migrate",
     "seed:db": "node scripts/seed-local-db.js",
-    "copy-fonts": "node scripts/copy-fonts.js"
+    "copy-fonts": "node scripts/copy-fonts.js",
+    "admin:hash": "node scripts/admin-hash.js"
   },
   "devDependencies": {
     "@fontsource/cinzel": "^5.3.0",
