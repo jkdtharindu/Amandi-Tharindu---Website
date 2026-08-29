@@ -401,6 +401,13 @@ enough to open an invitation — and, worse, to overwrite that family's RSVP.
       unauthenticated deep link redirects to `/login`; own invitation renders; cross-guest
       code shows the 403 page; cross-guest RSVP POST returns 403; the guest's own RSVP still
       submits through the actual button and the sticky bar clears.
+- [x] **Guest logout added** (follow-up, same day). `POST /api/guest/logout` was documented as
+      implemented but no route existed — harmless while the session was decorative, a real gap
+      once the session became load-bearing. Now implemented, CSRF-protected, and deliberately
+      idempotent (signing out twice, or with an expired cookie, returns 200 rather than a
+      confusing error). Clears only `guest_session`; an admin session in the same browser is
+      untouched. Surfaced on the invitation page as "Signed in as *name* — Not you? Sign out",
+      which matters on a shared family phone. Covered by `tests/guest-logout.test.mjs` (5 cases).
 
 ### Slice 19: RSVP Dashboard (P0-08) — not started, build after Slice 18
 
