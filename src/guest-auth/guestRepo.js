@@ -294,3 +294,19 @@ export async function softDeleteGuest(id) {
   if (!rows[0]) return { success: false, reason: 'guest_not_found' };
   return { success: true, guest: mapGuestRow(rows[0]) };
 }
+
+/**
+ * All RSVP responses in one query, for the admin dashboard (P0-08).
+ *
+ * The dashboard aggregates over the whole guest list, so fetching responses one
+ * guest at a time via findRsvpResponseByGuestId() would be an N+1 — noticeable
+ * at the ~350 guest units this wedding expects.
+ */
+export async function listAllRsvpResponses() {
+  if (!useDb) {
+    return rsvpResponses.map((entry) => ({ ...entry }));
+  }
+
+  const { rows } = await query('SELECT * FROM rsvp_responses');
+  return rows.map(mapResponseRow);
+}

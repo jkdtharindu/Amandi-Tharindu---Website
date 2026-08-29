@@ -593,46 +593,72 @@ display_name,invitation_type,relationship_category,sub_group,slot_count,whatsapp
 
 ---
 
-## Admin — RSVP Dashboard (Slice 11, not yet built)
+## Admin — RSVP Dashboard (Slice 19, built 2026-08-29)
 
 ### `GET /api/admin/dashboard`
-Returns real-time RSVP stats across both partitions (GroomAdmin) or own partition (BrideAdmin).
+Returns real-time RSVP stats over the whole guest list.
 
-**Auth:** Admin session.
+**Auth:** Admin session required — `401` if unauthenticated.
 
 **Response 200:**
 ```json
 {
   "success": true,
-  "data": {
-    "overall": {
-      "totalInvited": 350,
-      "accepted": 187,
-      "declined": 43,
-      "pending": 120,
-      "headcount": 412
-    },
-    "byPartition": {
-      "groom": { "totalInvited": 180, "accepted": 95, "declined": 22, "pending": 63, "headcount": 210 },
-      "bride": { "totalInvited": 170, "accepted": 92, "declined": 21, "pending": 57, "headcount": 202 }
-    },
-    "byRelationshipCategory": {
-      "family":     { "invited": 40, "accepted": 38, "declined": 1, "pending": 1 },
-      "relations":  { "invited": 80, "accepted": 55, "declined": 12, "pending": 13 },
-      "friends":    { "invited": 90, "accepted": 48, "declined": 18, "pending": 24 },
-      "colleagues": { "invited": 60, "accepted": 28, "declined": 8, "pending": 24 },
-      "neighbours": { "invited": 40, "accepted": 12, "declined": 3, "pending": 25 },
-      "invitees":   { "invited": 40, "accepted": 6, "declined": 1, "pending": 33 }
-    }
+  "stats": {
+    "totalInvited": 350,
+    "totalSlots": 780,
+    "acceptedFamilies": 187,
+    "acceptedHeadcount": 412,
+    "declinedFamilies": 43,
+    "pendingFamilies": 120,
+    "responseRate": 66
   }
 }
 ```
 
-### `GET /api/admin/dashboard/export`
-Downloads the full guest list as CSV (all columns including RSVP details and participant names).
+**Counting rules** (implemented in `src/rsvp/rsvpStats.js`, pinned by `tests/rsvp-stats.test.mjs`):
+- A "family" is one guest unit / InvitationCode. `totalInvited` counts guest units, not people.
+- Soft-deleted guests are excluded from every figure, including headcount — a removed guest
+  must not be catered for.
+- `acceptedFamilies + declinedFamilies + pendingFamilies` always equals `totalInvited`.
+  A guest with no `rsvp_responses` row is pending.
+- `acceptedHeadcount` sums participant names across accepting families. An acceptance carrying
+  **no** names counts as **one** head, not zero: `POST /api/guest/rsvp` does not enforce that
+  names are supplied (only the page JS asks for them), and understating is the direction that
+  costs money on the day.
+- `responseRate` is the whole-number percentage of guest units that have answered; it is `0`,
+  not `NaN`, when there are no guests.
 
-**Auth:** Admin session.
-**Response:** `text/csv` attachment — `Content-Disposition: attachment; filename="rsvp-export-2026-08-29.csv"`
+**Not implemented** (present in an earlier draft of this document, deliberately not built):
+- `byPartition` (groom/bride admin split) — superseded. The project has a single admin
+  account (P0-09), so there are no partitions to report on.
+- `byRelationshipCategory` — a per-relationship breakdown. Not part of the P0-08 acceptance
+  criteria; the guest list can already be filtered by relationship at `/admin/guests`. Worth
+  adding to the dashboard later if the couple wants it.
+
+---
+
+### `GET /api/admin/dashboard/export`
+Downloads the full guest list as CSV, including RSVP status, headcount, and participant names.
+
+**Auth:** Admin session required — `401` if unauthenticated.
+**Response:** `text/csv; charset=utf-8` attachment —
+`Content-Disposition: attachment; filename="rsvp-export-2026-08-29.csv"`
+
+**Columns:** `Name, Code, Relationship, Slots, RSVP Status, Headcount, Participant Names,
+WhatsApp, Email, Deleted`
+
+**Notes:**
+- Written to RFC 4180 quoting: any value containing a comma, double quote, or newline is
+  quoted, and inner quotes are doubled.
+- **Formula injection is neutralised.** Excel, LibreOffice and Google Sheets evaluate a cell
+  whose text begins with `=`, `+`, `-` or `@`, so such values are prefixed with a single quote
+  and render as literal text. This is not hypothetical: a WhatsApp number like `+94771234567`
+  hits it on every export.
+- The file opens with a UTF-8 BOM so Excel on a default Windows install renders Sinhala and
+  accented names correctly instead of mojibake.
+- Soft-deleted guests are **included** and flagged in the `Deleted` column, so the export
+  reconciles against the guest list rather than silently dropping records.
 
 ---
 
@@ -836,8 +862,8 @@ When porting to Next.js, use this document (not the prototype code) as the autho
 | `PATCH /api/admin/guests/:id` | ❌ Not built | ⬜ Build (Slice 10) |
 | `DELETE /api/admin/guests/:id` | ❌ Not built | ⬜ Build (Slice 10) |
 | `POST /api/admin/guests/import` | ❌ Not built | ⬜ Build (Slice 10) |
-| `GET /api/admin/dashboard` | ❌ Not built | ⬜ Build (Slice 11) |
-| `GET /api/admin/dashboard/export` | ❌ Not built | ⬜ Build (Slice 11) |
+| `GET /api/admin/dashboard` | ✅ Implemented (Slice 19) | ⬜ Port |
+| `GET /api/admin/dashboard/export` | ✅ Implemented (Slice 19) | ⬜ Port |
 | `GET /api/admin/messages/templates` | ❌ Not built | ⬜ Build (Slice 12, HITL) |
 | `PATCH /api/admin/messages/templates/:id` | ❌ Not built | ⬜ Build (Slice 12, HITL) |
 | `POST /api/admin/messages/send` | ❌ Not built | ⬜ Build (Slice 12, HITL) |

@@ -4,10 +4,12 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## Project Status
 - Status: Scoping / Initial implementation started
-- Current focus (updated 2026-08-29, later): Slice 18 is **2/3 done** — Guest Management and the
-  guest session fix are both shipped and green. The remaining third, **Postgres persistence, is
-  blocked**: there is no database yet. Once a `DATABASE_URL` exists, finish persistence, then
-  build Slice 19 (RSVP Dashboard). Image upload work (Slices 13–17) stays paused until both land.
+- Current focus (updated 2026-08-29, latest): **Slice 19 (RSVP Dashboard) is done**, and Slice 18
+  is 2/3 done — Guest Management, the guest session fix, and guest logout are all shipped and
+  green. The one remaining piece of Slice 18, **Postgres persistence, is blocked**: there is no
+  database yet, so every feature above still runs on in-memory stores and a restart wipes RSVPs.
+  **Next: get a `DATABASE_URL`, then finish persistence.** Image upload work (Slices 13–17)
+  resumes after that.
 - Stack decision (2026-08-29): staying on Express + Postgres; not migrating to Next.js. See PRD §6 and Recent Decisions below.
 - Priority: Build the first vertical slice end-to-end
 
@@ -56,7 +58,10 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Guest management — `/admin/guests`: add (auto-generates a unique InvitationCode), edit,
       soft-delete, plus search and filtering by RSVP status and relationship group.
       **Shipped 2026-08-29** (commit `0c4d06f`). Still in-memory until persistence lands.
-- [ ] RSVP dashboard
+- [x] RSVP dashboard — `/admin/rsvp`: headline figures, server-rendered SVG breakdown chart,
+      self-refreshing every 15s, plus CSV export of the full guest list.
+      **Shipped 2026-08-29** against the in-memory store; dual-mode repo means no change needed
+      when Postgres lands.
 - [ ] Messaging center
 - [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres). **Live as of 2026-08-23** — values render site-wide as CSS custom properties.
 - [x] Section manager — `/admin/sections`: add/edit/toggle-visibility/delete custom content blocks per public page, persisted via `sectionsRepo` (dual-mode). **Live as of 2026-08-23** — visible sections render on their public page.
@@ -145,8 +150,8 @@ Priority order agreed with project owner: fix the blockers below **before** resu
 - [~] **Slice 18: Guest session fix + Guest Management, combined.** Guest Management ✅ and the
       session fix ✅ (HITL approval given 2026-08-29 before the change was made). Persistence
       ❌ — blocked, no database exists yet. See full slice detail below.
-- [ ] **Slice 19 (after 18): RSVP Dashboard (P0-08).** Kept as its own slice rather than
-      folded into Slice 18, per project owner decision 2026-08-29.
+- [x] **Slice 19: RSVP Dashboard (P0-08)** — done 2026-08-29, built against the in-memory
+      store at the owner's direction. See slice detail below.
 - [ ] **No persistence — resolved by Slice 18/19 work.** Guests, RSVPs, theme, and sections
       currently live in in-memory arrays; a server restart destroys every RSVP. `DATABASE_URL`
       is unset and migrations (001–003) have never been applied to any database. Wiring
@@ -368,8 +373,9 @@ Priority order agreed with project owner: fix the blockers below **before** resu
         (b) `scripts/run-migrations.js` has **no migration ledger** — it re-runs all five
             files on every invocation. 001–003 are `IF NOT EXISTS`, but 004 performs an
             `UPDATE`, so repeat runs are not safe to assume idempotent.
-  Still blocks Slice 19 (RSVP Dashboard needs real persisted RSVP data to be meaningful) and
-  Slices 13–17 (image uploads).
+  Slice 19 (RSVP Dashboard) was built against the in-memory store rather than waiting, at the
+  owner's direction; its figures become durable the moment persistence lands, with no code
+  change. Slices 13–17 (image uploads) remain deferred until then.
 
 ### ✅ Done — guest session enforcement (2026-08-29, HITL-approved)
 The 🔴 P0 access hole recorded under Slice 4 is closed. Previously the `guest_session` cookie
@@ -409,7 +415,7 @@ enough to open an invitation — and, worse, to overwrite that family's RSVP.
       untouched. Surfaced on the invitation page as "Signed in as *name* — Not you? Sign out",
       which matters on a shared family phone. Covered by `tests/guest-logout.test.mjs` (5 cases).
 
-### Slice 19: RSVP Dashboard (P0-08) — not started, build after Slice 18
+### Slice 19: RSVP Dashboard (P0-08) — ✅ DONE 2026-08-29
 
 ⚠️ **BEFORE STARTING THIS SLICE:**
 - [ ] Confirm you have **Claude Sonnet 5** selected (see WEDDING_MODEL_SELECTION.md §Slice 11).
@@ -423,8 +429,43 @@ enough to open an invitation — and, worse, to overwrite that family's RSVP.
   - Real-time stats: total invited, accepted (with headcount), declined, pending
   - Visual chart
   - Exportable as CSV
-- Status: ❌ Not started. Depends on Slice 18 (needs real Postgres-backed guest/RSVP data).
-  Kept as a separate slice from Guest Management per project owner decision 2026-08-29.
+- Status: ✅ **Done 2026-08-29**, built against the in-memory store at the project owner's
+  direction (no database exists yet). Every figure flows through `guestRepo`, which is
+  dual-mode, so the dashboard needs no change when Postgres lands — only `DATABASE_URL`.
+  - [x] `GET /admin/rsvp` — six headline tiles: Total Invited, Accepted (families),
+        Headcount (people), Declined, Pending, Responded (%).
+  - [x] Visual chart — horizontal bar chart of the accepted/declined/pending breakdown, as
+        **inline SVG rendered server-side**, so it is correct in the first paint and pulls no
+        third-party charting library (same constraint as the self-hosted webfonts).
+  - [x] `GET /api/admin/dashboard` — the stats as JSON. Admin-only (401 otherwise).
+  - [x] `GET /api/admin/dashboard/export` — CSV download of the full guest list with RSVP
+        status, headcount, and participant names. Admin-only (401 otherwise).
+  - [x] Real-time — the page polls the stats endpoint every 15s and updates the tiles and bars
+        in place, so no manual refresh is needed. A failed poll leaves the last good numbers
+        on screen rather than blanking the dashboard.
+  - [x] New route names match what `WEDDING_API_DOCUMENTATION.md` already specified, rather
+        than inventing parallel paths.
+- Counting rules are pinned in `tests/rsvp-stats.test.mjs` because the couple books catering
+  against these numbers:
+  - Soft-deleted guests are excluded from every figure, headcount included.
+  - The three buckets always sum to `totalInvited`, so the chart cannot lie.
+  - An acceptance carrying **no** participant names counts as **one** head, not zero.
+    `POST /api/guest/rsvp` does not enforce that names are supplied (only the page JS asks),
+    and understating is the direction that costs money on the day.
+- CSV hardening (`src/rsvp/guestCsv.js`): RFC 4180 quoting, and values beginning `=` `+` `-` `@`
+  are prefixed with a quote so Excel/Sheets treat them as text rather than executing them.
+  **Not hypothetical** — a WhatsApp number like `+94771234567` triggers it on every export.
+  The file also carries a UTF-8 BOM so Excel on Windows renders Sinhala names correctly.
+- Tests: `tests/rsvp-stats.test.mjs` (13 unit cases over the pure aggregation and CSV logic)
+  and `tests/rsvp-dashboard.test.mjs` (8 route/page cases). Full suite **115/115 green**.
+- Verified in a browser: figures matched the API, the chart scaled correctly, the CSV
+  downloaded with the expected content, and a guest RSVP submitted while the dashboard sat
+  open was picked up by the poll with no reload (pending 2→1, accepted 1→2, headcount 3→5).
+- Deliberately **not** built, and why:
+  - `byPartition` (groom/bride split) from the API doc — superseded, the project has a single
+    admin account (P0-09), so there are no partitions.
+  - `byRelationshipCategory` breakdown — not in the P0-08 acceptance criteria, and
+    `/admin/guests` already filters by relationship. Easy to add later if wanted.
 
 ### Slice 13: Supabase Storage setup for image uploads — not started, deferred until Slices 18–19 are done
 - User value: Foundation for every admin image upload feature below — without this, all image fields remain URL-only.

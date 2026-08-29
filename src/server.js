@@ -16,7 +16,10 @@ import {
   createGuest,
   updateGuest,
   softDeleteGuest,
+  listAllRsvpResponses,
 } from './guest-auth/guestRepo.js';
+import { computeRsvpStats } from './rsvp/rsvpStats.js';
+import { buildGuestCsv } from './rsvp/guestCsv.js';
 import { adminStore } from './data/adminStore.js';
 import { verifyAdminCredentials } from './admin-auth/verifyAdminCredentials.js';
 import { getThemeSettings, updateThemeSettings } from './theme/themeRepo.js';
@@ -97,6 +100,59 @@ function requireAdminApi(req, res, next) {
   next();
 }
 
+/** One headline figure on the RSVP dashboard (P0-08). */
+function statTile(label, key, value, hint, suffix = '') {
+  return `
+    <div class="stat-tile">
+      <span class="stat-label">${escapeHtml(label)}</span>
+      <strong class="stat-value"><span data-stat="${escapeHtml(key)}">${Number(value) || 0}</span>${escapeHtml(suffix)}</strong>
+      <span class="stat-hint">${escapeHtml(hint)}</span>
+    </div>
+  `;
+}
+
+/**
+ * Horizontal bar chart of the RSVP breakdown, as inline SVG.
+ *
+ * Server-rendered with real numbers so the chart is correct in the first paint
+ * rather than appearing only after a fetch, and self-contained so the admin
+ * panel pulls no third-party charting library — same constraint as the
+ * self-hosted webfonts.
+ */
+function renderRsvpChart(stats) {
+  const bars = [
+    { key: 'accepted', label: 'Accepted', value: stats.acceptedFamilies, fill: '#1B5E38' },
+    { key: 'declined', label: 'Declined', value: stats.declinedFamilies, fill: '#8A5A44' },
+    { key: 'pending', label: 'Pending', value: stats.pendingFamilies, fill: '#B08A2E' },
+  ];
+
+  // Scale to the largest bar, never to zero.
+  const max = Math.max(...bars.map((bar) => bar.value), 1);
+  const trackWidth = 260;
+  const rowHeight = 44;
+  const height = bars.length * rowHeight + 12;
+
+  const rows = bars
+    .map((bar, index) => {
+      const y = index * rowHeight + 10;
+      const width = Math.round((bar.value / max) * trackWidth);
+      return `
+        <text x="0" y="${y + 20}" class="chart-label">${escapeHtml(bar.label)}</text>
+        <rect x="90" y="${y + 4}" width="${trackWidth}" height="24" rx="12" class="chart-track" />
+        <rect data-bar="${bar.key}" x="90" y="${y + 4}" width="${width}" height="24" rx="12" fill="${bar.fill}" />
+        <text data-bar-value="${bar.key}" x="${96 + width}" y="${y + 20}" class="chart-value">${bar.value}</text>
+      `;
+    })
+    .join('');
+
+  return `
+    <svg viewBox="0 0 400 ${height}" role="img" width="100%" style="max-width: 460px;"
+         aria-label="RSVP breakdown: ${bars.map((bar) => `${bar.label} ${bar.value}`).join(', ')} families">
+      ${rows}
+    </svg>
+  `;
+}
+
 function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
   return `
     <!DOCTYPE html>
@@ -121,6 +177,15 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
           .status-msg.error { color: #b91c1c; }
           .section-item { border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; margin-bottom: 0.85rem; }
           .section-item .section-item-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+          .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
+          .stat-tile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; }
+          .stat-label { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-muted); }
+          .stat-value { display: block; font-size: 1.9rem; line-height: 1.2; margin: 0.2rem 0; color: var(--color-primary); font-family: var(--font-display); }
+          .stat-hint { display: block; font-size: 0.8rem; color: var(--color-muted); }
+          .chart-label { font-size: 13px; font-weight: 600; fill: var(--color-ink); }
+          .chart-value { font-size: 13px; font-weight: 700; fill: var(--color-ink); }
+          .chart-track { fill: var(--color-line); opacity: 0.45; }
+          a.save-btn { display: inline-block; text-decoration: none; }
           .guest-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
           .guest-table th, .guest-table td { text-align: left; padding: 0.65rem 0.5rem; border-bottom: 1px solid var(--color-line); vertical-align: top; }
           .guest-table th { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
@@ -148,6 +213,7 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
             <a href="/admin/theme">Theme</a>
             <a href="/admin/sections">Sections</a>
             <a href="/admin/guests">Guests</a>
+            <a href="/admin/rsvp">RSVP Dashboard</a>
             <button id="admin-logout" type="button">Log out</button>
           </header>
           ${bodyContent}
@@ -1566,6 +1632,99 @@ export function createApp() {
     `;
 
     return res.send(adminPageWrapper('Guest Management — Admin', bodyContent, scripts, res.locals.theme));
+  });
+
+  // --- Slice 19: Admin RSVP Dashboard (P0-08) -----------------------------
+
+  /** Loads guests + responses once and aggregates them. */
+  async function loadRsvpData() {
+    const [guests, responses] = await Promise.all([listGuestsForAdmin({}), listAllRsvpResponses()]);
+    return { guests, responses };
+  }
+
+  app.get('/api/admin/dashboard', requireAdminApi, async (req, res) => {
+    const { guests, responses } = await loadRsvpData();
+    return res.json({ success: true, stats: computeRsvpStats(guests, responses) });
+  });
+
+  app.get('/api/admin/dashboard/export', requireAdminApi, async (req, res) => {
+    const { guests, responses } = await loadRsvpData();
+    const today = new Date().toISOString().slice(0, 10);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="rsvp-export-${today}.csv"`);
+    // A BOM so Excel opens the file as UTF-8; without it Sinhala names and
+    // accented characters arrive mojibaked on a default Windows install.
+    return res.send('﻿' + buildGuestCsv(guests, responses));
+  });
+
+  app.get('/admin/rsvp', requireAdminPage, async (req, res) => {
+    const { guests, responses } = await loadRsvpData();
+    const stats = computeRsvpStats(guests, responses);
+
+    const bodyContent = `
+      <h1>RSVP Dashboard</h1>
+      <p>Live response figures for catering and venue planning. Updates on its own — no need to refresh.</p>
+
+      <div class="stat-grid">
+        ${statTile('Total Invited', 'totalInvited', stats.totalInvited, 'guest units')}
+        ${statTile('Accepted', 'acceptedFamilies', stats.acceptedFamilies, 'families')}
+        ${statTile('Headcount', 'acceptedHeadcount', stats.acceptedHeadcount, 'people attending')}
+        ${statTile('Declined', 'declinedFamilies', stats.declinedFamilies, 'families')}
+        ${statTile('Pending', 'pendingFamilies', stats.pendingFamilies, 'yet to respond')}
+        ${statTile('Responded', 'responseRate', stats.responseRate, 'percent of guests', '%')}
+      </div>
+
+      <div class="field-group">
+        <h2>Response breakdown</h2>
+        ${renderRsvpChart(stats)}
+      </div>
+
+      <div class="field-group">
+        <h2>Export</h2>
+        <p>Downloads every guest with their RSVP status and participant names, including removed guests (flagged), so the file reconciles against the guest list.</p>
+        <a class="save-btn" href="/api/admin/dashboard/export" download>Export CSV</a>
+      </div>
+    `;
+
+    const scripts = `
+      <script>
+        // P0-08 requires the figures to be real-time with no manual refresh.
+        async function refreshStats() {
+          try {
+            const res = await fetch('/api/admin/dashboard');
+            if (!res.ok) return;
+            const body = await res.json();
+            if (!body.success) return;
+
+            const stats = body.stats;
+            document.querySelectorAll('[data-stat]').forEach((el) => {
+              const key = el.getAttribute('data-stat');
+              if (stats[key] !== undefined) el.textContent = stats[key];
+            });
+
+            const max = Math.max(stats.acceptedFamilies, stats.declinedFamilies, stats.pendingFamilies, 1);
+            [['accepted', stats.acceptedFamilies], ['declined', stats.declinedFamilies], ['pending', stats.pendingFamilies]]
+              .forEach(([key, value]) => {
+                const bar = document.querySelector('[data-bar="' + key + '"]');
+                const label = document.querySelector('[data-bar-value="' + key + '"]');
+                if (bar) bar.setAttribute('width', Math.round((value / max) * 260));
+                if (label) {
+                  label.setAttribute('x', 96 + Math.round((value / max) * 260));
+                  label.textContent = value;
+                }
+              });
+          } catch (err) {
+            // A transient network blip should not blank the dashboard; the next
+            // tick simply tries again with the last good numbers still on screen.
+          }
+        }
+
+        setInterval(refreshStats, 15000);
+      </script>
+    `;
+
+    return res.send(adminPageWrapper('RSVP Dashboard — Admin', bodyContent, scripts, res.locals.theme));
   });
 
   return app;
