@@ -1,7 +1,8 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
-import { pathToFileURL } from 'node:url';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loginGuestByCode, loginGuestByName } from './guest-auth/index.js';
 import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
@@ -21,6 +22,9 @@ import { getThemeSettings, updateThemeSettings } from './theme/themeRepo.js';
 import { THEME_FIELD_GROUPS, FIELD_LABELS } from './theme/mergeThemeUpdate.js';
 import { readableTextColor } from './theme/colors.js';
 import { THEME_PALETTES, FONT_CHOICES } from './theme/palettes.js';
+import { buildFontFaceCss } from './theme/fontFaces.js';
+
+const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 import { themeSettings as themeDefaults } from './data/themeStore.js';
 import {
   listSections,
@@ -172,6 +176,7 @@ const siteNav = `
 function buildStyles(theme) {
   const t = { ...themeDefaults, ...(theme || {}) };
   return `
+  ${buildFontFaceCss()}
   :root {
     color-scheme: light;
     --color-primary: ${t.primaryColor};
@@ -402,6 +407,9 @@ function pageWrapper(title, bodyContent, scripts = '', theme = null) {
 
 export function createApp() {
   const app = express();
+  // Self-hosted webfonts (PRD §4.1 item 4) — served from our own origin so
+  // the site never depends on a third-party CDN being reachable.
+  app.use('/fonts', express.static(path.join(projectRoot, 'public', 'fonts'), { immutable: true, maxAge: '30d' }));
   app.use(cookieParser());
   app.use(bodyParser.json());
   app.use((req, res, next) => {

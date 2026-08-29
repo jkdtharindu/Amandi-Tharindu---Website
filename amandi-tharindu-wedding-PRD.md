@@ -158,10 +158,9 @@ governing PRD with the approach already described in the alternate `New folder (
    (The CSS-custom-property foundation for this landed 23 August 2026; palettes plug into it.)
 3. **FontChoice picker** — a dropdown/radio list of curated pairings, showing each name rendered
    in its own face so the couple can see it before choosing.
-4. **Webfonts must actually load.** *Currently they do not* — the stylesheet names a font family
-   but nothing is ever fetched, so any non-system font silently falls back to Georgia. Each
-   FontChoice must ship a real font source (self-hosted preferred; the site must not depend on a
-   third-party CDN being reachable from Sri Lanka).
+4. **Webfonts must actually load.** ✅ Fixed 2026-08-28 — self-hosted, not CDN-dependent. All four
+   FontChoice families ship as `.woff2` in `public/fonts/`, served via `express.static` and loaded
+   through `@font-face` rules from `src/theme/fontFaces.js`. No `fonts.googleapis.com` request.
 5. **Accessibility is a gate, not an afterthought.** Every palette must pass WCAG 2.1 AA:
    body text ≥ 4.5:1 against its background, and primary-colour buttons ≥ 4.5:1 against their own
    text. Enforced with the existing `contrastRatio()` helper in `src/theme/colors.js`.

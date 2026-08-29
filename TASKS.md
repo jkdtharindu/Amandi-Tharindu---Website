@@ -112,15 +112,19 @@ Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
       render and are covered by `tests/theme-picker.test.mjs`. **Live as of 2026-08-28.**
 - [x] **FontChoice picker** — curated list at `/admin/theme` (`renderFontChoiceGroup`), each option
       rendered in its own face, replacing the free-text font-family input as the primary path.
-      Selecting one cascades `fontFamily`/`fontStyle`. **Live as of 2026-08-28** — see the webfont
-      caveat directly below, which limits what visitors actually see.
-- [ ] **🔴 Webfonts are still never loaded.** Unchanged since 2026-08-23: `src/server.js` emits
-      `--font-display: "Cormorant Garamond", …` but the page contains no `<link>`, no
-      `@font-face`, and no font file. Every visitor without that font installed silently gets
-      Georgia — so the new FontChoice picker (above) currently only changes which *fallback-safe*
-      face is requested, not what most visitors will actually see. Prefer self-hosted fonts — the
-      site must not depend on a third-party CDN being reachable from Sri Lanka. Still the top
-      priority to make the FontChoice picker meaningful.
+      Selecting one cascades `fontFamily`/`fontStyle`. **Live as of 2026-08-28**, and now backed
+      by real font files (see below) — the picker actually changes what visitors see.
+- [x] **🔴→done Webfonts now self-hosted.** Fixed 2026-08-28: `public/fonts/` holds 20 `.woff2`
+      files (all four FontChoice families × weights 400/500/600/700, plus Cormorant Garamond's
+      italic set, matching every weight/style `buildStyles()` actually uses) sourced via
+      `@fontsource/*` (SIL OFL licensed, `scripts/copy-fonts.js` reproduces the copy) and served by
+      `express.static('/fonts', …)` in `src/server.js`. `src/theme/fontFaces.js` emits the
+      `@font-face` rules, injected at the top of `buildStyles()`. No `fonts.googleapis.com` /
+      `fonts.gstatic.com` request anywhere — verified in-browser via `document.fonts` (families
+      report `status: "loaded"`) and `read_network_requests` (all `/fonts/*.woff2` return 200 from
+      `localhost:3000`, not a third-party host). Regression test:
+      `tests/theme-rendering.test.mjs` → "webfonts are self-hosted". `@fontsource/*` packages live
+      in `devDependencies` (source-only; the copied `.woff2` files are what ships).
 - [x] Migration written: `migrations/004_add_theme_palette_font_choice.sql` adds `palette_name` and
       `font_choice` (TEXT) to `theme_settings`, keeping existing per-colour columns intact. **Not
       applied to any database** — HITL.md requires approval first; the in-memory store (used
@@ -142,6 +146,15 @@ Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
       (4.68:1), same technique already used for Imperial Gold. **Selectable in the live picker as
       of 2026-08-28** — verified in the browser: selecting it cascades burgundy/ivory/gold to the
       public `/home` page.
+- [x] **"Modern Royal Romance" made the site's actual default** (owner decision, 2026-08-28) — not
+      just selectable, now what a fresh install shows with zero admin action. Changed in
+      `src/data/themeStore.js` (the in-memory default, used locally with no `DATABASE_URL`) and in
+      `migrations/004_add_theme_palette_font_choice.sql` (column `DEFAULT`s for a fresh DB row, plus
+      a guarded `UPDATE` that backfills the existing migration-003 seed row *only if* it still holds
+      the untouched original gold — never overwrites a couple's own customisation). Font choice
+      defaults to `cormorant` (Cormorant Garamond italic), which the pre-existing default already
+      matched. Verified in the browser: fresh server start, no admin login, `/home` renders burgundy
+      immediately. 79/79 tests still passing.
 - [ ] The brief also specs new fonts (`Bodoni Moda`, `Montserrat`, `Plus Jakarta Sans`) not yet in
       the FontChoice candidate list, and product surfaces beyond current scope (QR boarding-pass
       invite, guest-facing seating visualizer, admin drag-and-drop floor-plan canvas w/ PDF+Excel

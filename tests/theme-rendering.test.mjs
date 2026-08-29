@@ -130,6 +130,18 @@ test('SiteSection content is HTML-escaped', async () => {
   });
 });
 
+test('webfonts are self-hosted: @font-face rules and font files are actually served', async () => {
+  await withServer(async (port) => {
+    const page = await getPage(port, '/home');
+    assert.ok(page.body.includes("@font-face"), 'the page must declare @font-face rules, not just reference a family name');
+    assert.ok(page.body.includes("url('/fonts/cormorant-garamond-latin-400-normal.woff2')"), 'the default font family must have a self-hosted source');
+    assert.ok(!page.body.includes('fonts.googleapis.com') && !page.body.includes('fonts.gstatic.com'), 'must not depend on a third-party font CDN');
+
+    const fontFile = await getPage(port, '/fonts/cormorant-garamond-latin-400-normal.woff2');
+    assert.equal(fontFile.statusCode, 200, 'the referenced font file must actually be served from this origin');
+  });
+});
+
 test('readableTextColor picks an accessible ink for the chosen background', () => {
   const onGold = readableTextColor('#B8860B');
   assert.ok(contrastRatio(onGold, '#B8860B') >= 4.5, 'button text should meet WCAG AA on the default gold');
