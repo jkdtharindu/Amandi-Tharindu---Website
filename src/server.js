@@ -8,6 +8,7 @@ import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
 import {
   findGuestByCode,
+  findGuestById,
   findRsvpResponseByGuestId,
   updateGuestRsvpStatus,
   upsertRsvpResponse,
@@ -36,6 +37,7 @@ import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js'
 import { VALID_RELATIONSHIP_TYPES } from './guest-auth/validateGuestInput.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
+const GUEST_SESSION_COOKIE = 'guest_session';
 
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -61,6 +63,20 @@ function getAdminFromRequest(req) {
   const signed = req.cookies && req.cookies[ADMIN_SESSION_COOKIE];
   const adminId = verifySession(signed);
   return adminStore.find((a) => a.id === adminId) || null;
+}
+
+/**
+ * Resolves the Guest proved by the signed `guest_session` cookie, or null.
+ *
+ * The cookie carries the guest's id, so the lookup goes through guestRepo —
+ * which excludes soft-deleted guests. Removing a guest therefore revokes any
+ * session they still hold, with no extra bookkeeping.
+ */
+async function getGuestFromRequest(req) {
+  const signed = req.cookies && req.cookies[GUEST_SESSION_COOKIE];
+  const guestId = verifySession(signed);
+  if (!guestId) return null;
+  return findGuestById(guestId);
 }
 
 function requireAdminPage(req, res, next) {
@@ -751,9 +767,23 @@ export function createApp() {
       return res.status(400).json({ success: false, reason: 'missing_rsvp_data' });
     }
 
-    const guest = await findGuestByCode(code);
+    // Slice 18: the session — not the posted code — decides whose RSVP this is.
+    // Previously any caller who knew a code could overwrite that family's
+    // response. The code is still required, but only to confirm the client is
+    // answering for the guest it is signed in as.
+    const guest = await getGuestFromRequest(req);
     if (!guest) {
-      return res.status(404).json({ success: false, reason: 'guest_not_found' });
+      return res
+        .status(401)
+        .json({ success: false, reason: 'not_authenticated', message: 'Please sign in to respond.' });
+    }
+
+    if (guest.code !== code) {
+      return res.status(403).json({
+        success: false,
+        reason: 'not_your_invitation',
+        message: 'You can only respond to your own invitation.',
+      });
     }
 
     const result = await upsertRsvpResponse(guest.id, attending, attending ? participantNames || [] : []);
@@ -762,13 +792,37 @@ export function createApp() {
     return res.json({ success: true, rsvp: result });
   });
 
-  // NOTE: this route does not yet require a guest session — anyone holding a
-  // valid InvitationCode can view the page. The previous implementation computed
-  // a `loggedIn` flag and never used it, so the check has never been enforced.
-  // Tightening it changes guest access, which HITL.md gates; tracked in TASKS.md.
+  // Slice 18: the InvitationCode says WHICH invitation; the guest_session cookie
+  // proves the visitor is entitled to it. Both are required. The session is
+  // checked before the code is even looked up, so an unauthenticated visitor
+  // gets the same redirect for every code and cannot use this route to probe
+  // which codes exist.
   app.get('/invitation/:code', async (req, res) => {
     const { code } = req.params;
+
+    const sessionGuest = await getGuestFromRequest(req);
+    if (!sessionGuest) {
+      return res.redirect('/login');
+    }
+
     const guest = await findGuestByCode(code);
+
+    if (guest && guest.id !== sessionGuest.id) {
+      return res.status(403).send(
+        pageWrapper(
+          'Not your invitation',
+          `<section class="hero-panel">
+             <span class="hero-flag">Invitation</span>
+             <h1>That invitation belongs to someone else.</h1>
+             <p>You are signed in as <strong>${escapeHtml(sessionGuest.name)}</strong>. Each invitation can only be opened by the guest it was addressed to.</p>
+             <a class="button button-primary" href="/invitation/${encodeURIComponent(sessionGuest.code)}">Go to your invitation</a>
+             <a class="button button-secondary" href="/login">Sign in as someone else</a>
+           </section>`,
+          '',
+          res.locals.theme
+        )
+      );
+    }
 
     if (!guest) {
       return res

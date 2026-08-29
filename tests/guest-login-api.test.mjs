@@ -135,21 +135,35 @@ test('POST /api/guest/rsvp accepts a response and returns success', async () => 
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
-  const cookie = await getCsrfCookie(port);
 
-  const result = await requestJSON(
-    { hostname: '127.0.0.1', port, path: '/api/guest/rsvp', method: 'POST', headers: { Cookie: cookie, 'x-csrf-token': csrfFromCookie(cookie) } },
-    {
-      code: 'SILVA-001',
-      attending: true,
-      participantNames: ['Nimal Silva', 'Anu Silva'],
-    }
-  );
+  // Wrapped in try/finally: without it a failed assertion skips server.close()
+  // and leaves the listener open, so `node --test` hangs instead of reporting.
+  try {
+    const cookie = await getCsrfCookie(port);
 
-  assert.equal(result.statusCode, 200);
-  assert.equal(result.body.success, true);
-  assert.equal(result.body.rsvp.attending, true);
-  assert.deepEqual(result.body.rsvp.participantNames, ['Nimal Silva', 'Anu Silva']);
+    // Slice 18: the RSVP route now requires a guest session, so log in first and
+    // carry the guest_session cookie the way a browser does.
+    const login = await requestJSON(
+      { hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST', headers: { Cookie: cookie, 'x-csrf-token': csrfFromCookie(cookie) } },
+      { code: 'SILVA-001' }
+    );
+    assert.equal(login.statusCode, 200, 'login must succeed before RSVP');
+    const sessionCookie = [cookie, parseCookies(login.headers['set-cookie'])].filter(Boolean).join('; ');
 
-  await new Promise((resolve) => server.close(resolve));
+    const result = await requestJSON(
+      { hostname: '127.0.0.1', port, path: '/api/guest/rsvp', method: 'POST', headers: { Cookie: sessionCookie, 'x-csrf-token': csrfFromCookie(cookie) } },
+      {
+        code: 'SILVA-001',
+        attending: true,
+        participantNames: ['Nimal Silva', 'Anu Silva'],
+      }
+    );
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.success, true);
+    assert.equal(result.body.rsvp.attending, true);
+    assert.deepEqual(result.body.rsvp.participantNames, ['Nimal Silva', 'Anu Silva']);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
