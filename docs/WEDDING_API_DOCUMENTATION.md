@@ -127,13 +127,31 @@ Code-only — name-based login is explicitly not supported (removed 2026-08-29).
 ### `POST /api/guest/logout`
 Clears the `GuestSession` cookie.
 
-**Auth:** Guest session.
+**Auth:** None required — see idempotency note below.
 **CSRF:** Required.
 
 **Response 200:**
 ```json
 { "success": true }
 ```
+
+**Response 403 — missing or mismatched CSRF token:**
+```json
+{
+  "success": false,
+  "reason": "csrf_invalid",
+  "message": "Invalid CSRF token."
+}
+```
+
+**Notes:**
+- Deliberately **idempotent**: signing out with no session (or twice) returns `200`, not an
+  error. A guest whose cookie has already expired should get a clean result when they tap
+  "Sign out", not a confusing failure.
+- Clears only `guest_session`. An admin session in the same browser is untouched.
+- Surfaced on the Invitation page as "Signed in as *name* — Not you? Sign out". This matters
+  on a shared family phone: once `/invitation/:code` began requiring a session (Slice 18),
+  there was otherwise no way to hand the device to the next guest.
 
 ---
 

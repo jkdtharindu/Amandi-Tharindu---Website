@@ -259,6 +259,9 @@ function buildStyles(theme) {
   .response-card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 24px; padding: 1.75rem; margin-top: 1.25rem; }
   .detail-list { display: grid; gap: 0.4rem; margin: 0 0 1rem; padding: 0; list-style: none; color: var(--color-muted); }
   .detail-list strong { color: var(--color-ink); }
+  .session-note { margin: 1.25rem 0 0; padding-top: 1rem; border-top: 1px solid var(--color-line); font-size: 0.9rem; color: var(--color-muted); }
+  .link-button { background: none; border: none; padding: 0; font: inherit; color: var(--color-primary); text-decoration: underline; cursor: pointer; }
+  .link-button:hover { text-decoration: none; }
   .choice-row { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 1rem 0; }
   .choice-row label { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-weight: 600; }
   .choice-row input { width: auto; }
@@ -756,6 +759,19 @@ export function createApp() {
     return res.status(404).json(result);
   });
 
+  // Releases the guest session. Deliberately idempotent: a guest whose cookie
+  // has already expired should get a clean result when they tap "Sign out",
+  // not a confusing error. Matters most on a shared family phone, where the
+  // device is handed to the next guest.
+  app.post('/api/guest/logout', (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    res.clearCookie(GUEST_SESSION_COOKIE, { path: '/' });
+    return res.json({ success: true });
+  });
+
   app.post('/api/guest/rsvp', async (req, res) => {
     if (!verifyCsrfToken(req)) {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
@@ -884,6 +900,10 @@ export function createApp() {
                <p><button id="change-response" type="button" class="decline">Change your response</button></p>`
             : `<p>${escapeHtml(theme.coupleNames)} would love to know if you can join them.</p>`
         }
+        <p class="session-note">
+          Signed in as <strong>${guestName}</strong>.
+          <button id="sign-out" type="button" class="link-button">Not you? Sign out</button>
+        </p>
       </section>
 
       <div id="rsvp-form" class="hidden">
@@ -926,6 +946,14 @@ export function createApp() {
               document.getElementById('rsvp-form').classList.remove('hidden');
               window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             };
+
+            document.getElementById('sign-out').addEventListener('click', async () => {
+              await fetch('/api/guest/logout', {
+                method: 'POST',
+                headers: { 'x-csrf-token': getCookieValue('csrf_token') },
+              });
+              window.location.href = '/login';
+            });
 
             document.getElementById('accept').addEventListener('click', () => {
               document.querySelector('input[name="attending"][value="yes"]').checked = true;
