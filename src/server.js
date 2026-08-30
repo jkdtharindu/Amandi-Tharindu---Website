@@ -438,13 +438,12 @@ export function createApp() {
   app.get('/invitation/:code', async (req, res) => {
     const { code } = req.params;
     const signedSession = req.cookies && req.cookies.guest_session;
-    const sessionId = verifySession(signedSession);
+    verifySession(signedSession);
     const guest = await findGuestByCode(code);
 
     if (!guest) return res.status(404).send('<h1>Invitation not found</h1>');
 
     const rsvp = await findRsvpResponseByGuestId(guest.id);
-    const loggedIn = sessionId === guest.id;
     const hasResponded = Boolean(rsvp);
     const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
 
