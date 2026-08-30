@@ -3,9 +3,9 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Architecture migration in progress (Express → Next.js 14)
-- Current focus: Next.js foundation complete; next is Supabase integration
-- Priority: Connect to live database, then build admin features
+- Status: Foundation layers complete (Next.js 14 + Supabase integration)
+- Current focus: Admin authentication & dashboard
+- Priority: Get admin features working, then messaging center
 
 ## Working Principles
 - Use strict TDD for each slice
@@ -13,11 +13,12 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Prefer small, shippable increments over large speculative work
 
 ## PRD Alignment Summary
-- Phase 1 complete; Phase 2 now includes code login, name login, and ambiguous-name recovery.
-- Core launch scope still requires admin auth, guest/dashboard management, messaging/theme features, and production hardening.
-- **Architecture migration complete:** Prototype migrated from Express to Next.js 14 (App Router) + TypeScript. All guest flows ported.
-- Next milestone: Supabase database integration, then admin features.
-- Estimated completion: ~35% of implementation, ~20% of full PRD launch scope.
+- Phase 1 complete; Phase 2 includes code login, name login, and ambiguous-name recovery.
+- **Architecture migration complete:** Express → Next.js 14 (App Router) + TypeScript
+- **Database layer complete:** Supabase integration with in-memory fallback (three-tier support)
+- Core launch scope still requires: admin auth, guest/dashboard management, messaging/theme features, production hardening.
+- Next milestone: Admin features (login → dashboard), then messaging center.
+- Estimated completion: ~40% of implementation checklist, ~25% of full PRD launch scope.
 
 ## Implementation Backlog (updated)
 
@@ -74,12 +75,15 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## Completed So Far
 
-### Architecture & Scaffolding
+### Architecture & Database
 - [x] Migrated from Express prototype to Next.js 14 (App Router)
 - [x] TypeScript configuration for Next.js
 - [x] ESLint and formatting setup
 - [x] Created public pages: Home, Our Story, Celebration, Gallery, Wishes
-- [x] Configured in-memory fallback data stores for development
+- [x] Supabase integration layer (lib/supabase.ts with proper initialization)
+- [x] Three-tier database support: in-memory fallback | local Postgres | Supabase cloud
+- [x] Migration runner and seed scripts (updated for Postgres)
+- [x] Setup documentation (SUPABASE_SETUP.md)
 
 ### Guest Features (Ported to Next.js)
 - [x] Guest authentication by invitation code (`/api/guest/login`)
@@ -98,41 +102,48 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
-## Next Actions (step-by-step) — POST MIGRATION
+## Next Actions (step-by-step)
 
-✅ **COMPLETED:** Steps 1-2 (Auth hardening partly done; full Next.js migration done)
+✅ **COMPLETED:**
+- Next.js 14 migration (Express → App Router + TypeScript)
+- Supabase integration layer (querying guests, saving RSVP responses)
+- Database scripts (migration runner, seed data)
+- Guest authentication & RSVP flows wired to database
 
-**Immediate Next (Priority):**
-1. **Supabase Integration** — Connect to live Postgres via Supabase
-   - Wire database URL and anon key to lib/db.ts
-   - Update auth functions to query real `guests` table
-   - Test login flows against live DB
-   - Update RSVP submission to persist to `rsvp_responses` table
+**Immediate Next (Priority Order):**
 
-2. **Admin Authentication** — Supabase Auth for the couple
-   - Set up Supabase Auth project
-   - Create `/admin/login` page
-   - Protect `/admin/*` routes with middleware
-   - Create `AdminAuthContext` or session provider
+1. **Admin Authentication** — Supabase Auth for the couple
+   - Set up Supabase Auth in project
+   - Create `/admin/login` page with email/password form
+   - Create auth context/provider for persistent sessions
+   - Protect `/admin/*` routes with middleware (unauthenticated → redirect to login)
 
-3. **Admin Dashboard** — Basic guest and RSVP management
-   - List all guests with RSVP status
-   - Ability to add/edit/delete guests (with HITL for deletions)
-   - RSVP response viewer (headcount, participant names)
-   - Filter/search guests by name or code
+2. **Admin Dashboard** — Core guest & RSVP management
+   - `/admin/dashboard` → list all guests with RSVP status
+   - Headcount summary (accepted/declined/pending)
+   - Guest detail view (show participant names, edit slot count)
+   - Add/edit guest form (name, code, relationship, slot_count)
+   - Delete guest (with soft delete, guarded by HITL checkpoint)
+   - Filter/search guests by name, code, or RSVP status
+
+3. **Messaging Center** (after admin basics)
+   - Message template editor (initial invite, reminder, confirmation)
+   - Bulk send flow (select guests, choose template, preview, send with HITL)
+   - Message log viewer (delivery status, timestamps)
+   - Integrate Twilio (SMS/WhatsApp) and Resend (Email) SDKs
 
 **Then (Secondary):**
-4. Messaging center (WhatsApp/SMS/Email via Twilio/Resend)
-5. Theme editor (colors, fonts, hero image)
-6. Section manager (reusable content blocks)
-7. Full test suite (unit + integration + E2E)
-8. Production hardening (rate limiting, input validation, CSRF)
-9. Deployment to Vercel with HITL checkpoints
+4. Theme editor (colors, fonts, hero image)
+5. Section manager (reusable content blocks on public pages)
+6. Full test suite (unit + integration + E2E)
+7. Production hardening (rate limiting, input validation, CSRF)
+8. Deployment to Vercel with HITL checkpoints
 
-**Notes:**
-- Continue marking tasks done only after tests are written and passing
-- Use `HITL.md` for any actions that touch production, migrations, or messaging
+**Development Guidelines:**
+- Write tests first for each feature (unit tests minimum)
+- Use HITL checkpoints for: admin creation/deletion, migrations, messaging sends, production deploys
 - Keep this file updated after each completed milestone
+- Commit frequently with clear messages
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.

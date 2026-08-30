@@ -34,7 +34,13 @@ Alternative considered:
 
 5) Last session summary (leave blank — Claude will fill this in)
 
-[2026-08-30] Summary: Completed Next.js 14 migration from Express prototype. Scaffold includes App Router, TypeScript, guest auth flows (code + name login), personalized invitation pages, RSVP submission API, and public pages. Build verified successful. In-memory data stores with Supabase fallback configured. Next: connect to live Supabase, implement admin auth, add messaging features.
+[2026-08-30] Summary: 
+- ✅ Completed Next.js 14 migration from Express prototype (scaffold + auth + pages)
+- ✅ Implemented Supabase integration layer (lib/supabase.ts, lib/auth.ts updates)
+- ✅ All guest flows (login, RSVP) wired to Supabase with in-memory fallback
+- ✅ Migration & seed scripts updated for real database
+- ✅ Build verified successful
+Next: Wire to live Supabase credentials, implement admin auth, add messaging
 
 ---
 
@@ -44,6 +50,11 @@ Alternative considered:
 Reason: Next.js 14 is the target stack per PRD; provides server-side rendering, API routes, better performance, and foundation for Vercel deployment
 Alternative considered: Continue with Express prototype longer for incremental development (rejected: diverges from PRD stack and delayed technical debt)
 
-[2026-08-30] Decision: Use in-memory fallback data stores during development; Supabase integration to be wired in next phase
+[2026-08-30] Decision: Use in-memory fallback data stores during development; Supabase integration wired but optional
 Reason: Allows local development and testing without database credentials; same code paths as Supabase when credentials present
-Alternative considered: Require Supabase setup for all development (rejected: adds friction, complicates onboarding) 
+Alternative considered: Require Supabase setup for all development (rejected: adds friction, complicates onboarding)
+
+[2026-08-30] Decision: Three-tier database support (in-memory fallback | local Postgres | Supabase cloud)
+Reason: Supports all developer workflows (zero-setup, local testing, production-like)
+Implementation: isSupabaseConfigured() checks env vars; all queries work with both stores
+Migration & seed scripts use pg client directly for both Supabase and local Postgres 
