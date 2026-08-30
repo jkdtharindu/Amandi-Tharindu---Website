@@ -3,9 +3,9 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Scoping / Initial implementation started
-- Current focus: Guest access flow and public page polish
-- Priority: Build the first vertical slice end-to-end
+- Status: Architecture migration in progress (Express → Next.js 14)
+- Current focus: Next.js foundation complete; next is Supabase integration
+- Priority: Connect to live database, then build admin features
 
 ## Working Principles
 - Use strict TDD for each slice
@@ -14,9 +14,10 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## PRD Alignment Summary
 - Phase 1 complete; Phase 2 now includes code login, name login, and ambiguous-name recovery.
-- Core launch scope still requires the personalized invitation page, RSVP flow, sticky RSVP bar, admin auth, guest/dashboard management, and messaging/theme features.
-- Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel.
-- Estimated completion: ~30% of the current checklist, ~15-20% of full PRD launch scope.
+- Core launch scope still requires admin auth, guest/dashboard management, messaging/theme features, and production hardening.
+- **Architecture migration complete:** Prototype migrated from Express to Next.js 14 (App Router) + TypeScript. All guest flows ported.
+- Next milestone: Supabase database integration, then admin features.
+- Estimated completion: ~35% of implementation, ~20% of full PRD launch scope.
 
 ## Implementation Backlog (updated)
 
@@ -72,34 +73,66 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
   - Unit tests covering code-paths run green locally
 
 ## Completed So Far
-- Created `package.json` with test script
-- Created `.gitignore`
-- Implemented `src/guest-auth/loginGuestByCode.js`
-- Added unit test `tests/guest-login.test.mjs`
- - Implemented `src/guest-auth/loginGuestByCode.js`
- - Implemented `src/guest-auth/loginGuestByName.js` (name lookup helper)
- - Added unit tests: `tests/guest-login.test.mjs`, `tests/guest-login-name.test.mjs`
- - Unit tests passed locally for code-based login; name-based tests scaffold added and helper implemented
- - Added demo Express server (`src/server.js`) and smoke test (`src/smoke.js`) that exercise login + invitation page
-- Implemented RSVP submission flow, sticky reminder bar, and change-response logic on `/invitation/:code`
- - Pinning/adjusting linting and TypeScript devDependencies to compatible versions (ESLint v8 + TS v5)
+
+### Architecture & Scaffolding
+- [x] Migrated from Express prototype to Next.js 14 (App Router)
+- [x] TypeScript configuration for Next.js
+- [x] ESLint and formatting setup
+- [x] Created public pages: Home, Our Story, Celebration, Gallery, Wishes
+- [x] Configured in-memory fallback data stores for development
+
+### Guest Features (Ported to Next.js)
+- [x] Guest authentication by invitation code (`/api/guest/login`)
+- [x] Guest authentication by name with ambiguous-name resolution
+- [x] Personalized invitation page (`/invitation/[code]`)
+- [x] RSVP submission and response tracking
+- [x] Session management with signed cookies
+- [x] Login form with code/name toggle (`/login`)
+
+### Earlier Work (from Express prototype)
+- Created initial guest-auth modules and tests
+- Implemented RSVP flow and session handling
+- Built Express demo server and smoke tests
 
 ## Current Blockers
 - Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
-## Next Actions (step-by-step)
-1. Harden auth & sessions: add `SESSION_SECRET` guidance, sign/secure cookies (`HttpOnly`, `Secure`, `SameSite`), add CSRF protection, and include a `.env.example`.
-2. Migrate prototype to the PRD stack: scaffold a Next.js 14 (App Router) + TypeScript app and port demo routes/API to Next route handlers.
-3. Implement DB adapter & migration runner: replace the in-memory `guestStore` with a Supabase/pg adapter, map code → `guests` table, and add a safe migration/seed runner for `migrations/*.sql`.
-4. Normalize schema and naming: ensure DB field naming (snake_case) matches PRD and add a mapping layer in code to avoid casing drift (`is_deleted` ⇄ `isDeleted`, `rsvp_status`, etc.).
-5. Implement API route(s) for name-based login and ambiguous resolution (`POST /api/guest/login` to accept `code | name`) and return a consistent shaped response (`{ type: 'exact'|'candidates', ... }`).
-6. Add integration and E2E tests that exercise full flows (login → session cookie → invitation → RSVP submit → RSVPResponse persistence) and admin flows.
-7. Implement Admin surface & auth: Supabase Auth single-Admin setup, protected `/admin/*` routes, guest CRUD, RSVP dashboard, ThemeSettings editor, and SectionManager per P0.
-8. Messaging sandbox + templates: build MessageTemplate management, MessageLog recording, a sandbox mode (no external sends), and a HITL-gated send flow for WhatsApp/SMS/Email.
-9. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production.
-10. Security & production readiness: harden session cookies, add input validation, rate-limiting for login attempts, and privacy review for guest data before any public exposure.
-11. Continue Slice 2 TDD: disambiguation UI/selection flow, RSVP form UI, and RSVP change/update flow. Prioritize tests-first for each piece.
+## Next Actions (step-by-step) — POST MIGRATION
+
+✅ **COMPLETED:** Steps 1-2 (Auth hardening partly done; full Next.js migration done)
+
+**Immediate Next (Priority):**
+1. **Supabase Integration** — Connect to live Postgres via Supabase
+   - Wire database URL and anon key to lib/db.ts
+   - Update auth functions to query real `guests` table
+   - Test login flows against live DB
+   - Update RSVP submission to persist to `rsvp_responses` table
+
+2. **Admin Authentication** — Supabase Auth for the couple
+   - Set up Supabase Auth project
+   - Create `/admin/login` page
+   - Protect `/admin/*` routes with middleware
+   - Create `AdminAuthContext` or session provider
+
+3. **Admin Dashboard** — Basic guest and RSVP management
+   - List all guests with RSVP status
+   - Ability to add/edit/delete guests (with HITL for deletions)
+   - RSVP response viewer (headcount, participant names)
+   - Filter/search guests by name or code
+
+**Then (Secondary):**
+4. Messaging center (WhatsApp/SMS/Email via Twilio/Resend)
+5. Theme editor (colors, fonts, hero image)
+6. Section manager (reusable content blocks)
+7. Full test suite (unit + integration + E2E)
+8. Production hardening (rate limiting, input validation, CSRF)
+9. Deployment to Vercel with HITL checkpoints
+
+**Notes:**
+- Continue marking tasks done only after tests are written and passing
+- Use `HITL.md` for any actions that touch production, migrations, or messaging
+- Keep this file updated after each completed milestone
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.

@@ -34,4 +34,16 @@ Alternative considered:
 
 5) Last session summary (leave blank — Claude will fill this in)
 
-[YYYY-MM-DD] Summary: 
+[2026-08-30] Summary: Completed Next.js 14 migration from Express prototype. Scaffold includes App Router, TypeScript, guest auth flows (code + name login), personalized invitation pages, RSVP submission API, and public pages. Build verified successful. In-memory data stores with Supabase fallback configured. Next: connect to live Supabase, implement admin auth, add messaging features.
+
+---
+
+## Session Decisions (2026-08-30)
+
+[2026-08-30] Decision: Migrate core application to Next.js 14 (App Router) with TypeScript
+Reason: Next.js 14 is the target stack per PRD; provides server-side rendering, API routes, better performance, and foundation for Vercel deployment
+Alternative considered: Continue with Express prototype longer for incremental development (rejected: diverges from PRD stack and delayed technical debt)
+
+[2026-08-30] Decision: Use in-memory fallback data stores during development; Supabase integration to be wired in next phase
+Reason: Allows local development and testing without database credentials; same code paths as Supabase when credentials present
+Alternative considered: Require Supabase setup for all development (rejected: adds friction, complicates onboarding) 
