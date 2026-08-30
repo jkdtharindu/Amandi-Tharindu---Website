@@ -1,6 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-import { query } from '../src/db.js';
+import 'dotenv/config';
+import { query, closePool } from '../src/db.js';
 
 const seedData = [
   {
@@ -40,7 +39,9 @@ async function run() {
   console.log('Local guest seed data inserted.');
 }
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+run()
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(() => closePool());
