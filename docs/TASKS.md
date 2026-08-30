@@ -17,11 +17,11 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - ⚠️ **Uncommitted work found in the working tree 2026-08-30, not part of the current build
   order:** a functionally complete Table Arrangement feature (`src/table-arrangement/`,
   `migrations/007_create_table_arrangements.sql`, wired into `/admin/table-arrangement`) and a
-  Messaging schema draft (`migrations/005_create_messaging.sql`). Neither is committed. See the
-  new entry under Correctness & scope risks — **do not build further on either without
-  confirming with the project owner**, since Seating Plan is explicitly filed as P2
-  post-launch and Messaging requires HITL before any send capability.
-- Full test suite: **152/152 green** (2026-08-30).
+  Messaging schema draft (`migrations/005_create_messaging.sql`). **Both committed 2026-08-30**
+  at the project owner's direction, after a review pass and test backfill — see the entry under
+  Correctness & scope risks. Seating Plan remains P2 by the PRD; committing it does not promote
+  it in the build order, and Messaging still requires HITL before any send capability.
+- Full test suite: **178/178 green** (2026-08-30, was 152 before the Table Arrangement backfill).
 - Stack decision (2026-08-29): staying on Express + Postgres; not migrating to Next.js. See PRD §6 and Recent Decisions below.
 - Priority: Build the first vertical slice end-to-end
 
@@ -149,7 +149,7 @@ Full spec in PRD §4.1. This aligns the governing PRD with `prd3.md`'s approach.
       `#B8860B` **failed** this bar for button text and was darkened to `#8A6508` in the
       approved Imperial Gold palette.
 - Tests: `mergeThemeUpdate` palette/font cascade and rejection cases, plus the self-hosted
-  webfont test — part of the 152/152 green suite (2026-08-30).
+  webfont test — part of the 178/178 green suite (2026-08-30).
 
 ### 🔴 Blocking launch — build order confirmed 2026-08-29 (see Recent Decisions)
 Priority order agreed with project owner: fix the blockers below **before** resuming Slices
@@ -173,7 +173,24 @@ Priority order agreed with project owner: fix the blockers below **before** resu
       currently live in in-memory arrays; a server restart destroys every RSVP. `DATABASE_URL`
       is unset and migrations (001–003) have never been applied to any database. Wiring
       Postgres persistence is part of Slice 18, not a separate task, since Guest Management
-      is meaningless without it.
+      is meaningless without it. Blocked 2026-08-30: no Postgres is installed on the dev
+      machine (nothing on 5432, no service, no install directory, no Docker); owner is
+      installing PostgreSQL 17 via winget.
+- [x] **Migration runner had no ledger.** Fixed 2026-08-30. `scripts/run-migrations.js`
+      re-executed every `.sql` file on every invocation. All seven happened to be idempotent,
+      so it worked, but nothing enforced that — the first `ALTER TABLE` or plain `INSERT` would
+      have corrupted data on the second run. It now maintains a `schema_migrations` table, skips
+      what is applied, and applies each pending migration **and its ledger row in one
+      transaction** via a new `withTransaction` helper in `src/db.js`, so the ledger cannot
+      claim a migration that did not land.
+- [ ] 🟠 **`dotenv` is a dependency but imported nowhere — a `.env` file does nothing.** Found
+      2026-08-30. Wired into `scripts/run-migrations.js` and `scripts/seed-local-db.js`, so
+      `npm run migrate` and `npm run seed:db` read `.env` correctly. **Deliberately not wired
+      into `src/server.js`:** the repos evaluate `DATABASE_URL` at import time and the tests
+      import `createApp` from that module, so loading dotenv there would point all 178 tests at
+      the live database the moment a real `.env` exists. Needs either a separate entry module
+      (`src/main.js` doing dotenv-then-listen, with `npm start` and `scripts/start-with-browser.js`
+      updated) or a test-side override. **Owner decision required before the DB is wired up.**
 - [ ] **Slices 13–17 (image uploads) resume after Slice 19.** Explicitly deferred — decided
       2026-08-29. Do not start these until Guest Management, the session fix, and the RSVP
       Dashboard are done.
@@ -189,34 +206,48 @@ Priority order agreed with project owner: fix the blockers below **before** resu
       - `migrations/005_create_messaging.sql` — schema and the 4 seeded templates for Slice 12
         (Messaging Center). No application code yet, so lower risk, but Slice 12 is documented
         "not started" and any send capability needs HITL approval first.
-      Resolve: confirm with the project owner whether to keep building Table Arrangement now
-      (and backfill tests + update this doc's build order) or shelve it until after Slices
-      13–19/launch as originally planned. Until decided, treat both as **not part of the
-      committed plan** — do not build further on either.
+      **Resolved 2026-08-30:** owner directed committing both. Table Arrangement was reviewed,
+      the blocking defects below were fixed, 26 tests were backfilled, and it was committed to
+      `feature/ui-wrapping`. Messaging migration 005 committed as a schema draft only — no
+      application code, no send capability, and Slice 12 still needs HITL before any send.
+      Neither is promoted in the build order: Slices 13–17 and the persistence work still come
+      first.
 
 #### Table Arrangement — fixes required before this feature can ship (found 2026-08-30)
 Code-reviewed while auditing the uncommitted work above. None of this is exposed yet (no live
 DB, nothing committed), but it must be fixed — in priority order — before Table Arrangement
 leaves "uncommitted prototype" status, regardless of whether it ships now or after launch.
 
-- [ ] 🔴 **CSRF protection missing on all five mutating routes.** Every other admin mutation in
-      `src/server.js` calls `verifyCsrfToken(req)`; the table-arrangement
-      create/update/delete/assign/unassign routes ([server.js:1866](../src/server.js#L1866),
-      [:1885](../src/server.js#L1885), [:1899](../src/server.js#L1899),
-      [:1908](../src/server.js#L1908), [:1926](../src/server.js#L1926)) don't, and the
-      frontend fetch calls never send an `x-csrf-token` header either. Fix both ends.
-- [ ] 🔴 **A guest can be double-booked at two tables.** `assignGuestToSeat`
-      (`src/table-arrangement/tableArrangementRepo.js:116`) writes `guest_id` onto any seat with
-      no check that the guest already holds a different seat.
-- [ ] 🟠 **`UNIQUE(table_number, theme_id)` doesn't actually prevent duplicate table numbers.**
-      `theme_id` (migration `007_create_table_arrangements.sql:12`) is never set anywhere in the
-      repo — always `NULL` — and Postgres treats `NULL <> NULL` for uniqueness, so the
-      constraint is a no-op. Either drop `theme_id` or enforce uniqueness on `table_number` alone.
-- [ ] 🟠 **Assign endpoint doesn't re-check RSVP status.** The "unassigned guests" dropdown is
+- [x] 🔴 **CSRF protection missing on all five mutating routes.** **Fixed 2026-08-30** — all
+      five routes now call `verifyCsrfToken(req)` and the frontend fetch calls send
+      `x-csrf-token`, matching the pattern used everywhere else in `src/server.js`. Still
+      **Regression test added 2026-08-30** — `tests/table-arrangement-page.test.mjs` builds the
+      admin-session + CSRF-cookie harness this module lacked and asserts a seat assignment
+      without `x-csrf-token` is refused `403 csrf_invalid`.
+- [x] 🔴 **A guest can be double-booked at two tables.** **Fixed 2026-08-30, hardened
+      2026-08-30** — the first fix was a SELECT-then-UPDATE check in `assignGuestToSeat`, which
+      two concurrent requests could both pass. Uniqueness is now enforced by the database: a
+      partial unique index `idx_table_seats_unique_guest ON table_seats(guest_id) WHERE guest_id
+      IS NOT NULL` (migration 007). The repo catches `23505` and surfaces the same message.
+      Covered by `tests/table-arrangement.test.mjs`.
+- [x] 🔴 **The feature 500'd on every admin page with no database.** Found 2026-08-30.
+      `tableArrangementRepo.js` built its own `pg.Pool` and queried unconditionally, unlike
+      `guestRepo`/`sectionsRepo`/`themeRepo` which guard on `useDb` and fall back to an
+      in-memory store. Since `adminPageWrapper` renders a "Table Arrangement" link into the nav
+      of *every* admin page, and `DATABASE_URL` is unset everywhere today, that link was a
+      guaranteed 500 (verified: an unguarded pool fails `ECONNREFUSED`). **Fixed 2026-08-30** —
+      the repo now uses the shared `query` from `src/db.js`, guards on `useDb`, and has a full
+      in-memory path backed by new `src/data/tableArrangementStore.js`.
+- [x] 🟠 **`UNIQUE(table_number, theme_id)` doesn't actually prevent duplicate table numbers.**
+      **Fixed 2026-08-30** — `theme_id` was never written by any code, so the composite
+      constraint was a no-op under Postgres NULL semantics. Column dropped; `table_number` is
+      now plainly `UNIQUE`. If per-theme seating plans are wanted later, reintroduce `theme_id`
+      with a constraint that actually holds.
+- [ ] 🟠 **Assign endpoint doesn't re-check RSVP status.** (Still open as of 2026-08-30.) The "unassigned guests" dropdown is
       pre-filtered to accepted, non-deleted guests at page load, but the assign API itself
       accepts any `guestId` — a stale page or direct API call can seat a declined, pending, or
       soft-deleted guest.
-- [ ] 🟠 **Export is mislabeled.** `GET /api/admin/table-arrangement/export`
+- [ ] 🟠 **Export is mislabeled.** (Still open as of 2026-08-30.) `GET /api/admin/table-arrangement/export`
       ([server.js:1943](../src/server.js#L1943)) sends plain TSV
       (`Content-Type: text/tab-separated-values`) but names the download
       `table-arrangements.xlsx`. `tableArrangementExport.js`'s own header comment admits real
@@ -225,8 +256,15 @@ leaves "uncommitted prototype" status, regardless of whether it ships now or aft
       `tableName`; there's no way to add/remove seats to resize an existing table.
 - [ ] 🟡 The `:tableId` segment in the seat assign/unassign routes is never validated against the
       seat's actual table — cosmetic only, the seat is looked up by `seatId` alone.
-- [ ] 🟡 Zero test coverage for the entire feature — no file under `tests/` exercises
-      `src/table-arrangement/` at all, breaking this project's stated TDD principle.
+- [ ] 🟡 **Assigning to an unknown `seatId` reports success.** `assignGuestToSeat` returns `null`
+      when no seat matches and the route replies `200 {success: true, seat: null}`. Should be a
+      404. Found 2026-08-30; pre-existing, not a regression.
+- [x] 🟡 **Zero test coverage for the entire feature.** **Fixed 2026-08-30** — 26 tests added.
+      `tests/table-arrangement.test.mjs` (19) covers the export module (including Excel formula
+      injection and tab/quote containment) and the repo's in-memory behaviour;
+      `tests/table-arrangement-page.test.mjs` (7) drives real HTTP over the routes: auth gating,
+      CSRF, duplicate table numbers, export contents, and that the page renders with no
+      database configured. Suite went 152 → 178 green.
 - [ ] **Two contradicting PRDs.** `amandi-tharindu-wedding-PRD.md` (governing, chosen
       2026-08-22) vs `New folder (2)/prd3.md`, which specifies a different palette,
       invitation-code format, auth model, and features (wax seal, ambient audio).
