@@ -150,8 +150,8 @@ export function requestLoggerMiddleware(options = {}) {
     // Capture request details
     const requestSize = parseInt(req.get('content-length') || 0);
     const method = req.method;
-    const path = sanitizePath(req.path);
     const query = req.query && Object.keys(req.query).length ? '?' + new URLSearchParams(req.query) : '';
+    const path = sanitizePath(req.path + query);
     const ip = maskIpAddress(req.ip || req.connection.remoteAddress);
     const userAgent = sanitizeUserAgent(req.get('user-agent'));
     const referer = req.get('referer') ? '***' : '-'; // Mask referer
@@ -191,7 +191,7 @@ export function requestLoggerMiddleware(options = {}) {
       const logEntry = {
         timestamp: new Date().toISOString(),
         method,
-        path: path + query,
+        path,
         status: statusCode,
         status_category: statusCategory,
         duration_ms: duration,
@@ -213,7 +213,7 @@ export function requestLoggerMiddleware(options = {}) {
         // Text format
         const icon = statusCategory === 'success' ? '✓' : statusCode < 400 ? '→' : '✗';
         console.log(
-          `${icon} [${logEntry.timestamp}] ${method.padEnd(6)} ${logEntry.status} ${duration.toString().padStart(4)}ms ${path + query}`
+          `${icon} [${logEntry.timestamp}] ${method.padEnd(6)} ${logEntry.status} ${duration.toString().padStart(4)}ms ${path}`
         );
       }
 

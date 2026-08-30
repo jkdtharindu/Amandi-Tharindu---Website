@@ -71,7 +71,7 @@ export class RateLimiter {
    * Prevents memory leak
    */
   cleanup() {
-    setInterval(() => {
+    const timer = setInterval(() => {
       const now = Date.now();
       const fiveMinutesAgo = now - 5 * 60 * 1000;
 
@@ -84,6 +84,22 @@ export class RateLimiter {
         }
       }
     }, 5 * 60 * 1000); // Every 5 minutes
+
+    // Don't let this timer keep the process alive (server shutdown, test runners)
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+    this._cleanupTimer = timer;
+  }
+
+  /**
+   * Stop the background cleanup timer (for tests/graceful shutdown)
+   */
+  stop() {
+    if (this._cleanupTimer) {
+      clearInterval(this._cleanupTimer);
+      this._cleanupTimer = null;
+    }
   }
 
   /**

@@ -1,108 +1,123 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import express from 'express';
-import request from 'supertest';
+import { startTestServer } from './helpers/test-server.mjs';
 import { securityHeadersMiddleware, securityHeadersPresets, getSecurityHeadersPreset } from '../src/security-headers.js';
 
-function createTestApp(options = {}) {
+async function withTestApp(configureApp, run) {
   const app = express();
-  app.use(securityHeadersMiddleware(options));
-  app.get('/', (req, res) => res.send('OK'));
-  return app;
+  configureApp(app);
+  const server = await startTestServer(app);
+  try {
+    await run(server.baseUrl);
+  } finally {
+    await server.close();
+  }
+}
+
+function createTestApp(options = {}) {
+  return (app) => {
+    app.use(securityHeadersMiddleware(options));
+    app.get('/', (req, res) => res.send('OK'));
+  };
 }
 
 test('Security Headers: sets MIME type protection', async () => {
-  const app = createTestApp();
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('X-Content-Type-Options'), 'nosniff');
+  await withTestApp(createTestApp(), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('x-content-type-options'), 'nosniff');
+  });
 });
 
 test('Security Headers: sets clickjacking protection', async () => {
-  const app = createTestApp();
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('X-Frame-Options'), 'DENY');
+  await withTestApp(createTestApp(), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('x-frame-options'), 'DENY');
+  });
 });
 
 test('Security Headers: enables XSS filter', async () => {
-  const app = createTestApp();
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('X-XSS-Protection'), '1; mode=block');
+  await withTestApp(createTestApp(), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('x-xss-protection'), '1; mode=block');
+  });
 });
 
 test('Security Headers: sets referrer policy', async () => {
-  const app = createTestApp();
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('Referrer-Policy'), 'no-referrer');
+  await withTestApp(createTestApp(), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('referrer-policy'), 'no-referrer');
+  });
 });
 
 test('Security Headers: sets permissions policy', async () => {
-  const app = createTestApp();
-  const res = await request(app).get('/');
-  const permissionsPolicy = res.get('Permissions-Policy');
-  assert(permissionsPolicy.includes('geolocation=()'));
-  assert(permissionsPolicy.includes('microphone=()'));
-  assert(permissionsPolicy.includes('camera=()'));
+  await withTestApp(createTestApp(), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    const permissionsPolicy = res.headers.get('permissions-policy');
+    assert(permissionsPolicy.includes('geolocation=()'));
+    assert(permissionsPolicy.includes('microphone=()'));
+    assert(permissionsPolicy.includes('camera=()'));
+  });
 });
 
 test('Security Headers: sets content security policy', async () => {
-  const app = createTestApp();
-  const res = await request(app).get('/');
-  const csp = res.get('Content-Security-Policy');
-  assert(csp.includes("default-src 'self'"));
-  assert(csp.includes("script-src 'self' 'unsafe-inline'"));
-  assert(csp.includes("style-src 'self' 'unsafe-inline'"));
-  assert(csp.includes("frame-ancestors 'none'"));
+  await withTestApp(createTestApp(), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    const csp = res.headers.get('content-security-policy');
+    assert(csp.includes("default-src 'self'"));
+    assert(csp.includes("script-src 'self' 'unsafe-inline'"));
+    assert(csp.includes("style-src 'self' 'unsafe-inline'"));
+    assert(csp.includes("frame-ancestors 'none'"));
+  });
 });
 
 test('Security Headers: removes X-Powered-By header', async () => {
-  const app = express();
-  app.use((req, res, next) => {
-    res.setHeader('X-Powered-By', 'Express');
-    next();
+  await withTestApp((app) => {
+    app.use((req, res, next) => {
+      res.setHeader('X-Powered-By', 'Express');
+      next();
+    });
+    app.use(securityHeadersMiddleware({ hidePoweredBy: true }));
+    app.get('/', (req, res) => res.send('OK'));
+  }, async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert(!res.headers.get('x-powered-by'));
   });
-  app.use(securityHeadersMiddleware({ hidePoweredBy: true }));
-  app.get('/', (req, res) => res.send('OK'));
-
-  const res = await request(app).get('/');
-  assert(!res.get('X-Powered-By'));
 });
 
 test('Security Headers: respects custom frameguard action', async () => {
-  const app = createTestApp({
-    frameguard: { action: 'sameorigin' },
+  await withTestApp(createTestApp({ frameguard: { action: 'sameorigin' } }), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('x-frame-options'), 'SAMEORIGIN');
   });
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('X-Frame-Options'), 'SAMEORIGIN');
 });
 
 test('Security Headers: respects custom referrer policy', async () => {
-  const app = createTestApp({
-    referrerPolicy: { policy: 'strict-no-referrer' },
+  await withTestApp(createTestApp({ referrerPolicy: { policy: 'strict-no-referrer' } }), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('referrer-policy'), 'strict-no-referrer');
   });
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('Referrer-Policy'), 'strict-no-referrer');
 });
 
 test('Security Headers: can disable CSP', async () => {
-  const app = createTestApp({
-    contentSecurityPolicy: false,
+  await withTestApp(createTestApp({ contentSecurityPolicy: false }), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert(!res.headers.get('content-security-policy'));
   });
-  const res = await request(app).get('/');
-  assert(!res.get('Content-Security-Policy'));
 });
 
 test('Security Headers: sets DNS prefetch control', async () => {
-  const app = createTestApp({
-    dnsPrefetchControl: { allow: false },
+  await withTestApp(createTestApp({ dnsPrefetchControl: { allow: false } }), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('x-dns-prefetch-control'), 'off');
   });
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('X-DNS-Prefetch-Control'), 'off');
 });
 
 test('Security Headers: sets IE download options', async () => {
-  const app = createTestApp();
-  const res = await request(app).get('/');
-  assert.strictEqual(res.get('X-Download-Options'), 'noopen');
+  await withTestApp(createTestApp(), async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.headers.get('x-download-options'), 'noopen');
+  });
 });
 
 test('Security Headers: preset - development', () => {
@@ -126,9 +141,7 @@ test('Security Headers: preset - strict', () => {
   assert.strictEqual(preset.xssFilter, true);
 });
 
-test('Security Headers: getSecurityHeadersPreset returns development in dev', () => {
-  // This test assumes NODE_ENV is set to development
-  // In CI/testing environment, we'd need to mock this
+test('Security Headers: getSecurityHeadersPreset returns a preset', () => {
   const preset = getSecurityHeadersPreset();
-  assert(preset); // Just verify it returns something
+  assert(preset);
 });

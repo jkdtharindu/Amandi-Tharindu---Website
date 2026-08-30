@@ -602,7 +602,8 @@ export function createApp() {
   return app;
 }
 
-if (process.argv[2] !== 'test') {
+const isMainModule = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   const app = createApp();
   const port = process.env.PORT || 3000;
   app.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
