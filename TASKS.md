@@ -3,9 +3,10 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Scoping / Initial implementation started
-- Current focus: Guest access flow and public page polish
-- Priority: Build the first vertical slice end-to-end
+- Status: Security Hardening Complete / Phase 4 Ready
+- Current focus: Admin experience & production launch prep
+- Priority: Implement admin authentication & features
+- Completion: ~79% of checklist (Phase 1-3 + Security done, Phase 4-5 in progress)
 
 ## Working Principles
 - Use strict TDD for each slice
@@ -16,7 +17,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Phase 1 complete; Phase 2 now includes code login, name login, and ambiguous-name recovery.
 - Core launch scope still requires the personalized invitation page, RSVP flow, sticky RSVP bar, admin auth, guest/dashboard management, and messaging/theme features.
 - Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel.
-- Estimated completion: ~30% of the current checklist, ~15-20% of full PRD launch scope.
+- Estimated completion: ~79% of the current checklist (security complete), ~30-35% of full PRD launch scope.
 
 ## Implementation Backlog (updated)
 
@@ -46,6 +47,15 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Gallery page
 - [x] Wishes page
 - [x] Shared page wrapper and refreshed wedding-style layout for public pages
+
+### Phase 3.5 — Security Hardening (NEW - Complete)
+- [x] Create comprehensive security documentation (SECURITY.md)
+- [x] Implement rate limiting middleware (5 attempts/10min login, 10/hour RSVP)
+- [x] Add security headers (clickjacking, XSS, MIME sniffing prevention)
+- [x] Implement request logging with sensitive data sanitization
+- [x] Create Supabase RLS policies for database-level access control
+- [x] Document production deployment security checklist
+- [x] Comprehensive test coverage for all security features
 
 ### Phase 4 — Admin Experience
 - [ ] Admin authentication
@@ -85,16 +95,30 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
  - Pinning/adjusting linting and TypeScript devDependencies to compatible versions (ESLint v8 + TS v5)
 
 ## Current Blockers
-- Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.
-- Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
+- ✅ RESOLVED: Security hardening complete (rate limiting, headers, logging, RLS)
+- Supabase integration: migration runner exists, requires `DATABASE_URL` for live database
+- Admin authentication: not yet implemented (blocks Phase 4)
+- Stack migration: Express demo still running; PRD requires Next.js 14 + Vercel migration
 
 ## Next Actions (step-by-step)
-1. Harden auth & sessions: add `SESSION_SECRET` guidance, sign/secure cookies (`HttpOnly`, `Secure`, `SameSite`), add CSRF protection, and include a `.env.example`.
-2. Migrate prototype to the PRD stack: scaffold a Next.js 14 (App Router) + TypeScript app and port demo routes/API to Next route handlers.
-3. Implement DB adapter & migration runner: replace the in-memory `guestStore` with a Supabase/pg adapter, map code → `guests` table, and add a safe migration/seed runner for `migrations/*.sql`.
-4. Normalize schema and naming: ensure DB field naming (snake_case) matches PRD and add a mapping layer in code to avoid casing drift (`is_deleted` ⇄ `isDeleted`, `rsvp_status`, etc.).
-5. Implement API route(s) for name-based login and ambiguous resolution (`POST /api/guest/login` to accept `code | name`) and return a consistent shaped response (`{ type: 'exact'|'candidates', ... }`).
-6. Add integration and E2E tests that exercise full flows (login → session cookie → invitation → RSVP submit → RSVPResponse persistence) and admin flows.
+
+### Phase 3.5 Completed ✅
+- [x] 1. Security hardening: rate limiting, security headers, request logging, RLS policies
+- [x] 2. Production deployment checklist & security documentation
+
+### Phase 4 (Admin Experience) - In Progress
+- [ ] 3. Implement admin authentication: Supabase Auth role, protected `/admin/*` routes
+- [ ] 4. Build admin dashboard: guest management, RSVP dashboard, theme editor
+- [ ] 5. Implement messaging center: template management, sandbox mode, HITL-gated sends
+- [ ] 6. Add theme customization: dynamic CSS variables, couple-controlled settings
+
+### Phase 5 (Production Launch) - Next
+- [ ] 7. Migrate to PRD stack: scaffold Next.js 14 (App Router) + Supabase client
+- [ ] 8. Implement Supabase live database: replace in-memory store, enable RLS policies
+- [ ] 9. Mobile responsiveness: polish responsive design, test all viewports
+- [ ] 10. Content finalization: fill in real wedding details, couple copy review
+- [ ] 11. Deployment setup: Vercel configuration, environment secrets, DNS
+- [ ] 12. Final QA & launch readiness: comprehensive testing, security audit sign-off
 7. Implement Admin surface & auth: Supabase Auth single-Admin setup, protected `/admin/*` routes, guest CRUD, RSVP dashboard, ThemeSettings editor, and SectionManager per P0.
 8. Messaging sandbox + templates: build MessageTemplate management, MessageLog recording, a sandbox mode (no external sends), and a HITL-gated send flow for WhatsApp/SMS/Email.
 9. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production.
