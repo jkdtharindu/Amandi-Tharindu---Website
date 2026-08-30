@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import { loginGuestByCode, loginGuestByName } from './guest-auth/index.js';
 import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
+import { RateLimiter, createRateLimitMiddleware } from './rate-limiter.js';
 import {
   findGuestByCode,
   findRsvpResponseByGuestId,
@@ -104,6 +105,8 @@ function pageWrapper(title, bodyContent, scripts = '') {
 
 export function createApp() {
   const app = express();
+  const rateLimiter = new RateLimiter();
+
   app.use(cookieParser());
   app.use(bodyParser.json());
   app.use((req, res, next) => {
@@ -111,6 +114,19 @@ export function createApp() {
       getOrCreateCsrfToken(req, res);
     }
     next();
+  });
+
+  // Rate limit configuration per endpoint
+  const loginLimitMiddleware = createRateLimitMiddleware(rateLimiter, {
+    maxRequests: 5,
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    message: 'Too many login attempts. Please try again in 10 minutes.',
+  });
+
+  const rsvpLimitMiddleware = createRateLimitMiddleware(rateLimiter, {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    message: 'Too many RSVP updates. Please try again later.',
   });
 
   app.get('/', (req, res) => {
@@ -369,7 +385,7 @@ export function createApp() {
     return res.send(pageWrapper('Guest Login — Amandi & Tharindu', bodyContent, scripts));
   });
 
-  app.post('/api/guest/login', async (req, res) => {
+  app.post('/api/guest/login', loginLimitMiddleware, async (req, res) => {
     if (!verifyCsrfToken(req)) {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
     }
@@ -413,7 +429,7 @@ export function createApp() {
     return res.status(404).json(result);
   });
 
-  app.post('/api/guest/rsvp', async (req, res) => {
+  app.post('/api/guest/rsvp', rsvpLimitMiddleware, async (req, res) => {
     if (!verifyCsrfToken(req)) {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
     }
