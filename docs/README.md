@@ -5,17 +5,20 @@ Read `amandi-tharindu-wedding-PRD.md` and `WEDDING_UBIQUITOUS_LANGUAGE.md` befor
 
 ---
 
-## Current state (as of 2026-08-29)
+## Current state (as of 2026-08-30)
 
 The repository contains an **Express prototype** used for early slice development and UI
 validation. The intended production stack is **Next.js 14 + Supabase + Vercel** — migration
 to that stack is the next major decision point (see TASKS.md "Current Blockers").
 
+**As of 2026-08-30:** Neon Postgres database is configured and all 7 migrations have been
+applied. The application can now persist data across restarts when `DATABASE_URL` is set.
+
 | Layer | Prototype (now) | Target (Next.js) |
 |---|---|---|
 | Server | `src/main.js` entry → `src/server.js` (Express) | `app/` (Next.js App Router) |
-| Auth | Seeded single admin, scrypt cookies | Supabase Auth, two admins (Groom + Bride) |
-| Data | In-memory stores (resets on restart) | Supabase Postgres |
+| Auth | Configured single admin, scrypt cookies | Supabase Auth, two admins (Groom + Bride) |
+| Data | **Neon Postgres** (migrations 001–007 applied) | Supabase Postgres |
 | Guest login | Code-only (`/login`) | Code-only + QR (`/invitation/[code]`) |
 | Fonts | Falls back to Georgia (not loaded) | Self-hosted Cormorant Garamond, Montserrat, Great Vibes |
 
