@@ -5,6 +5,7 @@ import { loginGuestByCode, loginGuestByName } from './guest-auth/index.js';
 import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
 import { RateLimiter, createRateLimitMiddleware } from './rate-limiter.js';
+import { securityHeadersMiddleware, getSecurityHeadersPreset } from './security-headers.js';
 import {
   findGuestByCode,
   findRsvpResponseByGuestId,
@@ -106,6 +107,9 @@ function pageWrapper(title, bodyContent, scripts = '') {
 export function createApp() {
   const app = express();
   const rateLimiter = new RateLimiter();
+
+  // Apply security headers early
+  app.use(securityHeadersMiddleware(getSecurityHeadersPreset()));
 
   app.use(cookieParser());
   app.use(bodyParser.json());
