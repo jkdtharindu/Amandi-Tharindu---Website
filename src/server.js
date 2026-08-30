@@ -39,6 +39,16 @@ import {
 import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js';
 import { VALID_RELATIONSHIP_TYPES } from './guest-auth/validateGuestInput.js';
 import { generateInvitationCode } from './guest-auth/generateInvitationCode.js';
+import {
+  listSeatingTables,
+  createSeatingTable,
+  updateSeatingTable,
+  deleteSeatingTable,
+  assignGuestToSeat,
+  unassignGuestFromSeat,
+  listUnassignedGuests,
+} from './table-arrangement/tableArrangementRepo.js';
+import { buildTableArrangementExport, buildTableArrangementSummary } from './table-arrangement/tableArrangementExport.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
 const GUEST_SESSION_COOKIE = 'guest_session';
@@ -220,6 +230,7 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
             <a href="/admin/sections">Sections</a>
             <a href="/admin/guests">Guests</a>
             <a href="/admin/rsvp">RSVP Dashboard</a>
+            <a href="/admin/table-arrangement">Table Arrangement</a>
             <button id="admin-logout" type="button">Log out</button>
           </header>
           ${bodyContent}
@@ -1842,6 +1853,438 @@ export function createApp() {
     `;
 
     return res.send(adminPageWrapper('RSVP Dashboard — Admin', bodyContent, scripts, res.locals.theme));
+  });
+
+  // --- Table Arrangement Feature -----------------------------------------------
+
+  app.get('/api/admin/table-arrangement', requireAdminApi, async (req, res) => {
+    const tables = await listSeatingTables();
+    const unassigned = await listUnassignedGuests();
+    res.json({ tables, unassignedGuests: unassigned });
+  });
+
+  app.post('/api/admin/table-arrangement', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { tableNumber, tableName, capacity } = req.body;
+
+    if (!tableNumber || tableNumber < 1) {
+      return res.status(400).json({ success: false, message: 'Valid table number required' });
+    }
+
+    if (!capacity || capacity < 1 || capacity > 100) {
+      return res.status(400).json({ success: false, message: 'Capacity must be between 1 and 100' });
+    }
+
+    try {
+      const table = await createSeatingTable({ tableNumber, tableName, capacity });
+      res.json({ success: true, table });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put('/api/admin/table-arrangement/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { tableName } = req.body;
+
+    try {
+      const table = await updateSeatingTable(req.params.id, { tableName });
+      if (!table) {
+        return res.status(404).json({ success: false, message: 'Table not found' });
+      }
+      res.json({ success: true, table });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.delete('/api/admin/table-arrangement/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    try {
+      await deleteSeatingTable(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post('/api/admin/table-arrangement/:tableId/seats/:seatId/assign', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { guestId, dietaryRequirements, specialNotes } = req.body;
+
+    if (!guestId) {
+      return res.status(400).json({ success: false, message: 'Guest ID required' });
+    }
+
+    try {
+      const seat = await assignGuestToSeat(req.params.seatId, guestId, {
+        dietaryRequirements,
+        specialNotes,
+      });
+      res.json({ success: true, seat });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post('/api/admin/table-arrangement/:tableId/seats/:seatId/unassign', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    try {
+      const seat = await unassignGuestFromSeat(req.params.seatId);
+      res.json({ success: true, seat });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get('/api/admin/table-arrangement/export', requireAdminApi, async (req, res) => {
+    const tables = await listSeatingTables();
+    const summary = buildTableArrangementSummary(tables);
+    const arrangements = buildTableArrangementExport(tables);
+
+    // Combine summary and arrangements in export
+    const fullExport = summary + '\n' + arrangements;
+
+    res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="table-arrangements.xlsx"');
+    res.send(fullExport);
+  });
+
+  app.get('/admin/table-arrangement', requireAdminPage, async (req, res) => {
+    const tables = await listSeatingTables();
+    const unassigned = await listUnassignedGuests();
+
+    const tablesHtml = tables
+      .map((table) => {
+        const seats = Array.isArray(table.seats) ? table.seats : [];
+        const filled = seats.filter((s) => s.guestId).length;
+
+        const seatsHtml = seats
+          .map((seat) => `
+            <div class="seat-card" data-seat-id="${escapeHtml(seat.id)}" data-guest-id="${seat.guestId || ''}">
+              <div class="seat-header">
+                <span class="seat-number">Seat ${seat.seatNumber}</span>
+                ${seat.guestId ? `<button class="button-small" data-action="unassign">Remove</button>` : ''}
+              </div>
+              <div class="seat-content">
+                ${seat.guestId ? `
+                  <div class="guest-info">
+                    <strong>${escapeHtml(seat.guestName)}</strong>
+                    ${seat.dietaryRequirements ? `<div class="dietary"><em>${escapeHtml(seat.dietaryRequirements)}</em></div>` : ''}
+                    ${seat.specialNotes ? `<div class="notes"><small>${escapeHtml(seat.specialNotes)}</small></div>` : ''}
+                  </div>
+                ` : `
+                  <div class="seat-empty">
+                    <em>Unassigned</em>
+                    <select class="guest-select" data-action="assign">
+                      <option value="">Select guest...</option>
+                      ${unassigned.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`).join('')}
+                    </select>
+                  </div>
+                `}
+              </div>
+            </div>
+          `)
+          .join('');
+
+        return `
+          <div class="table-card" data-table-id="${escapeHtml(table.id)}">
+            <div class="table-header">
+              <h3>Table ${table.table_number}${table.table_name ? ` - ${escapeHtml(table.table_name)}` : ''}</h3>
+              <div class="table-stats">${filled}/${table.capacity} filled</div>
+              <button class="button-small" data-action="delete-table">Delete</button>
+            </div>
+            <div class="seats-grid">
+              ${seatsHtml}
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    const bodyContent = `
+      <h1>Table Arrangement</h1>
+      <p>Organize guest seating and manage dietary requirements.</p>
+
+      <div class="table-management">
+        <div class="add-table-section">
+          <h2>Add New Table</h2>
+          <form id="add-table-form" class="field-group">
+            <div class="field-row">
+              <label>Table Number
+                <input type="number" name="tableNumber" min="1" required />
+              </label>
+            </div>
+            <div class="field-row">
+              <label>Table Name (optional)
+                <input type="text" name="tableName" placeholder="e.g., Family, Friends, VIP" />
+              </label>
+            </div>
+            <div class="field-row">
+              <label>Capacity
+                <input type="number" name="capacity" min="1" max="100" value="10" required />
+              </label>
+            </div>
+            <button class="save-btn" type="submit">Create Table</button>
+            <div class="status-msg" data-status></div>
+          </form>
+        </div>
+
+        <div class="export-section">
+          <h2>Export</h2>
+          <a class="save-btn" href="/api/admin/table-arrangement/export" download>Download Excel</a>
+        </div>
+      </div>
+
+      <div class="tables-container">
+        ${tablesHtml || '<p>No tables created yet.</p>'}
+      </div>
+    `;
+
+    const scripts = `
+      <script>
+        document.getElementById('add-table-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.capacity = parseInt(data.capacity, 10);
+
+          try {
+            const res = await fetch('/api/admin/table-arrangement', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+              body: JSON.stringify(data),
+            });
+            const result = await res.json();
+            if (result.success) {
+              location.reload();
+            } else {
+              alert('Error: ' + result.message);
+            }
+          } catch (error) {
+            alert('Error: ' + error.message);
+          }
+        });
+
+        document.querySelectorAll('[data-action="delete-table"]').forEach((btn) => {
+          btn.addEventListener('click', async (e) => {
+            if (!confirm('Delete this table and all seat assignments?')) return;
+            const tableId = e.target.closest('[data-table-id]').dataset.tableId;
+            try {
+              const res = await fetch('/api/admin/table-arrangement/' + tableId, {
+                method: 'DELETE',
+                headers: { 'x-csrf-token': csrfToken },
+              });
+              const result = await res.json();
+              if (result.success) {
+                location.reload();
+              } else {
+                alert('Error: ' + result.message);
+              }
+            } catch (error) {
+              alert('Error: ' + error.message);
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-action="assign"]').forEach((select) => {
+          select.addEventListener('change', async (e) => {
+            const guestId = e.target.value;
+            if (!guestId) return;
+
+            const seatCard = e.target.closest('[data-seat-id]');
+            const seatId = seatCard.dataset.seatId;
+            const tableId = seatCard.closest('[data-table-id]').dataset.tableId;
+
+            try {
+              const res = await fetch('/api/admin/table-arrangement/' + tableId + '/seats/' + seatId + '/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+                body: JSON.stringify({ guestId }),
+              });
+              const result = await res.json();
+              if (result.success) {
+                location.reload();
+              } else {
+                alert('Error: ' + result.message);
+              }
+            } catch (error) {
+              alert('Error: ' + error.message);
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-action="unassign"]').forEach((btn) => {
+          btn.addEventListener('click', async (e) => {
+            const seatCard = e.target.closest('[data-seat-id]');
+            const seatId = seatCard.dataset.seatId;
+            const tableId = seatCard.closest('[data-table-id]').dataset.tableId;
+
+            try {
+              const res = await fetch('/api/admin/table-arrangement/' + tableId + '/seats/' + seatId + '/unassign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+              });
+              const result = await res.json();
+              if (result.success) {
+                location.reload();
+              } else {
+                alert('Error: ' + result.message);
+              }
+            } catch (error) {
+              alert('Error: ' + error.message);
+            }
+          });
+        });
+      </script>
+
+      <style>
+        .table-management {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 2rem;
+          margin-bottom: 3rem;
+        }
+
+        .add-table-section, .export-section {
+          background: var(--color-surface);
+          padding: 1.5rem;
+          border-radius: 0.5rem;
+          border: 1px solid var(--color-line);
+        }
+
+        .tables-container {
+          display: grid;
+          gap: 2rem;
+        }
+
+        .table-card {
+          background: var(--color-surface);
+          border: 1px solid var(--color-line);
+          border-radius: 0.5rem;
+          overflow: hidden;
+        }
+
+        .table-header {
+          background: var(--color-soft);
+          padding: 1rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .table-header h3 {
+          margin: 0;
+          font-size: 1.2rem;
+        }
+
+        .table-stats {
+          color: var(--color-muted);
+          font-size: 0.9rem;
+        }
+
+        .seats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1rem;
+          padding: 1.5rem;
+        }
+
+        .seat-card {
+          background: var(--color-soft);
+          border: 1px solid var(--color-line);
+          border-radius: 0.4rem;
+          padding: 1rem;
+        }
+
+        .seat-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+
+        .seat-number {
+          font-weight: 600;
+          font-size: 0.9rem;
+        }
+
+        .guest-info {
+          padding: 0.5rem 0;
+        }
+
+        .guest-info strong {
+          display: block;
+          margin-bottom: 0.3rem;
+        }
+
+        .dietary {
+          color: var(--color-muted);
+          font-size: 0.85rem;
+          margin-top: 0.3rem;
+        }
+
+        .notes {
+          color: var(--color-muted);
+          font-size: 0.8rem;
+          margin-top: 0.3rem;
+        }
+
+        .seat-empty {
+          text-align: center;
+          color: var(--color-muted);
+        }
+
+        .guest-select {
+          width: 100%;
+          margin-top: 0.5rem;
+          padding: 0.4rem;
+          font-size: 0.85rem;
+        }
+
+        .button-small {
+          padding: 0.3rem 0.6rem;
+          font-size: 0.8rem;
+          background: var(--color-accent);
+          color: white;
+          border: none;
+          border-radius: 0.3rem;
+          cursor: pointer;
+        }
+
+        .button-small:hover {
+          opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+          .table-management {
+            grid-template-columns: 1fr;
+          }
+
+          .seats-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          }
+        }
+      </style>
+    `;
+
+    return res.send(adminPageWrapper('Table Arrangement — Admin', bodyContent, scripts, res.locals.theme));
   });
 
   return app;
