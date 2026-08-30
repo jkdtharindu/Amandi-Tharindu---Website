@@ -3,9 +3,9 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Foundation layers complete (Next.js 14 + Supabase integration)
-- Current focus: Admin authentication & dashboard
-- Priority: Get admin features working, then messaging center
+- Status: Guest management forms complete; ready for dashboard enhancements
+- Current focus: Dashboard search/filter → then messaging center
+- Priority: Complete guest CRUD, then move to messaging integration
 
 ## Working Principles
 - Use strict TDD for each slice
@@ -85,6 +85,20 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Migration runner and seed scripts (updated for Postgres)
 - [x] Setup documentation (SUPABASE_SETUP.md)
 
+### Admin Features
+- [x] Admin authentication with Supabase Auth (email/password)
+- [x] Admin session management with context provider
+- [x] Route protection middleware for `/admin/*` routes
+- [x] Admin login page (`/admin/login`)
+- [x] Admin dashboard (`/admin/dashboard`) with:
+  - Guest list with RSVP status tracking
+  - Statistics (total, accepted, declined, pending)
+  - Edit guest button (fully functional)
+  - Add guest button (fully functional)
+- [x] Guest add form (`/admin/guests/new`) with field validation
+- [x] Guest edit form (`/admin/guests/[id]/edit`) with delete capability
+- [x] API routes for guest CRUD (POST/PUT/DELETE /api/admin/guests/*)
+
 ### Guest Features (Ported to Next.js)
 - [x] Guest authentication by invitation code (`/api/guest/login`)
 - [x] Guest authentication by name with ambiguous-name resolution
@@ -109,24 +123,25 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Supabase integration layer (querying guests, saving RSVP responses)
 - Database scripts (migration runner, seed data)
 - Guest authentication & RSVP flows wired to database
+- Admin authentication (Supabase Auth + context provider + route middleware)
+- Basic admin dashboard (guest list + statistics)
 
 **Immediate Next (Priority Order):**
 
-1. **Admin Authentication** — Supabase Auth for the couple
-   - Set up Supabase Auth in project
-   - Create `/admin/login` page with email/password form
-   - Create auth context/provider for persistent sessions
-   - Protect `/admin/*` routes with middleware (unauthenticated → redirect to login)
+1. ✅ **Guest Management Forms** (COMPLETE)
+   - [x] `/admin/guests/new` → Add guest form (name, code, email, whatsapp, relationship, slot_count)
+   - [x] `/admin/guests/[id]/edit` → Edit guest details + delete button (soft delete with is_deleted flag)
+   - [x] API routes: POST/PUT/DELETE /api/admin/guests
+   - [x] Form validation and error handling
+   - [x] Supabase + in-memory fallback support
+   - [x] Admin auth protection on all routes
 
-2. **Admin Dashboard** — Core guest & RSVP management
-   - `/admin/dashboard` → list all guests with RSVP status
-   - Headcount summary (accepted/declined/pending)
-   - Guest detail view (show participant names, edit slot count)
-   - Add/edit guest form (name, code, relationship, slot_count)
-   - Delete guest (with soft delete, guarded by HITL checkpoint)
-   - Filter/search guests by name, code, or RSVP status
+2. **Dashboard Enhancements** (next)
+   - Search/filter guests by name, code, RSVP status
+   - Participant names viewer (expand RSVP details)
+   - Bulk actions (export to CSV, send reminders)
 
-3. **Messaging Center** (after admin basics)
+3. **Messaging Center** (after guest CRUD complete)
    - Message template editor (initial invite, reminder, confirmation)
    - Bulk send flow (select guests, choose template, preview, send with HITL)
    - Message log viewer (delivery status, timestamps)
