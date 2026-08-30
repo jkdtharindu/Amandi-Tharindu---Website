@@ -30,8 +30,9 @@ function main() {
   const sensitivePaths = ['migrations/', 'src/messaging', 'src/twilio', 'src/sms', 'src/email'];
   const touchedSensitive = files.some((f) => sensitivePaths.some((p) => f.startsWith(p)));
 
-  const hitlTouched = files.some((f) => f === 'HITL.md' || f.startsWith('.github/') || f === 'MEMORY.md');
-  const memoryTouched = files.some((f) => f === 'MEMORY.md');
+  // MEMORY.md lives at docs/MEMORY.md since the docs consolidation in 8c5e665.
+  const hitlTouched = files.some((f) => f === 'HITL.md' || f.startsWith('.github/') || f === 'docs/MEMORY.md');
+  const memoryTouched = files.some((f) => f === 'docs/MEMORY.md');
 
   if (touchedSensitive && !hitlTouched) {
     console.error('\nERROR: Sensitive files changed (migrations/messaging). You must update HITL.md and add a MEMORY.md entry describing the change.');
