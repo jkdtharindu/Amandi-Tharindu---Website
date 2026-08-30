@@ -230,6 +230,12 @@ function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
           .guest-filters { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 1rem; }
           .guest-row-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
           .badge-deleted { color: #b91c1c; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; }
+          .guest-list-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+          .guest-list-header h2 { margin: 0; }
+          .guest-bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+          .guest-detail-row td { background: var(--color-secondary); }
+          .guest-detail-panel p { margin: 0.35rem 0; }
+          .guest-table tr.hidden { display: none; }
           .palette-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
           .palette-swatch { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; padding: 0.85rem; border-radius: 14px; border: 2px solid var(--color-line); background: var(--color-surface); cursor: pointer; text-align: left; font: inherit; color: var(--color-ink); }
           .palette-swatch.selected { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary) inset; }
@@ -1576,11 +1582,15 @@ export function createApp() {
   });
 
   app.get('/admin/guests', requireAdminPage, async (req, res) => {
-    const guests = await listGuestsForAdmin({
-      rsvpStatus: req.query.rsvpStatus || undefined,
-      relationship: req.query.relationship || undefined,
-      search: req.query.search || undefined,
-    });
+    const [guests, responses] = await Promise.all([
+      listGuestsForAdmin({
+        rsvpStatus: req.query.rsvpStatus || undefined,
+        relationship: req.query.relationship || undefined,
+        search: req.query.search || undefined,
+      }),
+      listAllRsvpResponses(),
+    ]);
+    const responseByGuest = new Map(responses.map((response) => [response.guestId, response]));
 
     const theme = res.locals.theme || {};
     const codeSurnamePosition = theme.invitationCodeSurnamePosition || 'first';
@@ -1603,8 +1613,17 @@ export function createApp() {
     const rowsHtml = guests
       .map((guest) => {
         const updatedLabel = guest.updatedAt || guest.createdAt || '—';
+        const response = responseByGuest.get(guest.id);
+        const participantNames = response && Array.isArray(response.participantNames) ? response.participantNames : [];
+        const participantNamesJson = escapeHtml(JSON.stringify(participantNames));
+
+        const detailBody = participantNames.length > 0
+          ? `<p><strong>Participant names (${participantNames.length}):</strong> ${escapeHtml(participantNames.join(', '))}</p>`
+          : `<p>No participant names recorded${guest.rsvpStatus === 'accepted' ? ' yet' : ''}.</p>`;
+
         return `
-          <tr data-id="${escapeHtml(guest.id)}" data-name="${escapeHtml(guest.name)}" data-relationship="${escapeHtml(guest.relationship)}" data-slot-count="${escapeHtml(String(guest.slotCount))}" class="${guest.isDeleted ? 'guest-deleted' : ''}">
+          <tr data-id="${escapeHtml(guest.id)}" data-name="${escapeHtml(guest.name)}" data-code="${escapeHtml(guest.code)}" data-relationship="${escapeHtml(guest.relationship)}" data-slot-count="${escapeHtml(String(guest.slotCount))}" data-rsvp-status="${escapeHtml(guest.rsvpStatus)}" data-participant-names="${participantNamesJson}" class="${guest.isDeleted ? 'guest-deleted' : ''}">
+            <td><input type="checkbox" class="row-select" aria-label="Select ${escapeHtml(guest.name)}" /></td>
             <td>
               <strong>${escapeHtml(guest.name)}</strong>
               ${guest.isDeleted ? '<div class="badge-deleted">Deleted</div>' : ''}
@@ -1617,20 +1636,29 @@ export function createApp() {
             <td>${escapeHtml(String(updatedLabel))}</td>
             <td>
               <div class="guest-row-actions">
+                <button class="button button-secondary" data-action="details" type="button">View Details</button>
                 <button class="button button-secondary" data-action="edit" type="button">Edit</button>
                 ${guest.isDeleted ? '' : '<button class="button button-secondary" data-action="delete" type="button">Delete</button>'}
               </div>
             </td>
           </tr>
+          <tr class="guest-detail-row hidden" data-detail-for="${escapeHtml(guest.id)}">
+            <td colspan="9">
+              <div class="guest-detail-panel">
+                <p><strong>RSVP status:</strong> ${escapeHtml(guest.rsvpStatus)}</p>
+                ${detailBody}
+              </div>
+            </td>
+          </tr>
         `;
       })
-      .join('') || '<tr><td colspan="8">No guests match these filters.</td></tr>';
+      .join('') || '<tr><td colspan="9">No guests match these filters.</td></tr>';
 
     const bodyContent = `
       <h1>Guest Management</h1>
       <p>Add guests, assign invitation codes, and review RSVP status.</p>
 
-      <form id="guest-filters" class="field-group guest-filters">
+      <div id="guest-filters" class="field-group guest-filters">
         <div class="field-row">
           <label>Search
             <input id="filter-search" type="search" value="${escapeHtml(req.query.search || '')}" placeholder="Name or code" />
@@ -1652,10 +1680,7 @@ export function createApp() {
             </select>
           </label>
         </div>
-        <div class="field-row" style="align-self: end;">
-          <button class="save-btn" type="submit">Apply filters</button>
-        </div>
-      </form>
+      </div>
 
       <form id="code-format-form" class="field-group">
         <h2>Invitation Code Format</h2>
@@ -1705,10 +1730,17 @@ export function createApp() {
       </form>
 
       <div class="field-group">
-        <h2>Guest List (${guests.length})</h2>
+        <div class="guest-list-header">
+          <h2>Guest List (<span id="guest-list-count">${guests.length}</span>)</h2>
+          <div class="guest-bulk-actions">
+            <span id="selected-count" class="field-hint-inline">0 selected</span>
+            <button class="button button-secondary" id="export-selected-btn" type="button">Export Selected to CSV</button>
+          </div>
+        </div>
         <table class="guest-table">
           <thead>
             <tr>
+              <th><input type="checkbox" id="select-all-guests" aria-label="Select all guests" /></th>
               <th>Name</th>
               <th>Code</th>
               <th>Relationship</th>
@@ -1768,19 +1800,6 @@ export function createApp() {
           }
         });
 
-        document.getElementById('guest-filters').addEventListener('submit', (event) => {
-          event.preventDefault();
-          const params = new URLSearchParams();
-          const search = document.getElementById('filter-search').value.trim();
-          const rsvpStatus = document.getElementById('filter-rsvp-status').value;
-          const relationship = document.getElementById('filter-relationship').value;
-          if (search) params.set('search', search);
-          if (rsvpStatus) params.set('rsvpStatus', rsvpStatus);
-          if (relationship) params.set('relationship', relationship);
-          const query = params.toString();
-          window.location.href = query ? '/admin/guests?' + query : '/admin/guests';
-        });
-
         document.getElementById('new-guest-form').addEventListener('submit', async (event) => {
           event.preventDefault();
           const status = event.target.querySelector('[data-status]');
@@ -1803,10 +1822,13 @@ export function createApp() {
           status.className = 'status-msg error';
         });
 
-        document.querySelectorAll('.guest-table tbody tr[data-id]').forEach((row) => {
+        const guestRows = Array.from(document.querySelectorAll('.guest-table tbody tr[data-id]'));
+
+        guestRows.forEach((row) => {
           const id = row.getAttribute('data-id');
           const editBtn = row.querySelector('[data-action="edit"]');
           const deleteBtn = row.querySelector('[data-action="delete"]');
+          const detailsBtn = row.querySelector('[data-action="details"]');
 
           if (editBtn) {
             editBtn.addEventListener('click', async () => {
@@ -1835,7 +1857,125 @@ export function createApp() {
               window.location.reload();
             });
           }
+
+          if (detailsBtn) {
+            detailsBtn.addEventListener('click', () => {
+              const detailRow = document.querySelector('tr.guest-detail-row[data-detail-for="' + id + '"]');
+              if (!detailRow) return;
+              const nowHidden = detailRow.classList.toggle('hidden');
+              detailsBtn.textContent = nowHidden ? 'View Details' : 'Hide Details';
+            });
+          }
         });
+
+        // --- Real-time search / status / relationship filtering ---------
+        const searchInput = document.getElementById('filter-search');
+        const statusSelect = document.getElementById('filter-rsvp-status');
+        const relationshipSelect = document.getElementById('filter-relationship');
+        const guestListCount = document.getElementById('guest-list-count');
+
+        function applyGuestFilters() {
+          const search = searchInput.value.trim().toLowerCase();
+          const status = statusSelect.value;
+          const relationship = relationshipSelect.value;
+          let visibleCount = 0;
+
+          guestRows.forEach((row) => {
+            const matchesSearch = !search
+              || row.getAttribute('data-name').toLowerCase().includes(search)
+              || row.getAttribute('data-code').toLowerCase().includes(search);
+            const matchesStatus = !status || row.getAttribute('data-rsvp-status') === status;
+            const matchesRelationship = !relationship || row.getAttribute('data-relationship') === relationship;
+            const visible = matchesSearch && matchesStatus && matchesRelationship;
+
+            row.classList.toggle('hidden', !visible);
+            if (visible) visibleCount += 1;
+
+            if (!visible) {
+              const detailRow = document.querySelector('tr.guest-detail-row[data-detail-for="' + row.getAttribute('data-id') + '"]');
+              if (detailRow && !detailRow.classList.contains('hidden')) {
+                detailRow.classList.add('hidden');
+                const detailsBtn = row.querySelector('[data-action="details"]');
+                if (detailsBtn) detailsBtn.textContent = 'View Details';
+              }
+            }
+          });
+
+          if (guestListCount) guestListCount.textContent = String(visibleCount);
+        }
+
+        searchInput.addEventListener('input', applyGuestFilters);
+        statusSelect.addEventListener('change', applyGuestFilters);
+        relationshipSelect.addEventListener('change', applyGuestFilters);
+
+        // --- Bulk selection + CSV export ---------------------------------
+        const selectAllCheckbox = document.getElementById('select-all-guests');
+        const selectedCountEl = document.getElementById('selected-count');
+
+        function updateSelectedCount() {
+          const checked = guestRows.filter((row) => row.querySelector('.row-select').checked).length;
+          selectedCountEl.textContent = checked + ' selected';
+        }
+
+        selectAllCheckbox.addEventListener('change', () => {
+          guestRows
+            .filter((row) => !row.classList.contains('hidden'))
+            .forEach((row) => { row.querySelector('.row-select').checked = selectAllCheckbox.checked; });
+          updateSelectedCount();
+        });
+
+        guestRows.forEach((row) => {
+          row.querySelector('.row-select').addEventListener('change', (event) => {
+            if (!event.target.checked) selectAllCheckbox.checked = false;
+            updateSelectedCount();
+          });
+        });
+
+        function csvEscape(value) {
+          const str = String(value == null ? '' : value);
+          const neutralised = /^[=+\\-@\\t\\r]/.test(str) ? "'" + str : str;
+          return /[",\\n\\r]/.test(neutralised) ? '"' + neutralised.replace(/"/g, '""') + '"' : neutralised;
+        }
+
+        document.getElementById('export-selected-btn').addEventListener('click', () => {
+          const selectedRows = guestRows.filter((row) => row.querySelector('.row-select').checked);
+          if (selectedRows.length === 0) {
+            window.alert('Select at least one guest to export.');
+            return;
+          }
+
+          const header = ['Name', 'Code', 'Relationship', 'Slot Count', 'RSVP Status', 'Participant Names'];
+          const rows = selectedRows.map((row) => {
+            let names = [];
+            try {
+              names = JSON.parse(row.getAttribute('data-participant-names') || '[]');
+            } catch (err) {
+              names = [];
+            }
+            return [
+              row.getAttribute('data-name'),
+              row.getAttribute('data-code'),
+              row.getAttribute('data-relationship'),
+              row.getAttribute('data-slot-count'),
+              row.getAttribute('data-rsvp-status'),
+              names.join(', '),
+            ].map(csvEscape).join(',');
+          });
+
+          const csv = '\\uFEFF' + [header.map(csvEscape).join(','), ...rows].join('\\n') + '\\n';
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          const today = new Date().toISOString().slice(0, 10);
+          link.href = url;
+          link.download = 'guests-selected-' + today + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        });
+
+        applyGuestFilters();
       </script>
     `;
 
