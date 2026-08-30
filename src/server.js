@@ -1,6 +1,7 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
+import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loginGuestByCode, loginGuestByName } from './guest-auth/index.js';
@@ -49,9 +50,30 @@ import {
   listUnassignedGuests,
 } from './table-arrangement/tableArrangementRepo.js';
 import { buildTableArrangementExport, buildTableArrangementSummary } from './table-arrangement/tableArrangementExport.js';
+import {
+  uploadImage,
+  isStorageConfigured,
+  MAX_FILE_SIZE_BYTES,
+  ALLOWED_MIME_TYPES,
+  ALLOWED_FOLDERS,
+} from './storage/supabaseStorage.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
 const GUEST_SESSION_COOKIE = 'guest_session';
+
+/** Slice 14 (admin image upload). Buffers in memory -- images are capped at 5MB and go straight to Supabase Storage, never to disk. */
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE_BYTES },
+  fileFilter(req, file, cb) {
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      const error = new Error('invalid_file_type');
+      error.code = 'INVALID_FILE_TYPE';
+      return cb(error);
+    }
+    cb(null, true);
+  },
+});
 
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -1304,6 +1326,64 @@ export function createApp() {
       return res.status(400).json(result);
     }
     return res.json(result);
+  });
+
+  // Slice 14 (P0-02, P1-10): shared upload endpoint used by every admin page
+  // that manages an image (Theme Editor now; Gallery/Story/Events in Slices 16-17).
+  app.post('/api/admin/upload', requireAdminApi, (req, res, next) => {
+    // Checked before multer touches the body: CSRF lives in a header, not the
+    // multipart body, so there is no reason to buffer a file first.
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+
+    imageUpload.single('file')(req, res, (err) => {
+      if (!err) return next();
+
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          reason: 'file_too_large',
+          message: 'File exceeds the 5MB limit.',
+        });
+      }
+      if (err.code === 'INVALID_FILE_TYPE') {
+        return res.status(400).json({
+          success: false,
+          reason: 'invalid_file_type',
+          message: 'Only JPEG, PNG, and WebP images are allowed.',
+        });
+      }
+      return res.status(400).json({ success: false, reason: 'upload_error', message: err.message });
+    });
+  }, async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, reason: 'no_file', message: 'No file was uploaded.' });
+    }
+
+    const folder = ALLOWED_FOLDERS.includes(req.body.folder) ? req.body.folder : null;
+    if (!folder) {
+      return res.status(400).json({
+        success: false,
+        reason: 'invalid_folder',
+        message: `folder must be one of: ${ALLOWED_FOLDERS.join(', ')}`,
+      });
+    }
+
+    if (!isStorageConfigured()) {
+      return res.status(503).json({
+        success: false,
+        reason: 'storage_not_configured',
+        message: 'Image storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
+      });
+    }
+
+    try {
+      const { url } = await uploadImage({ buffer: req.file.buffer, mimeType: req.file.mimetype, folder });
+      return res.json({ success: true, url });
+    } catch {
+      return res.status(502).json({ success: false, reason: 'upload_failed', message: 'Upload failed. Please try again.' });
+    }
   });
 
   app.get('/admin/sections', requireAdminPage, async (req, res) => {

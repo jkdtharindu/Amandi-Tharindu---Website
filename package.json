@@ -15,7 +15,8 @@
     "hitl:migrate": "node scripts/hitl-preflight.js migrate",
     "seed:db": "node scripts/seed-local-db.js",
     "copy-fonts": "node scripts/copy-fonts.js",
-    "admin:hash": "node scripts/admin-hash.js"
+    "admin:hash": "node scripts/admin-hash.js",
+    "setup-storage": "node scripts/setup-storage.js"
   },
   "devDependencies": {
     "@fontsource/cinzel": "^5.3.0",
@@ -31,10 +32,12 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "body-parser": "^2.3.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.0",
     "express": "^5.2.1",
+    "multer": "^2.3.0",
     "pg": "^8.11.0"
   }
 }
