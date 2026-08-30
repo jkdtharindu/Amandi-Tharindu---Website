@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, inMemoryRsvpStore, inMemoryGuestStore } from '@/lib/db';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { inMemoryRsvpStore, inMemoryGuestStore } from '@/lib/db';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { code: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
-    const code = params.code;
     const sessionId = request.cookies.get('guest_session')?.value;
 
     if (!sessionId) {
@@ -28,19 +25,20 @@ export async function POST(
 
     // Find guest
     let guest;
-    if (!process.env.SUPABASE_URL) {
+    if (!isSupabaseConfigured() || !supabase) {
       guest = inMemoryGuestStore.find(
-        (g) => g.code === code && !g.is_deleted
+        (g) => g.id === sessionId && !g.is_deleted
       );
     } else {
       const { data, error } = await supabase
         .from('guests')
         .select('*')
-        .eq('code', code)
+        .eq('id', sessionId)
         .eq('is_deleted', false)
         .single();
 
       if (error) {
+        console.error('Error fetching guest:', error);
         return NextResponse.json(
           { success: false, reason: 'guest_not_found' },
           { status: 404 }
@@ -58,32 +56,37 @@ export async function POST(
     }
 
     // Save RSVP
-    const rsvpData = {
-      guest_id: guest.id,
-      rsvp_status: status,
-      participant_names: status === 'accepted' ? participants || [] : [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    const attending = status === 'accepted';
+    const participantNames = status === 'accepted' ? participants || [] : [];
 
-    if (!process.env.SUPABASE_URL) {
+    if (!isSupabaseConfigured() || !supabase) {
       // In-memory store
       inMemoryRsvpStore.push({
-        id: inMemoryRsvpStore.length + 1,
-        ...rsvpData,
+        id: `rsvp-${Date.now()}`,
+        guest_id: guest.id,
+        attending,
+        participant_names: participantNames,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
+
       // Also update guest record
       const guestIndex = inMemoryGuestStore.findIndex((g) => g.id === guest.id);
       if (guestIndex >= 0) {
-        const g = inMemoryGuestStore[guestIndex] as unknown as Record<string, unknown>;
-        g.rsvp_status = status;
-        g.participant_names = rsvpData.participant_names;
+        inMemoryGuestStore[guestIndex].rsvp_status = status;
+        inMemoryGuestStore[guestIndex].participant_names = participantNames;
       }
     } else {
-      // Supabase
+      // Supabase: Insert into rsvp_responses
       const { error: insertError } = await supabase
         .from('rsvp_responses')
-        .insert([rsvpData]);
+        .insert([
+          {
+            guest_id: guest.id,
+            attending,
+            participant_names: participantNames,
+          },
+        ]);
 
       if (insertError) {
         console.error('RSVP insert error:', insertError);
@@ -94,13 +97,17 @@ export async function POST(
       }
 
       // Update guest rsvp_status
-      await supabase
+      const { error: updateError } = await supabase
         .from('guests')
         .update({
           rsvp_status: status,
-          participant_names: rsvpData.participant_names,
         })
         .eq('id', guest.id);
+
+      if (updateError) {
+        console.error('Guest update error:', updateError);
+        // Don't fail; the RSVP was saved
+      }
     }
 
     return NextResponse.json({

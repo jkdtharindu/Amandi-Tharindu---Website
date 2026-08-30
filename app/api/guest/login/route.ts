@@ -20,15 +20,17 @@ export async function POST(request: NextRequest) {
       result = await loginGuestByName(name);
     }
 
+    // Return candidates without setting session
     if (!result.success && result.type === 'candidates') {
       return NextResponse.json(result, { status: 200 });
     }
 
+    // Return error if not found
     if (!result.success) {
       return NextResponse.json(result, { status: 401 });
     }
 
-    // Set session cookie
+    // Success: set session cookie
     const response = NextResponse.json(result, { status: 200 });
     response.cookies.set('guest_session', result.sessionId?.toString() || '', {
       httpOnly: true,
