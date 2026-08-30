@@ -22,8 +22,8 @@
 function sanitizePath(path) {
   // Hide guest codes in invitation paths: /invitation/SILVA-001 → /invitation/***
   return path
-    .replace(/\/invitation\/[A-Z0-9\-]+/gi, '/invitation/***')
-    .replace(/code=[A-Z0-9\-]+/gi, 'code=***')
+    .replace(/\/invitation\/[A-Z0-9-]+/gi, '/invitation/***')
+    .replace(/code=[A-Z0-9-]+/gi, 'code=***')
     .replace(/name=[^&]+/gi, 'name=***');
 }
 
@@ -48,28 +48,6 @@ function maskIpAddress(ip) {
   }
 
   return 'unknown';
-}
-
-/**
- * Sanitize request body
- * Removes sensitive fields from POST data
- * @param {object} body - Request body
- * @returns {object} Sanitized body
- */
-function sanitizeBody(body) {
-  if (!body || typeof body !== 'object') return body;
-
-  const sanitized = { ...body };
-
-  // Remove/mask sensitive fields
-  const sensitiveFields = ['code', 'name', 'password', 'token', 'sessionId'];
-  sensitiveFields.forEach(field => {
-    if (field in sanitized) {
-      sanitized[field] = '***';
-    }
-  });
-
-  return sanitized;
 }
 
 /**
@@ -122,7 +100,6 @@ export function requestLoggerMiddleware(options = {}) {
     logLevel: process.env.LOG_LEVEL || 'info',
     skipPaths: ['/home', '/story', '/celebration', '/gallery', '/wishes'], // Don't log public page views
     skipMethods: ['HEAD'], // Don't log HEAD requests
-    maxBodySize: 200, // Max chars to log from body
     format: 'json', // 'json' or 'text'
     ...options,
   };
@@ -145,7 +122,6 @@ export function requestLoggerMiddleware(options = {}) {
 
     // Capture start time
     const startTime = Date.now();
-    const startMemory = process.memoryUsage().heapUsed;
 
     // Capture request details
     const requestSize = parseInt(req.get('content-length') || 0);
@@ -155,23 +131,6 @@ export function requestLoggerMiddleware(options = {}) {
     const ip = maskIpAddress(req.ip || req.connection.remoteAddress);
     const userAgent = sanitizeUserAgent(req.get('user-agent'));
     const referer = req.get('referer') ? '***' : '-'; // Mask referer
-
-    // Intercept response.json to capture status and body
-    const originalJson = res.json;
-    const originalSend = res.send;
-    let responseBody = null;
-
-    res.json = function(data) {
-      responseBody = data;
-      return originalJson.call(this, data);
-    };
-
-    res.send = function(data) {
-      if (typeof data === 'string') {
-        responseBody = data.substring(0, config.maxBodySize);
-      }
-      return originalSend.call(this, data);
-    };
 
     // Finish handler
     res.on('finish', () => {

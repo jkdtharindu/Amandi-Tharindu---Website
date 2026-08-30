@@ -58,7 +58,16 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Comprehensive test coverage for all security features
 
 ### Phase 4 — Admin Experience
-- [ ] Admin authentication
+- [x] Admin authentication (P0-09 scaffold on current Express stack)
+  - Status: email+password login, scrypt password hashing (no new dependency),
+    role-scoped session (`admin_session`, namespaced separately from guest
+    sessions so one can't be replayed as the other), `requireAdminAuth`
+    middleware protecting `/admin/*` (401 JSON / redirect to `/admin`
+    depending on Accept header), stricter rate limiting (5/15min), `admins`
+    table + deny-all RLS policy, `npm run seed:admin` for real deployments.
+    16 tests in `tests/admin-auth.test.mjs`. See `docs/ADMIN_AUTH.md`.
+  - Remaining: password reset via email (needs messaging infra), migration
+    to Supabase Auth per PRD stack target, session TTL/expiration.
 - [ ] Guest management
 - [ ] RSVP dashboard
 - [ ] Messaging center

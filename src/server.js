@@ -2,6 +2,12 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import { loginGuestByCode, loginGuestByName } from './guest-auth/index.js';
+import {
+  loginAdmin,
+  requireAdminAuth,
+  signAdminSession,
+  adminSessionCookieName,
+} from './admin-auth/index.js';
 import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
 import { RateLimiter, createRateLimitMiddleware } from './rate-limiter.js';
@@ -138,6 +144,15 @@ export function createApp() {
     maxRequests: 10,
     windowMs: 60 * 60 * 1000, // 1 hour
     message: 'Too many RSVP updates. Please try again later.',
+  });
+
+  // Stricter than guest login: only one admin account exists, so any burst
+  // of attempts against it is either the admin mistyping or a targeted
+  // credential-guessing attempt.
+  const adminLoginLimitMiddleware = createRateLimitMiddleware(rateLimiter, {
+    maxRequests: 5,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    message: 'Too many login attempts. Please try again in 15 minutes.',
   });
 
   app.get('/', (req, res) => {
@@ -597,6 +612,137 @@ export function createApp() {
         </body>
       </html>
     `);
+  });
+
+  app.get('/admin', (req, res) => {
+    const bodyContent = `
+      <section class="hero-panel">
+        <span class="hero-flag">Admin</span>
+        <h1>Sign in to manage the wedding site.</h1>
+        <p>This area is restricted to Amandi &amp; Tharindu.</p>
+      </section>
+      <section class="story-card">
+        <form id="admin-login-form" class="responsive-stack">
+          <label>
+            Email
+            <input id="admin-email" name="email" type="email" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="button button-primary" type="submit">Log in</button>
+        </form>
+        <div id="admin-login-result" role="status" aria-live="polite" style="margin-top: 1rem;"></div>
+      </section>
+    `;
+
+    const scripts = `
+      <script>
+        function getCookieValue(name) {
+          return document.cookie.split('; ').reduce((value, cookie) => {
+            const [cookieName, cookieValue] = cookie.split('=');
+            return cookieName === name ? decodeURIComponent(cookieValue) : value;
+          }, '');
+        }
+
+        const csrfToken = getCookieValue('csrf_token');
+        const form = document.getElementById('admin-login-form');
+        const result = document.getElementById('admin-login-result');
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const email = document.getElementById('admin-email').value.trim();
+          const password = document.getElementById('admin-password').value;
+
+          const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-csrf-token': csrfToken,
+            },
+            body: JSON.stringify({ email, password }),
+          });
+          const body = await res.json();
+
+          if (res.status === 200 && body.success) {
+            window.location.href = '/admin/dashboard';
+            return;
+          }
+
+          result.textContent = 'Invalid email or password.';
+        });
+      </script>
+    `;
+
+    return res.send(pageWrapper('Admin Login — Amandi & Tharindu', bodyContent, scripts));
+  });
+
+  app.post('/api/admin/login', adminLoginLimitMiddleware, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { email, password } = req.body || {};
+    const result = await loginAdmin(email, password);
+
+    logger.loginAttempt(result.success, email, req.ip, result.success ? null : result.reason);
+
+    if (!result.success) {
+      const status = result.reason === 'missing_credentials' ? 400 : 401;
+      return res.status(status).json(result);
+    }
+
+    const signed = signAdminSession(result.adminId);
+    res.cookie(adminSessionCookieName, signed, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+
+    return res.json({ success: true });
+  });
+
+  app.post('/api/admin/logout', (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    res.clearCookie(adminSessionCookieName, { path: '/' });
+    return res.json({ success: true });
+  });
+
+  app.get('/admin/dashboard', requireAdminAuth, (req, res) => {
+    const bodyContent = `
+      <section class="hero-panel">
+        <span class="hero-flag">Admin dashboard</span>
+        <h1>Welcome back.</h1>
+        <p>This is a placeholder for guest management, the RSVP dashboard, messaging, and the theme editor (Phase 4).</p>
+        <button id="admin-logout" class="button button-secondary" type="button">Log out</button>
+      </section>
+    `;
+
+    const scripts = `
+      <script>
+        function getCookieValue(name) {
+          return document.cookie.split('; ').reduce((value, cookie) => {
+            const [cookieName, cookieValue] = cookie.split('=');
+            return cookieName === name ? decodeURIComponent(cookieValue) : value;
+          }, '');
+        }
+
+        document.getElementById('admin-logout').addEventListener('click', async () => {
+          await fetch('/api/admin/logout', {
+            method: 'POST',
+            headers: { 'x-csrf-token': getCookieValue('csrf_token') },
+          });
+          window.location.href = '/admin';
+        });
+      </script>
+    `;
+
+    return res.send(pageWrapper('Admin Dashboard — Amandi & Tharindu', bodyContent, scripts));
   });
 
   return app;

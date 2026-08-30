@@ -13,7 +13,8 @@
     "append-memory": "node bin/append-memory.js",
     "migrate": "node scripts/run-migrations.js",
     "hitl:migrate": "node scripts/hitl-preflight.js migrate",
-    "seed:db": "node scripts/seed-local-db.js"
+    "seed:db": "node scripts/seed-local-db.js",
+    "seed:admin": "node scripts/seed-admin.js"
   },
   "devDependencies": {
     "@types/node": "^20.9.0",
