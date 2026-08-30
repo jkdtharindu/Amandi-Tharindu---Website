@@ -6,6 +6,7 @@ import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
 import { RateLimiter, createRateLimitMiddleware } from './rate-limiter.js';
 import { securityHeadersMiddleware, getSecurityHeadersPreset } from './security-headers.js';
+import { requestLoggerMiddleware, logger } from './request-logger.js';
 import {
   findGuestByCode,
   findRsvpResponseByGuestId,
@@ -110,6 +111,12 @@ export function createApp() {
 
   // Apply security headers early
   app.use(securityHeadersMiddleware(getSecurityHeadersPreset()));
+
+  // Request logging (with sensitive data sanitization)
+  app.use(requestLoggerMiddleware({
+    enabled: true,
+    format: process.env.LOG_FORMAT || 'json', // 'json' or 'text'
+  }));
 
   app.use(cookieParser());
   app.use(bodyParser.json());
