@@ -11,7 +11,7 @@ The repository contains an **Express prototype** used for early slice developmen
 validation. The intended production stack is **Next.js 14 + Supabase + Vercel** — migration
 to that stack is the next major decision point (see TASKS.md "Current Blockers").
 
-**As of 2026-08-30:** Neon Postgres database is configured and all 7 migrations have been
+**As of 2026-08-30:** Neon Postgres database is configured and all 8 migrations have been
 applied. The application can now persist data across restarts when `DATABASE_URL` is set.
 
 | Layer | Prototype (now) | Target (Next.js) |
@@ -98,40 +98,33 @@ Messaging Center (`/admin/messages`) — see TASKS.md Slices 10–12.
 
 ## Migrations (Supabase / Postgres)
 
-SQL migration files are in `migrations/`. **None have been applied to any database yet**
-as of 2026-08-29 — the prototype runs entirely on in-memory stores.
+SQL migration files are in `migrations/`. **All 8 have been applied** to the project's Neon
+Postgres database as of 2026-08-30. `scripts/run-migrations.js` tracks what's applied in a
+`schema_migrations` ledger table, so re-running it only picks up new files.
 
 | File | Status | Contents |
 |---|---|---|
-| `001_create_guests.sql` | Written, not applied | `guests`, `rsvp_responses` |
-| `002_create_content_tables.sql` | Written, not applied | `events`, `story_milestones`, `childhood_photos`, `gallery_photos`, `wishes` |
-| `003_create_admin_theme_sections.sql` | Written, not applied | `admin_users`, `theme_settings`, `site_sections` |
-| `004_create_messaging.sql` | Not yet written | `message_templates`, `message_logs` |
-| `005_guest_model_update.sql` | Not yet written | New guest fields, two-admin role, theme fields — see `WEDDING_DATABASE_SCHEMA.md` |
+| `001_create_guests.sql` | Applied | `guests`, `rsvp_responses` |
+| `002_create_rsvp_responses.sql` | Applied | RSVP-related schema follow-up |
+| `003_create_admin_theme_sections.sql` | Applied | `admin_users`, `theme_settings`, `site_sections` |
+| `004_add_theme_palette_font_choice.sql` | Applied | `palette_name`, `font_choice` on `theme_settings` |
+| `005_create_messaging.sql` | Applied (schema only) | `message_templates` (4 seeded), `message_logs` — no send code yet, Slice 12 still HITL-gated |
+| `006_add_invitation_code_format.sql` | Applied | Configurable InvitationCode format columns on `theme_settings` |
+| `007_create_table_arrangements.sql` | Applied | `seating_tables`, `table_seats` for the Table Arrangement admin feature |
+| `008_fix_couple_name_order.sql` | Applied | Flips `theme_settings.couple_names` default/value and the 4 seeded templates to "Tharindu & Amandi" (owner decision, 2026-08-30) |
 
-> ⚠️ Migrations 001–003 reflect the old schema (single admin, no `display_name`,
-> no `invited_by`, etc.). Migration 005 must be written and HITL-approved before Slice 10.
-> See `WEDDING_DATABASE_SCHEMA.md` for the full current schema.
+See `WEDDING_DATABASE_SCHEMA.md` for the full current schema, and `docs/MEMORY.md` for the
+reasoning behind each migration.
 
-Apply with psql:
-
-```bash
-psql <CONN_STRING> -f migrations/001_create_guests.sql
-psql <CONN_STRING> -f migrations/002_create_content_tables.sql
-psql <CONN_STRING> -f migrations/003_create_admin_theme_sections.sql
-```
-
-Or via Supabase CLI:
-
-```bash
-supabase db push --file migrations/001_create_guests.sql
-```
-
-Or via the HITL preflight command (recommended — prompts for approval):
+Apply pending migrations via the HITL preflight command (required — prompts for approval per
+`HITL.md`):
 
 ```bash
 npm run hitl:migrate
 ```
+
+This runs `scripts/run-migrations.js`, which reads `DATABASE_URL` from `.env` and applies only
+migrations not yet recorded in the `schema_migrations` ledger.
 
 ---
 

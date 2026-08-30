@@ -4,13 +4,22 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ## Project Status
 - Status: Scoping / Initial implementation started
-- Current focus (updated 2026-08-30, latest): **Slice 19 (RSVP Dashboard) is done**, and Slice 18
-  is 2/3 done — Guest Management, the guest session fix, and guest logout are all shipped and
-  green. The one remaining piece of Slice 18, **Postgres persistence, is blocked**: there is no
-  database yet (no `.env` present, only `.env.example`; `dotenv` is a declared dependency but
-  still never imported; the migration runner still has no ledger), so every feature above still
-  runs on in-memory stores and a restart wipes RSVPs. **Next: get a `DATABASE_URL`, then finish
-  persistence.** Image upload work (Slices 13–17) resumes after that.
+- Current focus (updated 2026-08-30, latest): **Slices 18 and 19 are both done**, including
+  Postgres persistence — Neon Postgres is configured (`.env` present, `DATABASE_URL` set), all
+  8 migrations are applied (001–007 same-day, 008 added and applied same-day for the
+  couple-name-ordering fix below), and the app now persists guests/RSVPs/theme/sections instead
+  of running on in-memory stores. Guest-facing page titles were also fixed to read
+  `ThemeSettings.coupleNames` instead of a hardcoded string, and the "Tharindu & Amandi" vs
+  "Amandi & Tharindu" inconsistency is resolved (owner decision: "Tharindu & Amandi" is
+  canonical). Booting against the live database also surfaced and fixed a P0 bug invisible to
+  the test suite: the homepage countdown showed "NaN" because Postgres `date` columns come back
+  as JS `Date` objects, not the `'YYYY-MM-DD'` strings every date-consuming route expected — see
+  Correctness & scope risks below. **Slices 13–14 (image upload storage + endpoint) are now
+  code-done** — owner chose Supabase Storage over Neon Object Storage (Neon's is
+  `us-east-2`-only beta; the existing Neon project is `ap-southeast-1`). Live upload is
+  untested pending a real Supabase project — `npm run setup-storage` once
+  `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are set. **Next: Slice 15** (reusable upload UI
+  component, wired into `/admin/theme`), then Slices 16–17 (Gallery, Story, Events).
 - ThemePalette and FontChoice pickers plus self-hosted webfonts (§4.1) **shipped 2026-08-29**
   (commits `1f1dae8`, `9433593`) — this was previously tracked below as outstanding; see the
   updated "ThemePalette & FontChoice" section.
@@ -21,7 +30,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
   at the project owner's direction, after a review pass and test backfill — see the entry under
   Correctness & scope risks. Seating Plan remains P2 by the PRD; committing it does not promote
   it in the build order, and Messaging still requires HITL before any send capability.
-- Full test suite: **178/178 green** (2026-08-30, was 152 before the Table Arrangement backfill).
+- Full test suite: **189/189 green** (2026-08-30, was 178 before the couple-name/date-bug/upload work today, 152 before the Table Arrangement backfill).
 - Stack decision (2026-08-29): staying on Express + Postgres; not migrating to Next.js. See PRD §6 and Recent Decisions below.
 - Priority: Build the first vertical slice end-to-end
 
@@ -164,18 +173,21 @@ Priority order agreed with project owner: fix the blockers below **before** resu
       2026-08-29 to record this (§6 Stack, plus a banner note at the top of the document);
       not every Next.js/Supabase Auth reference elsewhere in the PRD has been individually
       rewritten yet — treat those as superseded.
-- [~] **Slice 18: Guest session fix + Guest Management, combined.** Guest Management ✅ and the
-      session fix ✅ (HITL approval given 2026-08-29 before the change was made). Persistence
-      ❌ — blocked, no database exists yet. See full slice detail below.
+- [x] **Slice 18: Guest session fix + Guest Management, combined.** Guest Management ✅, the
+      session fix ✅ (HITL approval given 2026-08-29 before the change was made), and
+      persistence ✅ (Neon Postgres configured 2026-08-30, all 7 migrations applied — see
+      below). See full slice detail below.
 - [x] **Slice 19: RSVP Dashboard (P0-08)** — done 2026-08-29, built against the in-memory
-      store at the owner's direction. See slice detail below.
-- [ ] **No persistence — resolved by Slice 18/19 work.** Guests, RSVPs, theme, and sections
-      currently live in in-memory arrays; a server restart destroys every RSVP. `DATABASE_URL`
-      is unset and migrations (001–003) have never been applied to any database. Wiring
-      Postgres persistence is part of Slice 18, not a separate task, since Guest Management
-      is meaningless without it. Blocked 2026-08-30: no Postgres is installed on the dev
-      machine (nothing on 5432, no service, no install directory, no Docker); owner is
-      installing PostgreSQL 17 via winget.
+      store at the owner's direction; now backed by Neon like the rest of the app. See slice
+      detail below.
+- [x] **No persistence — resolved 2026-08-30.** Guests, RSVPs, theme, and sections previously
+      lived in in-memory arrays only; a server restart destroyed every RSVP. **Fixed**: Neon
+      Postgres configured (`DATABASE_URL` set in `.env`), all 7 migrations applied (plus 008,
+      2026-08-30 — see Couple-name ordering above), `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH`/
+      `SESSION_SECRET` generated. All 178 tests still pass (tests import `createApp` from
+      `server.js` directly, which never loads `.env`, so they remain in-memory by design — see
+      `src/main.js` decision above). Local Postgres install was never needed in the end; Neon's
+      hosted Postgres was used instead.
 - [x] **Migration runner had no ledger.** Fixed 2026-08-30. `scripts/run-migrations.js`
       re-executed every `.sql` file on every invocation. All seven happened to be idempotent,
       so it worked, but nothing enforced that — the first `ALTER TABLE` or plain `INSERT` would
@@ -195,9 +207,19 @@ Priority order agreed with project owner: fix the blockers below **before** resu
       with a database configured — discarding every RSVP. `npm start`,
       `scripts/start-with-browser.js`, `AGENTS.md` and `README.md` updated. Tests are
       unaffected: they import `createApp` from `server.js`, which never loads `.env`.
-- [ ] **Slices 13–17 (image uploads) resume after Slice 19.** Explicitly deferred — decided
-      2026-08-29. Do not start these until Guest Management, the session fix, and the RSVP
-      Dashboard are done.
+- [~] **Slices 13–17 (image uploads) resumed 2026-08-30.** Guest Management, the session fix,
+      and the RSVP Dashboard were all done, so this is unblocked. Slices 13 and 14 are code-done
+      (owner chose Supabase Storage over Neon Object Storage — see Slice 13 detail below);
+      Slices 15–17 not started.
+- [x] 🔴 **Homepage countdown showed "NaN"; every rendered date showed a raw `Date.toString()`.**
+      Found and fixed 2026-08-30, caused by the same-day Neon persistence work and invisible to
+      the test suite (which never loads `.env`). `node-postgres` parses a `date` column into a
+      JS `Date` built from LOCAL time components, not the `'YYYY-MM-DD'` string every date
+      consumer expected. Fixed in `themeRepo.js`'s `mapRow()` with a `toIsoDateString()` helper
+      that reads the Date back with its local getters (an initial `toISOString()` attempt was
+      caught and corrected in the same session — it shifted the date backward one day on this
+      UTC+5:30 server). Regression test: `tests/theme-repo-date.test.mjs`. See `docs/MEMORY.md`
+      2026-08-30 for the full story.
 
 ### 🟠 Correctness & scope risks
 - [ ] **Uncommitted, out-of-sequence work found in the working tree (2026-08-30).** Two features
@@ -247,19 +269,17 @@ leaves "uncommitted prototype" status, regardless of whether it ships now or aft
       constraint was a no-op under Postgres NULL semantics. Column dropped; `table_number` is
       now plainly `UNIQUE`. If per-theme seating plans are wanted later, reintroduce `theme_id`
       with a constraint that actually holds.
-- [ ] 🔴 **Page titles ignore ThemeSettings and hardcode the couple names.** Found 2026-08-30
-      by booting the app: the browser tab reads "Amandi & Tharindu — Home" while the page
-      heading renders "THARINDU & AMANDI" from `themeSettings.coupleNames`. Seven routes in
-      `src/server.js` (home, story, celebration, gallery, wishes, guest login, admin login)
-      pass a literal string to `pageWrapper` instead of reading `res.locals.theme.coupleNames`,
-      so editing the couple names in the Theme Editor does not change a single tab title.
-      Guest-facing. Fixing it is independent of which name ordering is canonical, but the fix
-      will flip every tab title, so it needs the ordering decision first — see below.
-- [ ] 🔴 **Couple-name ordering is inconsistent across the project.** `src/data/themeStore.js`
-      says "Tharindu & Amandi"; the seven hardcoded page titles, `migrations/003`'s
-      `couple_names` column default, the four seeded templates in `migrations/005`, and the
-      `package.json` name all say "Amandi & Tharindu". **Owner decision required** on which is
-      canonical, then apply it everywhere in one pass.
+- [x] 🔴 **Page titles ignore ThemeSettings and hardcode the couple names.** Found 2026-08-30,
+      **fixed 2026-08-30**. All seven routes in `src/server.js` (home, story, celebration,
+      gallery, wishes, guest login, admin login) now build the title from
+      `escapeHtml(res.locals.theme.coupleNames)` instead of a literal string, so editing the
+      couple names in the Theme Editor now changes every tab title.
+- [x] 🔴 **Couple-name ordering is inconsistent across the project.** **Resolved 2026-08-30** —
+      owner decided "Tharindu & Amandi" is canonical. Applied via `migrations/008_fix_couple_name_order.sql`
+      (HITL-approved, run against the live Neon database): flips `theme_settings.couple_names`'
+      default and the live row, and the four seeded WhatsApp templates in `message_templates`.
+      `package.json`'s `name` field left as-is (package identifier, not guest-facing).
+      See `docs/MEMORY.md` 2026-08-30 for verification detail.
 - [ ] 🟠 **Assign endpoint doesn't re-check RSVP status.** (Still open as of 2026-08-30.) The "unassigned guests" dropdown is
       pre-filtered to accepted, non-deleted guests at page load, but the assign API itself
       accepts any `guestId` — a stale page or direct API call can seat a declined, pending, or
@@ -651,21 +671,21 @@ before any cards are printed. After printing, codes are fixed for good.
   - `byRelationshipCategory` breakdown — not in the P0-08 acceptance criteria, and
     `/admin/guests` already filters by relationship. Easy to add later if wanted.
 
-### Slice 13: Supabase Storage setup for image uploads — not started, deferred until Slices 18–19 are done
+### Slice 13: Supabase Storage setup for image uploads — ✅ code done 2026-08-30, bucket not yet created
 - User value: Foundation for every admin image upload feature below — without this, all image fields remain URL-only.
 - Acceptance criteria:
-  - Storage bucket(s) created (e.g. single `wedding-media` bucket with folder prefixes: `hero/`, `invitations/`, `venues/`, `story/`, `gallery/`)
-  - Public-read access for site visitors; write access restricted to authenticated admin only (RLS or service-role-gated upload path)
-  - Max file size enforced (proposed: 5MB) and allowed MIME types restricted to `image/jpeg`, `image/png`, `image/webp`
-- Status: ❌ Not started. Blocks Slices 14–17.
+  - [x] Storage bucket(s) created (e.g. single `wedding-media` bucket with folder prefixes: `hero/`, `invitations/`, `venues/`, `story/`, `gallery/`) — `src/storage/supabaseStorage.js`'s `ensureBucketExists()` creates it idempotently; run via `npm run setup-storage` once real Supabase credentials exist. Not yet run — no Supabase project has been created yet.
+  - [x] Public-read access for site visitors; write access restricted to authenticated admin only — bucket created `public: true`; writes go through `POST /api/admin/upload` only (admin-session-gated), using the service-role key server-side, not bucket RLS.
+  - [x] Max file size enforced (5MB) and allowed MIME types restricted to `image/jpeg`, `image/png`, `image/webp` — enforced both at the bucket (`fileSizeLimit`/`allowedMimeTypes` on `createBucket`) and in the upload route (`multer` limits + `fileFilter`), so both defenses hold independently.
+- Status: Code complete, untested against a live bucket. **Owner decision made 2026-08-30: Supabase Storage, not Neon Object Storage** — Neon's version is `us-east-2`-only beta and the existing Neon project is `ap-southeast-1`, so it would've been an unbranched second project, defeating the reason to pick it. **Next step for the owner:** create a Supabase project, add `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` to `.env`, run `npm run setup-storage`. See `docs/MEMORY.md` 2026-08-30 (Slice 13/14 entry) for full reasoning.
 
-### Slice 14: Admin image upload endpoint — not started
+### Slice 14: Admin image upload endpoint — ✅ done 2026-08-30 (code + tests), live upload untested (no bucket yet)
 - User value: Admin pages have a single, reusable way to upload a file and get back a Storage URL.
 - Acceptance criteria:
-  - `POST /api/admin/upload` accepts multipart form data, validates size/type server-side (not just via client `accept` attribute), uploads to Supabase Storage, returns the public URL
-  - On failure, returns a specific reason (file too large / wrong format) per the PRD's edge case: "Error shown in admin with file size/format guidance. Previous template URL unchanged."
-  - Requires admin session (401 if unauthenticated)
-- Status: ❌ Not started. Depends on Slice 13.
+  - [x] `POST /api/admin/upload` accepts multipart form data, validates size/type server-side (not just via client `accept` attribute), uploads to Supabase Storage, returns the public URL
+  - [x] On failure, returns a specific reason (`file_too_large` / `invalid_file_type` / `invalid_folder` / `no_file` / `storage_not_configured` / `upload_failed`) per the PRD's edge case wording
+  - [x] Requires admin session (401 if unauthenticated) and CSRF token (403 `csrf_invalid` if missing — checked before the multipart body is parsed, since the token lives in a header)
+- Status: ✅ Done. 7 tests in `tests/image-upload.test.mjs` cover every auth/CSRF/validation path and the real `503 storage_not_configured` response. The actual Supabase upload call is untested (SUPABASE_* is unset in `.env` and the test env) — needs a live bucket (Slice 13's next step) to verify end-to-end.
 
 ### Slice 15: Reusable upload UI component — not started
 - User value: Consistent upload experience (preview, progress, replace, remove) across every admin page that manages images.
@@ -709,8 +729,9 @@ before any cards are printed. After printing, codes are fixed for good.
  - Fixed `tests/guest-login-api.test.mjs`, which was failing 403 on every request because it never fetched a CSRF cookie before posting; `npm test` now runs the full `tests/` suite (34/34 passing) instead of a single file
 
 ## Current Blockers
-- Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.
+- ~~Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.~~ **Resolved 2026-08-30** — Neon Postgres configured, `DATABASE_URL` set, all 8 migrations applied. See "No persistence — resolved 2026-08-30" above.
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
+- No current blockers on the confirmed build order (Slices 13–17, image uploads). Open items below are owner-decision or lower-priority correctness items, not blockers to that work.
 
 ## Next Actions (step-by-step)
 1. Harden auth & sessions: add `SESSION_SECRET` guidance, sign/secure cookies (`HttpOnly`, `Secure`, `SameSite`), add CSRF protection, and include a `.env.example`.
