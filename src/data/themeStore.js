@@ -13,7 +13,7 @@ export const themeSettings = {
   invitationNameLeft: '50%',
   invitationNameFontSize: '2rem',
   invitationNameColor: '#5C3317',
-  coupleNames: 'Amandi & Tharindu',
+  coupleNames: 'Tharindu & Amandi',
   weddingDate: '2026-12-14',
   venueName: '',
   venueAddress: '',
