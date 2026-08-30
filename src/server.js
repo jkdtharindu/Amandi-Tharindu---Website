@@ -600,7 +600,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Amandi & Tharindu — Home', bodyContent, scripts, res.locals.theme));
+    return res.send(pageWrapper(`${escapeHtml(res.locals.theme.coupleNames)} — Home`, bodyContent, scripts, res.locals.theme));
   });
 
   app.get('/story', (req, res) => {
@@ -627,7 +627,7 @@ export function createApp() {
       ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Our Story — Amandi & Tharindu', bodyContent, '', res.locals.theme));
+    return res.send(pageWrapper(`Our Story — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/celebration', (req, res) => {
@@ -656,7 +656,7 @@ export function createApp() {
       ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('The Celebration — Amandi & Tharindu', bodyContent, '', res.locals.theme));
+    return res.send(pageWrapper(`The Celebration — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/gallery', (req, res) => {
@@ -675,7 +675,7 @@ export function createApp() {
       ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Gallery — Amandi & Tharindu', bodyContent, '', res.locals.theme));
+    return res.send(pageWrapper(`Gallery — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/wishes', (req, res) => {
@@ -702,7 +702,7 @@ export function createApp() {
       ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Wishes — Amandi & Tharindu', bodyContent, '', res.locals.theme));
+    return res.send(pageWrapper(`Wishes — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/login', (req, res) => {
@@ -795,7 +795,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Guest Login — Amandi & Tharindu', bodyContent, scripts, res.locals.theme));
+    return res.send(pageWrapper(`Guest Login — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, scripts, res.locals.theme));
   });
 
   app.post('/api/guest/login', async (req, res) => {
@@ -1150,7 +1150,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Admin Login — Amandi & Tharindu', bodyContent, scripts, res.locals.theme));
+    return res.send(pageWrapper(`Admin Login — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, scripts, res.locals.theme));
   });
 
   app.post('/api/admin/login', async (req, res) => {
