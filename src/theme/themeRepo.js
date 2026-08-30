@@ -4,7 +4,26 @@ import { mergeThemeUpdate } from './mergeThemeUpdate.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
-function mapRow(row) {
+/**
+ * node-postgres parses a `date` column into a JS Date using LOCAL time
+ * (`new Date(year, month, day)` -- see postgres-date's getDate(), which says
+ * so explicitly), not UTC. Every consumer of weddingDate (formatWeddingDate,
+ * the homepage countdown script) expects the same 'YYYY-MM-DD' string the
+ * in-memory store uses; left unconverted, interpolating the Date produces
+ * "NaN" in the countdown and a raw Date.toString() everywhere else. Reading
+ * it back with the LOCAL getters (not toISOString(), which is UTC and would
+ * shift the date backward whenever the server runs east of UTC) round-trips
+ * exactly because the value was constructed from local components too.
+ */
+export function toIsoDateString(value) {
+  if (!(value instanceof Date)) return value;
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function mapRow(row) {
   if (!row) return null;
   return {
     id: row.id,
@@ -22,7 +41,7 @@ function mapRow(row) {
     invitationNameFontSize: row.invitation_name_font_size,
     invitationNameColor: row.invitation_name_color,
     coupleNames: row.couple_names,
-    weddingDate: row.wedding_date,
+    weddingDate: toIsoDateString(row.wedding_date),
     venueName: row.venue_name || '',
     venueAddress: row.venue_address || '',
     invitationCodeSurnamePosition: row.invitation_code_surname_position || 'first',
