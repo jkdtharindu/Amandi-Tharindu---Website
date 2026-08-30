@@ -183,14 +183,18 @@ Priority order agreed with project owner: fix the blockers below **before** resu
       what is applied, and applies each pending migration **and its ledger row in one
       transaction** via a new `withTransaction` helper in `src/db.js`, so the ledger cannot
       claim a migration that did not land.
-- [ ] 🟠 **`dotenv` is a dependency but imported nowhere — a `.env` file does nothing.** Found
-      2026-08-30. Wired into `scripts/run-migrations.js` and `scripts/seed-local-db.js`, so
-      `npm run migrate` and `npm run seed:db` read `.env` correctly. **Deliberately not wired
-      into `src/server.js`:** the repos evaluate `DATABASE_URL` at import time and the tests
-      import `createApp` from that module, so loading dotenv there would point all 178 tests at
-      the live database the moment a real `.env` exists. Needs either a separate entry module
-      (`src/main.js` doing dotenv-then-listen, with `npm start` and `scripts/start-with-browser.js`
-      updated) or a test-side override. **Owner decision required before the DB is wired up.**
+- [x] 🟠 **`dotenv` is a dependency but imported nowhere — a `.env` file does nothing.** Found
+      and fixed 2026-08-30. Wired into `scripts/run-migrations.js` and `scripts/seed-local-db.js`,
+      and — per the owner's decision — into a new `src/main.js` entry module that imports
+      `dotenv/config` *before* `./server.js`, relying on ES modules evaluating in import-
+      declaration order so `.env` lands before the repos read `DATABASE_URL`. Verified by
+      probe: with a `.env` present, `sectionsRepo` selects its Postgres path (`ECONNREFUSED`
+      against a bogus host) rather than the in-memory fallback.
+      `server.js` is now a pure `createApp()` factory and exits with an error if run directly,
+      because starting it without `main.js` would silently come up on in-memory stores even
+      with a database configured — discarding every RSVP. `npm start`,
+      `scripts/start-with-browser.js`, `AGENTS.md` and `README.md` updated. Tests are
+      unaffected: they import `createApp` from `server.js`, which never loads `.env`.
 - [ ] **Slices 13–17 (image uploads) resume after Slice 19.** Explicitly deferred — decided
       2026-08-29. Do not start these until Guest Management, the session fix, and the RSVP
       Dashboard are done.
@@ -243,6 +247,19 @@ leaves "uncommitted prototype" status, regardless of whether it ships now or aft
       constraint was a no-op under Postgres NULL semantics. Column dropped; `table_number` is
       now plainly `UNIQUE`. If per-theme seating plans are wanted later, reintroduce `theme_id`
       with a constraint that actually holds.
+- [ ] 🔴 **Page titles ignore ThemeSettings and hardcode the couple names.** Found 2026-08-30
+      by booting the app: the browser tab reads "Amandi & Tharindu — Home" while the page
+      heading renders "THARINDU & AMANDI" from `themeSettings.coupleNames`. Seven routes in
+      `src/server.js` (home, story, celebration, gallery, wishes, guest login, admin login)
+      pass a literal string to `pageWrapper` instead of reading `res.locals.theme.coupleNames`,
+      so editing the couple names in the Theme Editor does not change a single tab title.
+      Guest-facing. Fixing it is independent of which name ordering is canonical, but the fix
+      will flip every tab title, so it needs the ordering decision first — see below.
+- [ ] 🔴 **Couple-name ordering is inconsistent across the project.** `src/data/themeStore.js`
+      says "Tharindu & Amandi"; the seven hardcoded page titles, `migrations/003`'s
+      `couple_names` column default, the four seeded templates in `migrations/005`, and the
+      `package.json` name all say "Amandi & Tharindu". **Owner decision required** on which is
+      canonical, then apply it everywhere in one pass.
 - [ ] 🟠 **Assign endpoint doesn't re-check RSVP status.** (Still open as of 2026-08-30.) The "unassigned guests" dropdown is
       pre-filtered to accepted, non-deleted guests at page load, but the assign API itself
       accepts any `guestId` — a stale page or direct API call can seat a declined, pending, or

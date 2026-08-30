@@ -13,12 +13,13 @@ Frontend (Next.js app) <-- HTTPS --> API route handlers (Next.js) <-- Supabase c
                              |
                              +-- Storage (Supabase Storage) for images / invitation templates
 
-Prototype note: current `src/server.js` runs an Express demo server used by `src/smoke.js` to exercise login flows.
+Prototype note: `src/server.js` builds an Express demo app used by `src/smoke.js` to exercise login flows; `src/main.js` is what actually starts it.
 
 **Folder structure (top-level) and purpose**
 - **`app/` (planned)**: Next.js App Router sources (pages, route handlers, UI). Target location for frontend and API handlers.
 - **`src/`**: Prototype server and helpers. Key files:
-  - **`src/server.js`**: demo Express server (quick local demo)
+  - **`src/main.js`**: server entry point — loads `.env` (via `dotenv/config`) *before* `server.js` and its repos are evaluated, then listens
+  - **`src/server.js`**: demo Express server, a pure `createApp()` factory (running it directly exits with an error pointing at `npm start`)
   - **`src/smoke.js`**: smoke test that exercises login + invitation flow
   - **`src/guest-auth/`**: authentication helpers (`loginGuestByCode.js`, `loginGuestByName.js` — **name-based login is removed from PRD as of 2026-08-29; `loginGuestByName.js` is prototype-only and must not be ported to Next.js**)
   - **`src/data/guestStore.js`**: in-memory guest fixture (prototype only)
@@ -41,7 +42,7 @@ npm install
 - Run demo server:
 
 ```bash
-npm run start    # runs node src/server.js
+npm run start    # runs node src/main.js (loads .env, then starts the Express app)
 ```
 
 - Run smoke test (starts ephemeral server + exercises login):

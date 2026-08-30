@@ -13,7 +13,7 @@ to that stack is the next major decision point (see TASKS.md "Current Blockers")
 
 | Layer | Prototype (now) | Target (Next.js) |
 |---|---|---|
-| Server | `src/server.js` (Express) | `app/` (Next.js App Router) |
+| Server | `src/main.js` entry → `src/server.js` (Express) | `app/` (Next.js App Router) |
 | Auth | Seeded single admin, scrypt cookies | Supabase Auth, two admins (Groom + Bride) |
 | Data | In-memory stores (resets on restart) | Supabase Postgres |
 | Guest login | Code-only (`/login`) | Code-only + QR (`/invitation/[code]`) |

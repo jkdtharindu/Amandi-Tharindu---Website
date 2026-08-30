@@ -2290,9 +2290,15 @@ export function createApp() {
   return app;
 }
 
+// This module is a pure app factory; `src/main.js` is the entry point. Running
+// this file directly would skip the .env load, and since the repos read
+// DATABASE_URL at import time the server would come up silently on in-memory
+// stores even with a database configured — quietly discarding every RSVP.
+// Fail loudly rather than start wrong.
 const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isDirectRun) {
-  const app = createApp();
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
+  console.error(
+    'Start the server with `npm start` (src/main.js), which loads .env before the data layer reads DATABASE_URL.'
+  );
+  process.exit(1);
 }
