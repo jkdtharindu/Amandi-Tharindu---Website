@@ -1,3 +1,23 @@
 node_modules/
 .DS_Store
+
+# env — .env.example is intentionally tracked, so do NOT broaden this to .env*
 .env
+.env.local
+
+# next.js
+.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# vercel
+.vercel
+
+# supabase local state (CLI-managed)
+supabase/.branches
+supabase/.temp
+
+# legacy prototype build output
+dist/

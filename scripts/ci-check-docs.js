@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-const { execSync } = require('child_process');
-const fs = require('fs');
+import { execSync } from 'node:child_process';
 
 function gitDiffFiles() {
   try {
-    // fetch base ref (origin/HEAD comparison handled by action)
+    // fetch base ref (GITHUB_BASE_REF is set automatically on pull_request events)
     execSync('git fetch --all', { stdio: 'ignore' });
-    const out = execSync('git diff --name-only origin/${{ github.base_ref }}...HEAD || true', { encoding: 'utf8' });
+    const baseRef = process.env.GITHUB_BASE_REF;
+    const out = baseRef
+      ? execSync(`git diff --name-only origin/${baseRef}...HEAD`, { encoding: 'utf8' })
+      : '';
     if (!out) {
       // fallback: diff against main
       return execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);

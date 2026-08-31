@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/guest-login.test.mjs",
-    "build": "tsc -p .",
-    "lint": "eslint . --ext .js,.mjs,.ts",
-    "start": "node src/server.js",
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "start": "next start -p 3010",
+    "lint": "eslint",
+    "test": "node --test tests/guest-login.test.mjs tests/guest-login-name.test.mjs",
+    "start:legacy": "node src/server.js",
     "start:browser": "node scripts/start-with-browser.js",
     "smoke": "node src/smoke.js",
     "check-docs": "node scripts/ci-check-docs.js",
@@ -16,19 +18,26 @@
     "seed:db": "node scripts/seed-local-db.js"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20.9.0",
-    "@typescript-eslint/eslint-plugin": "^8.66.0",
-    "@typescript-eslint/parser": "^8.66.0",
-    "eslint": "^8.50.0",
-    "eslint-config-prettier": "^8.8.0",
-    "prettier": "^2.8.8",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "tsx": "^4.19.0",
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "body-parser": "^2.3.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.0",
     "express": "^5.2.1",
-    "pg": "^8.11.0"
+    "jose": "^5.9.0",
+    "next": "16.3.3",
+    "pg": "^8.11.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   }
 }

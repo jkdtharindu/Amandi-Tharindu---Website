@@ -1,0 +1,329 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens ported from the Express prototype's `baseStyles`
+ * (src/server.js). Values are preserved exactly so the Next.js port is a
+ * visual no-op. Exposed via @theme so Tailwind utilities (text-ink,
+ * bg-surface, rounded-card, ...) resolve against the same palette that the
+ * component classes below use.
+ */
+@theme {
+  --color-ink: #1f2937;
+  --color-heading: #0f172a;
+  --color-body: #475569;
+  --color-brand: #334155;
+  --color-muted: #64748b;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-accent: #2563eb;
+  --color-accent-deep: #1d4ed8;
+  --color-flag-bg: #e0f2fe;
+  --color-flag-ink: #0369a1;
+  --color-hairline: #e2e8f0;
+  --color-field-border: #cbd5e1;
+
+  --radius-pill: 999px;
+  --radius-hero: 32px;
+  --radius-card: 28px;
+  --radius-countdown: 24px;
+  --radius-field: 18px;
+
+  --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: radial-gradient(
+      circle at top,
+      rgba(59, 130, 246, 0.12),
+      transparent 30%
+    ),
+    var(--color-canvas);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--color-brand);
+}
+
+input[type="text"],
+input[type="email"],
+textarea {
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius-field);
+  border: 1px solid var(--color-field-border);
+  font: inherit;
+  color: var(--color-heading);
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+button {
+  cursor: pointer;
+}
+
+@layer components {
+  .page-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.5rem 3rem;
+  }
+
+  .page-shell h1,
+  .page-shell h2,
+  .page-shell h3 {
+    color: var(--color-heading);
+  }
+
+  .site-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+
+  .site-brand {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-brand);
+  }
+
+  .site-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .site-nav a {
+    text-decoration: none;
+    font-weight: 600;
+    color: var(--color-body);
+    transition: color 0.2s ease;
+  }
+
+  .site-nav a:hover {
+    color: var(--color-accent);
+  }
+
+  /* The prototype declared .hero-panel twice; merged here. */
+  .hero-panel {
+    background: var(--color-surface);
+    border-radius: var(--radius-hero);
+    padding: 2.5rem;
+    box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08);
+    text-align: center;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .hero-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-flag-bg);
+    color: var(--color-flag-ink);
+    font-size: 0.95rem;
+    margin-bottom: 1.4rem;
+  }
+
+  .hero-panel h1 {
+    margin: 0 0 1rem;
+    font-size: clamp(2.5rem, 4vw, 4.2rem);
+    line-height: 1.02;
+  }
+
+  .hero-panel p {
+    margin: 0 0 1.75rem;
+    color: var(--color-body);
+    font-size: 1.05rem;
+    line-height: 1.78;
+    max-width: 68rem;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 1rem 1.6rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .button-primary {
+    background: var(--color-accent);
+    color: var(--color-surface);
+  }
+
+  .button-secondary {
+    background: transparent;
+    color: var(--color-brand);
+    border: 1px solid rgba(100, 116, 139, 0.22);
+  }
+
+  /*
+   * .button-group is used by the prototype's home page but was never defined
+   * in baseStyles, so the CTA buttons rendered with no spacing. Defined here.
+   */
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2.5rem;
+  }
+
+  .feature-card,
+  .event-card,
+  .gallery-card,
+  .wish-card,
+  .story-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    padding: 1.75rem;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+  }
+
+  .gallery-card {
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-muted);
+  }
+
+  .story-card {
+    padding: 1.5rem;
+  }
+
+  .feature-card h2,
+  .event-card h2,
+  .story-card h3 {
+    margin: 0 0 0.75rem;
+  }
+
+  .feature-card p,
+  .event-card p,
+  .story-card p,
+  .wish-card p {
+    margin: 0;
+    color: var(--color-body);
+    line-height: 1.75;
+  }
+
+  .countdown {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .countdown-item {
+    background: var(--color-accent-deep);
+    color: var(--color-surface);
+    border-radius: var(--radius-countdown);
+    padding: 1.3rem;
+    text-align: center;
+  }
+
+  .countdown-item strong {
+    display: block;
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+    margin: 0 0 1rem;
+  }
+
+  .page-footer {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-hairline);
+    color: var(--color-muted);
+    font-size: 0.95rem;
+  }
+
+  .grid-panel {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .responsive-stack {
+    display: grid;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-shell {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  .site-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .countdown {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-panel {
+    padding: 1.75rem;
+  }
+}

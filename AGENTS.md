@@ -1,7 +1,19 @@
 Project: Amandi & Tharindu Wedding Website
-Architecture: Monolith (intended Next.js 14 / App Router) — repository currently contains a small Express prototype used for initial slices
-Frontend: intended `app/` (Next.js 14, TypeScript). Prototype UI/demo in `src/` (plain ESM JS).
-Backend: intended serverless API route handlers (Next.js `app/api` or `pages/api`) with Supabase; prototype backend in `src/server.js` (Express).
+Architecture: Monolith (Next.js 16 / App Router). Migration from the original Express prototype is in progress; both currently coexist.
+Frontend: `app/` (Next.js 16, React 19, TypeScript, Tailwind v4). Legacy prototype UI in `src/` (plain ESM JS), retained side-by-side until parity is confirmed.
+Backend: Next.js route handlers under `app/api/` with Supabase; legacy prototype backend in `src/server.js` (Express).
+
+> **Next.js version note.** This project targets the CURRENT stable Next.js (16.3.3 at
+> time of writing), NOT the `14` pin that earlier revisions of this file and the PRD
+> specified. Next 16 differs from most models' training data in ways that fail silently.
+> Before writing App Router code, read the version-matched docs bundled at
+> `node_modules/next/dist/docs/`. In particular:
+> - `middleware.ts` is deprecated — the file is **`proxy.ts`** and the export is **`proxy`**.
+> - `params` and `searchParams` are **Promises** in `page.tsx` AND `route.ts` — `await` them.
+> - `cookies()` / `headers()` are **async only**; sync access was removed in 16.
+> - `next lint` was removed; run `eslint` directly (flat config in `eslint.config.mjs`).
+> - Turbopack is the default for `dev` and `build`; no `--turbopack` flag.
+> - Tailwind v4 has **no `tailwind.config.ts`** — tokens live in `@theme` in `app/globals.css`.
 Database: Supabase (Postgres). Lightweight adapter expected (direct `pg` or `@supabase/supabase-js`) — no ORM required.
 External services: Twilio (WhatsApp/SMS), Resend (email), Supabase Storage, Vercel (hosting/deploys).
 
@@ -60,12 +72,14 @@ npm run build
 
 - Deploy: PRD intends Vercel (Next.js). Do NOT deploy to production without HITL approval (see Agent rules below).
 
-**Build / run / test (intended Next.js app)**
-- Scaffold: `npx create-next-app@14 --experimental-app` (TypeScript)
-- Dev server:
+**Build / run / test (Next.js app)**
+- Already scaffolded — do NOT re-run `create-next-app`. (The old instruction here said
+  `npx create-next-app@14 --experimental-app`, which is wrong twice over: the version is
+  stale and `--experimental-app` no longer exists.)
+- Dev server (port 3010, so it does not collide with the legacy Express server on 3000):
 
 ```bash
-npm run dev       # Next.js dev server (after migrating files into `app/`)
+npm run dev
 ```
 
 - Production build:
