@@ -3,8 +3,8 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added.
-- Current focus: P1 features (theme editor, section manager, full messaging center)
+- Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added; theme editor slim slice (colors + font, site-wide) added.
+- Current focus: P1 features (section manager, event manager, full messaging center)
 - Priority: Decide P1 scope order next
 
 ## Working Principles
@@ -18,6 +18,12 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Guest invitation code format deviates from the PRD's `[SURNAME]-[NNN]` spec (see MEMORY.md 2026-09-03 and PRD P0-07).
 - Messaging (P1-06/P1-07) has a slim interim slice (single-guest WhatsApp reminder, wa.me link) — the full group-send/template/log spec is still unbuilt.
 - Still missing from PRD scope: theme editor, section manager, event manager, full messaging center, production deploy.
+
+## Model Assignment Convention
+- Every open backlog item and Next Action below carries a `Model:` tag — the Claude model recommended for that task's complexity/risk, so it can be confirmed with the user (human-in-the-loop, per `HITL.md`) before work starts.
+- Guide: **Opus 5** for architecture-defining, security-sensitive, or safety-critical work (schema/design decisions, anything touching HITL enforcement); **Sonnet 5** for well-scoped feature/CRUD/config work with low ambiguity; **Haiku 4.5** for small, mechanical, single-purpose fixes.
+- Completed (`[x]`) items are left untagged.
+- If a task is added to this file without a `Model:` tag, flag it and propose one before starting — do not assume a default.
 
 ## Implementation Backlog (updated)
 
@@ -52,15 +58,15 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Admin authentication (P0-09) — env-credential login, scrypt hash, signed session cookie with expiry, all `/admin/*` routes protected, logout
 - [x] Guest management (P0-07) — add/edit/soft-delete, auto code generation (`[CATEGORY]-[FIRSTNAME]-[random]`, configurable categories via `GUEST_CATEGORIES`), filter by status and group, search by name or code
 - [x] RSVP dashboard (P0-08) — invited/accepted/declined/pending counts, individual headcount, breakdown chart, CSV export
-- [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open.
-- [ ] Theme editor
-- [ ] Section manager
+- [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open. — Model: Opus 5
+- [x] Theme editor (P1-10) — slim slice: `/admin/theme` edits primary/secondary/accent colors and font family/style, applied site-wide instantly via CSS custom properties set on `<html>` in `app/layout.tsx`. Font choice is a curated set (Default, Cormorant Garamond, Playfair Display, EB Garamond) loaded via `next/font/google`, not free text — the app has no other font-loading infrastructure, so an arbitrary name would silently fail to render. Deferred to a follow-up: hero/invitation image fields (URL-only, no upload UI, per decision — Supabase Storage has zero usage anywhere in this codebase), invitation name-overlay rendering, `couple_names`/`wedding_date`/`venue_name`/`venue_address` (hardcoded across ~8 files, not wired), `patterns`/`custom_css` (no rendering consumer yet). See `migrations/003_create_theme_settings.sql`, `src/admin/themeRepo.js`, `src/admin/themeValidation.js`. — Model: Sonnet 5
+- [ ] Section manager — Model: Opus 5
 
 ### Phase 5 — Polish & Launch
-- [ ] Mobile responsiveness review
-- [ ] Content fill-in and final copy
-- [ ] Deployment to Vercel (HITL required)
-- [ ] Final QA and launch readiness
+- [ ] Mobile responsiveness review — Model: Sonnet 5
+- [ ] Content fill-in and final copy — Model: Sonnet 5
+- [ ] Deployment to Vercel (HITL required) — Model: Sonnet 5
+- [ ] Final QA and launch readiness — Model: Opus 5
 
 ## Current Slice Details
 
@@ -107,17 +113,19 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
 ## Next Actions (step-by-step)
-1. Theme editor (P1-10): global colors/fonts/hero image/invitation overlay config, admin-editable.
-2. Section manager (P1-11): admin-defined custom content blocks on public pages.
-3. Event manager (P1-09): admin CRUD for celebration events (name, date, venue, map link).
-4. Full messaging center (P1-06/P1-07): decide whether to keep the wa.me-based approach and extend it (bulk send, more templates) or move to Twilio (needs HITL — costs money, needs business account + template pre-approval). Add a persisted `MessageLog` either way.
-5. Regenerate the old-format guest codes (Ruwan, Sunil, Kamala, Nimal, Thar) created during testing, or accept them as-is (they still function).
-6. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production.
-7. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure.
-8. Mobile responsiveness review across public + admin surfaces.
-9. Deployment prep: Vercel config, production env vars, HITL-gated deploy.
+1. ~~Theme editor (P1-10)~~ — done (slim slice: colors + font family/style, site-wide). See Phase 4 note above.
+1a. Wire `theme_settings.couple_names`/`wedding_date` (once added) into `SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, `app/layout.tsx` metadata, and the per-page `<title>`s that currently hardcode "Amandi & Tharindu" / 14 Dec 2026 — needs an `ALTER TABLE theme_settings ADD COLUMN ...` migration first. (Model: Sonnet 5)
+2. Section manager (P1-11): admin-defined custom content blocks on public pages. (Model: Opus 5)
+3. Event manager (P1-09): admin CRUD for celebration events (name, date, venue, map link). (Model: Sonnet 5)
+4. Full messaging center (P1-06/P1-07): decide whether to keep the wa.me-based approach and extend it (bulk send, more templates) or move to Twilio (needs HITL — costs money, needs business account + template pre-approval). Add a persisted `MessageLog` either way. (Model: Opus 5)
+5. Regenerate the old-format guest codes (Ruwan, Sunil, Kamala, Nimal, Thar) created during testing, or accept them as-is (they still function). (Model: Haiku 4.5)
+6. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production. (Model: Opus 5)
+7. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure. (Model: Opus 5)
+8. Mobile responsiveness review across public + admin surfaces. (Model: Sonnet 5)
+9. Deployment prep: Vercel config, production env vars, HITL-gated deploy. (Model: Sonnet 5)
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.
 - Use `HITL.md` for any actions that require explicit human approval (deploys, migrations, pushes to main, sending messages).
 - Keep this file updated after each completed slice.
+- Tag every new backlog item / Next Action with a `Model:` recommendation (see Model Assignment Convention above) and confirm it with the user before starting work on it.

@@ -7,6 +7,7 @@ import { useState } from 'react';
 const LINKS = [
   { href: '/admin/dashboard', label: 'Dashboard' },
   { href: '/admin/guests', label: 'Guests' },
+  { href: '/admin/theme', label: 'Theme' },
 ];
 
 export default function AdminNav({ email }: { email: string }) {
