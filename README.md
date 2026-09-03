@@ -50,6 +50,7 @@ To apply locally using psql:
 ```bash
 psql <CONN_STRING> -f migrations/001_create_guests.sql
 psql <CONN_STRING> -f migrations/002_create_rsvp_responses.sql
+psql <CONN_STRING> -f migrations/003_create_theme_settings.sql
 ```
 
 Or use the Supabase CLI:
@@ -57,6 +58,7 @@ Or use the Supabase CLI:
 ```bash
 supabase db push --file migrations/001_create_guests.sql
 supabase db push --file migrations/002_create_rsvp_responses.sql
+supabase db push --file migrations/003_create_theme_settings.sql
 ```
 
 Or use the project HITL preflight command for local migrations:
