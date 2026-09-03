@@ -3,8 +3,8 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added.
-- Current focus: P1 features (theme editor, section manager, full messaging center)
+- Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added; theme editor slim slice (colors + font, site-wide) added.
+- Current focus: P1 features (section manager, event manager, full messaging center)
 - Priority: Decide P1 scope order next
 
 ## Working Principles
@@ -59,7 +59,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Guest management (P0-07) — add/edit/soft-delete, auto code generation (`[CATEGORY]-[FIRSTNAME]-[random]`, configurable categories via `GUEST_CATEGORIES`), filter by status and group, search by name or code
 - [x] RSVP dashboard (P0-08) — invited/accepted/declined/pending counts, individual headcount, breakdown chart, CSV export
 - [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open. — Model: Opus 5
-- [ ] Theme editor — Model: Sonnet 5
+- [x] Theme editor (P1-10) — slim slice: `/admin/theme` edits primary/secondary/accent colors and font family/style, applied site-wide instantly via CSS custom properties set on `<html>` in `app/layout.tsx`. Font choice is a curated set (Default, Cormorant Garamond, Playfair Display, EB Garamond) loaded via `next/font/google`, not free text — the app has no other font-loading infrastructure, so an arbitrary name would silently fail to render. Deferred to a follow-up: hero/invitation image fields (URL-only, no upload UI, per decision — Supabase Storage has zero usage anywhere in this codebase), invitation name-overlay rendering, `couple_names`/`wedding_date`/`venue_name`/`venue_address` (hardcoded across ~8 files, not wired), `patterns`/`custom_css` (no rendering consumer yet). See `migrations/003_create_theme_settings.sql`, `src/admin/themeRepo.js`, `src/admin/themeValidation.js`. — Model: Sonnet 5
 - [ ] Section manager — Model: Opus 5
 
 ### Phase 5 — Polish & Launch
@@ -113,7 +113,8 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
 ## Next Actions (step-by-step)
-1. Theme editor (P1-10): global colors/fonts/hero image/invitation overlay config, admin-editable. (Model: Sonnet 5)
+1. ~~Theme editor (P1-10)~~ — done (slim slice: colors + font family/style, site-wide). See Phase 4 note above.
+1a. Wire `theme_settings.couple_names`/`wedding_date` (once added) into `SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, `app/layout.tsx` metadata, and the per-page `<title>`s that currently hardcode "Amandi & Tharindu" / 14 Dec 2026 — needs an `ALTER TABLE theme_settings ADD COLUMN ...` migration first. (Model: Sonnet 5)
 2. Section manager (P1-11): admin-defined custom content blocks on public pages. (Model: Opus 5)
 3. Event manager (P1-09): admin CRUD for celebration events (name, date, venue, map link). (Model: Sonnet 5)
 4. Full messaging center (P1-06/P1-07): decide whether to keep the wa.me-based approach and extend it (bulk send, more templates) or move to Twilio (needs HITL — costs money, needs business account + template pre-approval). Add a persisted `MessageLog` either way. (Model: Opus 5)
