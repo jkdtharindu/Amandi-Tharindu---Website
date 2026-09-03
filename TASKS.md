@@ -18,6 +18,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Guest invitation code format deviates from the PRD's `[SURNAME]-[NNN]` spec (see MEMORY.md 2026-09-03 and PRD P0-07).
 - Messaging (P1-06/P1-07) has a slim interim slice (single-guest WhatsApp reminder, wa.me link) — the full group-send/template/log spec is still unbuilt.
 - Still missing from PRD scope: theme editor, section manager, event manager, full messaging center, production deploy.
+- New scope added 2026-09-03 (not in the original PRD): per-participant RSVP entry with age group (Elder/Adult/Kid), and an admin table/seating planner that assigns individuals across families by age/relationship match — see PRD P2-06/P2-07 and Next Actions #10-11.
 
 ## Model Assignment Convention
 - Every open backlog item and Next Action below carries a `Model:` tag — the Claude model recommended for that task's complexity/risk, so it can be confirmed with the user (human-in-the-loop, per `HITL.md`) before work starts.
@@ -45,6 +46,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Slice 4: Guest can see a personalized invitation and respond
 - [x] Slice 5: Guest can change their RSVP later
 - [x] Slice 6: Guest sees a clear RSVP reminder until they respond
+- [ ] Slice 7: Guest enters each participant's name AND age group (Elder/Adult/Kid) up to `slot_count` when accepting RSVP, instead of a flat name list (PRD P2-06, added 2026-09-03) — needs `rsvp_participants` table replacing `participant_names text[]` (migration, HITL) — Model: Opus 5
 
 ### Phase 3 — Public Pages
 - [x] Home page
@@ -61,6 +63,7 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open. — Model: Opus 5
 - [x] Theme editor (P1-10) — slim slice: `/admin/theme` edits primary/secondary/accent colors and font family/style, applied site-wide instantly via CSS custom properties set on `<html>` in `app/layout.tsx`. Font choice is a curated set (Default, Cormorant Garamond, Playfair Display, EB Garamond) loaded via `next/font/google`, not free text — the app has no other font-loading infrastructure, so an arbitrary name would silently fail to render. Deferred to a follow-up: hero/invitation image fields (URL-only, no upload UI, per decision — Supabase Storage has zero usage anywhere in this codebase), invitation name-overlay rendering, `couple_names`/`wedding_date`/`venue_name`/`venue_address` (hardcoded across ~8 files, not wired), `patterns`/`custom_css` (no rendering consumer yet). See `migrations/003_create_theme_settings.sql`, `src/admin/themeRepo.js`, `src/admin/themeValidation.js`. — Model: Sonnet 5
 - [ ] Section manager — Model: Opus 5
+- [ ] Table & seating planner — admin assigns individual RSVP'd participants (not whole families) to seating tables, grouped by age group and/or relationship category so elders/adults/kids from different invited families or colleague groups can be seated together (PRD P2-07, added 2026-09-03) — depends on Slice 7 (Phase 2) for per-participant data — Model: Opus 5
 
 ### Phase 5 — Polish & Launch
 - [ ] Mobile responsiveness review — Model: Sonnet 5
@@ -123,6 +126,8 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 7. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure. (Model: Opus 5)
 8. Mobile responsiveness review across public + admin surfaces. (Model: Sonnet 5)
 9. Deployment prep: Vercel config, production env vars, HITL-gated deploy. (Model: Sonnet 5)
+10. Per-participant RSVP entry (name + age group: Elder/Adult/Kid) replacing the flat `participant_names` list — schema decision + migration (HITL). (Model: Opus 5)
+11. Admin table & seating planner — assign individual participants to tables, grouped by age group/relationship across families, not per invited family unit. Depends on #10. (Model: Opus 5)
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.

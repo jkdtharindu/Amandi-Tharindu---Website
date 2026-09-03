@@ -144,6 +144,8 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P2-03 | Scheduled Message Campaigns | Admin sets a date/time for a reminder message to auto-send to all pending guests. |
 | P2-04 | Guest WhatsApp Reply Tracking | Track if guests reply to WhatsApp messages sent via Twilio. |
 | P2-05 | Multi-language Support | Support for Sinhala language option for guests. |
+| P2-06 | RSVP Participant Details (Name + Age Group) | **Added 2026-09-03 (not in original PRD).** When a family unit accepts, the guest currently enters participant names only (`rsvp_responses.participant_names text[]`). This changes participant entry to a per-person list, up to the assigned `slot_count`: each row captures a **name** and an **age group** (Elder / Adult / Kid — three-tier, admin-configurable categories similar to `GUEST_CATEGORIES`). Requires replacing the `participant_names text[]` column with a proper child table (e.g. `rsvp_participants`: id, guest_id or rsvp_response_id, name, age_group, display_order) — schema-breaking change, migration + HITL required. Prerequisite for P2-07. |
+| P2-07 | Admin Table & Seating Planner | **Added 2026-09-03 (not in original PRD).** Admin creates seating tables (name/number, capacity) and assigns *individual* RSVP'd participants to them — not whole family units. The point is cross-family seating: an elder from one invited family can be seated with elders from other families/colleague groups, kids with kids, etc., grouped by age group (from P2-06) and/or relationship category (`relationship` on `guests`), across the whole guest list rather than confined to one family's invitation. Needs new `tables` and `table_assignments` tables (schema decision, migration + HITL) and depends on P2-06's per-participant records existing first. |
 
 ---
 
@@ -189,7 +191,7 @@ File Storage:  Supabase Storage (invitation templates, venue images, gallery pho
 - **Invitation personalization:** Name overlay is DOM/CSS only — no server-side image generation. Admin configures overlay position/font/size via theme editor.
 - **Physical cards:** Couple prints and distributes physical cards manually. Website generates unique codes only.
 - **WhatsApp API:** Twilio WhatsApp requires pre-approved message templates for business-initiated messages. Reminder templates must be submitted for WhatsApp approval before sending.
-- **No family unit grouping:** Each family unit gets exactly one unique code. They RSVP for their whole family under that one code.
+- **No family unit grouping:** Each family unit gets exactly one unique code. They RSVP for their whole family under that one code. (This still holds at the *invitation/login* level after P2-06/P2-07 — table/seating assignment groups individual *participants* post-RSVP, it does not change how a family logs in or is invited.)
 - **Relationship categories:** Set by admin only (not guest-selectable). Options: Relations, Colleagues, Neighbours, Friends.
 - **Guest soft delete:** Deleting a guest in admin performs a soft delete. RSVP data is preserved in the database.
 - **Content updates:** All content (events, story, gallery, theme, sections) is managed via admin panel post-launch. No developer involvement required after handoff.
@@ -232,6 +234,25 @@ rsvp_responses (
   submitted_at timestamptz,
   updated_at timestamptz
 )
+
+-- PROPOSED (P2-06/P2-07, not yet implemented — replaces participant_names text[] above)
+-- rsvp_participants (
+--   id uuid PRIMARY KEY,
+--   rsvp_response_id uuid REFERENCES rsvp_responses(id) ON DELETE CASCADE,
+--   name text NOT NULL,
+--   age_group text NOT NULL,            -- elder | adult | kid
+--   display_order integer DEFAULT 0
+-- )
+-- tables (
+--   id uuid PRIMARY KEY,
+--   name text NOT NULL,                 -- e.g. "Table 1"
+--   capacity integer NOT NULL
+-- )
+-- table_assignments (
+--   id uuid PRIMARY KEY,
+--   table_id uuid REFERENCES tables(id),
+--   participant_id uuid REFERENCES rsvp_participants(id) UNIQUE  -- one seat per participant
+-- )
 
 -- Wedding Events (ceremony, reception, etc.)
 events (
