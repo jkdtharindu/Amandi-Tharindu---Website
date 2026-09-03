@@ -8,23 +8,57 @@ beforeEach(() => {
   rsvpResponses.length = 0;
 });
 
-function requestJSON(options, body) {
+/**
+ * Fetches a CSRF token the way a browser does: a GET first sets the
+ * `csrf_token` cookie, which is then echoed back in the `x-csrf-token`
+ * header on the POST. Without this every mutating request is a 403.
+ */
+function getCsrfToken(port) {
   return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body);
-    const req = http.request({ ...options, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, (res) => {
-      let bodyText = '';
-      res.on('data', (chunk) => (bodyText += chunk));
-      res.on('end', () => {
-        let parsed;
-        try {
-          parsed = JSON.parse(bodyText || '{}');
-        } catch (err) {
-          return reject(err);
-        }
-        resolve({ statusCode: res.statusCode, headers: res.headers, body: parsed });
-      });
-    });
-    req.on('error', reject);
+    const req = http.request(
+      { hostname: "127.0.0.1", port, path: "/home", method: "GET" },
+      (res) => {
+        res.resume();
+        const setCookie = res.headers["set-cookie"] || [];
+        const cookie = setCookie.find((c) => c.startsWith("csrf_token="));
+        resolve(cookie ? cookie.split(";")[0].split("=")[1] : "");
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+async function requestJSON(options, body) {
+  const token = await getCsrfToken(options.port);
+  const data = JSON.stringify(body);
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(data),
+          "x-csrf-token": token,
+          Cookie: `csrf_token=${token}`,
+        },
+      },
+      (res) => {
+        let bodyText = "";
+        res.on("data", (chunk) => (bodyText += chunk));
+        res.on("end", () => {
+          let parsed;
+          try {
+            parsed = JSON.parse(bodyText || "{}");
+          } catch (err) {
+            return reject(err);
+          }
+          resolve({ statusCode: res.statusCode, headers: res.headers, body: parsed });
+        });
+      }
+    );
+    req.on("error", reject);
     req.write(data);
     req.end();
   });

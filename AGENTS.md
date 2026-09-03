@@ -1,7 +1,19 @@
 Project: Amandi & Tharindu Wedding Website
-Architecture: Monolith (intended Next.js 14 / App Router) — repository currently contains a small Express prototype used for initial slices
-Frontend: intended `app/` (Next.js 14, TypeScript). Prototype UI/demo in `src/` (plain ESM JS).
-Backend: intended serverless API route handlers (Next.js `app/api` or `pages/api`) with Supabase; prototype backend in `src/server.js` (Express).
+Architecture: Monolith (Next.js 16 / App Router). Migration from the original Express prototype is in progress; both currently coexist.
+Frontend: `app/` (Next.js 16, React 19, TypeScript, Tailwind v4). Legacy prototype UI in `src/` (plain ESM JS), retained side-by-side until parity is confirmed.
+Backend: Next.js route handlers under `app/api/` with Supabase; legacy prototype backend in `src/server.js` (Express).
+
+> **Next.js version note.** This project targets the CURRENT stable Next.js (16.3.3 at
+> time of writing), NOT the `14` pin that earlier revisions of this file and the PRD
+> specified. Next 16 differs from most models' training data in ways that fail silently.
+> Before writing App Router code, read the version-matched docs bundled at
+> `node_modules/next/dist/docs/`. In particular:
+> - `middleware.ts` is deprecated — the file is **`proxy.ts`** and the export is **`proxy`**.
+> - `params` and `searchParams` are **Promises** in `page.tsx` AND `route.ts` — `await` them.
+> - `cookies()` / `headers()` are **async only**; sync access was removed in 16.
+> - `next lint` was removed; run `eslint` directly (flat config in `eslint.config.mjs`).
+> - Turbopack is the default for `dev` and `build`; no `--turbopack` flag.
+> - Tailwind v4 has **no `tailwind.config.ts`** — tokens live in `@theme` in `app/globals.css`.
 Database: Supabase (Postgres). Lightweight adapter expected (direct `pg` or `@supabase/supabase-js`) — no ORM required.
 External services: Twilio (WhatsApp/SMS), Resend (email), Supabase Storage, Vercel (hosting/deploys).
 
@@ -16,16 +28,20 @@ Frontend (Next.js app) <-- HTTPS --> API route handlers (Next.js) <-- Supabase c
 Prototype note: current `src/server.js` runs an Express demo server used by `src/smoke.js` to exercise login flows.
 
 **Folder structure (top-level) and purpose**
-- **`app/` (planned)**: Next.js App Router sources (pages, route handlers, UI). Target location for frontend and API handlers.
-- **`src/`**: Prototype server and helpers. Key files:
-  - **`src/server.js`**: demo Express server (quick local demo)
-  - **`src/smoke.js`**: smoke test that exercises login + invitation flow
-  - **`src/guest-auth/`**: authentication helpers (`loginGuestByCode.js`, `loginGuestByName.js`)
-  - **`src/data/guestStore.js`**: in-memory guest fixture (prototype only)
+- **`app/`**: Next.js App Router sources — built, not planned. `app/(public)/` is the wedding-facing route group (home, story, celebration, gallery, wishes, login, invitation); `app/admin/` is the admin panel (login, dashboard, guests), protected by `lib/adminGuard.ts`; `app/api/` holds route handlers for both guest and admin flows.
+- **`components/admin/`**: admin-only UI (`AdminNav.tsx`, `GuestManager.tsx`, `RsvpChart.tsx`, `WhatsAppReminderModal.tsx`).
+- **`components/public/`**: wedding-facing UI (`SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, etc.).
+- **`lib/`**: cross-cutting server helpers, e.g. `adminGuard.ts` (session check + redirect for `/admin/*` pages and 401 for `/api/admin/*`).
+- **`src/admin/`**: admin business logic, framework-agnostic JS (unit-tested without Next.js): `adminAuth.js`, `adminSession.js`, `adminRepo.js` (DB/in-memory data access), `generateGuestCode.js`, `guestValidation.js`, `guestQueries.js`, `categories.js` (configurable relationship groups), `messageTemplates.js` (WhatsApp reminder template + wa.me link builder).
+- **`src/`** (remainder): legacy Express prototype, kept side-by-side for `npm run smoke` / `npm run start:legacy`. Key files:
+  - **`src/server.js`**: demo Express server (legacy, not the Next.js app)
+  - **`src/smoke.js`**: smoke test that exercises login + invitation flow against the legacy server
+  - **`src/guest-auth/`**: guest-session authentication helpers (`loginGuestByCode.js`, `loginGuestByName.js`) — shared by both the legacy server and the Next.js API routes
+  - **`src/data/guestStore.js`**: in-memory guest fixture (used when `DATABASE_URL` is unset)
 - **`migrations/`**: SQL migration files matching PRD schema (apply with a migration runner before using a real DB)
-- **`tests/`**: unit and integration tests (TDD slices)
-- **`package.json`**: scripts for build/run/test for the prototype
-- **`TASKS.md`, `HITL.md`, `UBIQUITOUS_LANGUAGE.md`, `amandi-tharindu-wedding-PRD.md`**: project planning, guardrails, and domain vocabulary — read these first
+- **`tests/`**: unit and integration tests (TDD slices) — run as `tests/**/*.test.mjs`, not a fixed file list
+- **`package.json`**: scripts for the Next.js app (primary) and the legacy prototype (`:legacy` suffix)
+- **`TASKS.md`, `HITL.md`, `UBIQUITOUS_LANGUAGE.md`, `amandi-tharindu-wedding-PRD.md`, `MEMORY.md`**: project planning, guardrails, domain vocabulary, and dated architectural decisions — read these first
 
 **Build / run / test / deploy (current prototype)**
 - Install dependencies:
@@ -34,38 +50,34 @@ Prototype note: current `src/server.js` runs an Express demo server used by `src
 npm install
 ```
 
-- Run demo server:
+- Run legacy demo server (not the Next.js app):
 
 ```bash
-npm run start    # runs node src/server.js
+npm run start:legacy    # runs node src/server.js
 ```
 
-- Run smoke test (starts ephemeral server + exercises login):
+- Run smoke test (starts ephemeral legacy server + exercises login):
 
 ```bash
 npm run smoke
 ```
 
-- Run unit tests (prototype):
+- Run unit tests (all of them — admin, guest-auth, and legacy):
 
 ```bash
-npm test         # runs node --test tests/guest-login.test.mjs
-```
-
-- Build (TypeScript compile step placeholder):
-
-```bash
-npm run build
+npm test         # runs node --test "tests/**/*.test.mjs"
 ```
 
 - Deploy: PRD intends Vercel (Next.js). Do NOT deploy to production without HITL approval (see Agent rules below).
 
-**Build / run / test (intended Next.js app)**
-- Scaffold: `npx create-next-app@14 --experimental-app` (TypeScript)
-- Dev server:
+**Build / run / test (Next.js app)**
+- Already scaffolded — do NOT re-run `create-next-app`. (The old instruction here said
+  `npx create-next-app@14 --experimental-app`, which is wrong twice over: the version is
+  stale and `--experimental-app` no longer exists.)
+- Dev server (port 3010, so it does not collide with the legacy Express server on 3000):
 
 ```bash
-npm run dev       # Next.js dev server (after migrating files into `app/`)
+npm run dev
 ```
 
 - Production build:
@@ -110,7 +122,10 @@ If the agent does not receive `yes`, it must abort the action and await explicit
 - `SUPABASE_URL` — Supabase project URL (Postgres + Auth + Storage endpoint).
 - `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` — Supabase client credentials (service key only for server-side operations; never expose in frontend).
 - `DATABASE_URL` — direct Postgres connection string (if using `pg` for migrations).
-- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` — Twilio credentials and sender phone for WhatsApp/SMS (HITL gated sends).
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH` — single-admin login credentials (`src/admin/adminAuth.js`). Hash format is `<16-byte salt hex>:<64-byte scrypt key hex>`; generate with `npm run admin:set-password`. See MEMORY.md 2026-09-03 for why this is env-credential rather than Supabase Auth.
+- `GUEST_CATEGORIES` — optional comma-separated list overriding the default relationship groups (`Relations,Colleagues,Neighbours,Friends`); read by `src/admin/categories.js`, used for admin UI filters and the first 3 letters of generated invitation codes.
+- `NEXT_PUBLIC_SITE_URL` — public origin used to build guest-facing links (invitation URLs in WhatsApp reminder messages; also CSRF/Origin verification). Not yet set in `.env` as of 2026-09-03 — falls back to `http://localhost:3010`.
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` — Twilio credentials and sender phone for WhatsApp/SMS (HITL gated sends). Not currently used — the WhatsApp reminder feature (2026-09-03) uses a `wa.me` deep link instead; see HITL.md.
 - `RESEND_API_KEY` — API key for Resend email sends (HITL gated sends).
 - `VERCEL_TOKEN` — CI deploy token (HITL required for production deploys).
 - `SENTRY_DSN` (optional) — error tracking key.

@@ -124,8 +124,8 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-03 | The Celebration Page | Event cards for each wedding event (e.g., ceremony, reception). Each card: event name, date+day, time, venue name, venue address, venue image, relevant icons. Clicking location opens Google Maps with directions. All events managed via admin panel. |
 | P1-04 | Gallery Page | Photo gallery of couple photos uploaded by admin. Grid layout. Lightbox on click. Admin can add/delete/reorder photos. |
 | P1-05 | Wishes Page | Guests leave a written wish for the couple. Admin approves/hides wishes before public display. Approved wishes shown in an elegant wall format. |
-| P1-06 | Admin Messaging Center | Admin selects guest group (e.g., "all pending"), picks a message template, previews with placeholders filled, sends via WhatsApp / SMS / Email. Message logs stored. Failed messages show retry button. |
-| P1-07 | Message Templates | 4 pre-built templates: Initial Invite, First Reminder, Final Reminder, Thank You After RSVP. Placeholders: `[Name]`, `[Code]`, `[Link]`, `[Date]`, `[Venue]`. Admin can edit template body. Channel: WhatsApp / SMS / Email selectable. |
+| P1-06 | Admin Messaging Center | Admin selects guest group (e.g., "all pending"), picks a message template, previews with placeholders filled, sends via WhatsApp / SMS / Email. Message logs stored. Failed messages show retry button. **Interim slice shipped 2026-09-03:** single-guest (not group) RSVP reminder button on the guest list, wa.me deep link (not Twilio), one default template (not 4), admin sends manually inside WhatsApp (not a server-side send), no MessageLog persisted, no retry. See MEMORY.md 2026-09-03. |
+| P1-07 | Message Templates | 4 pre-built templates: Initial Invite, First Reminder, Final Reminder, Thank You After RSVP. Placeholders: `[Name]`, `[Code]`, `[Link]`, `[Date]`, `[Venue]`. Admin can edit template body. Channel: WhatsApp / SMS / Email selectable. **Interim slice shipped 2026-09-03:** one editable RSVP-reminder template (`{name}`, `{link}`, `{code}` placeholders) in src/admin/messageTemplates.js. The other 3 templates and SMS/Email channels are still unbuilt. |
 | P1-08 | Auto Thank-You Message | On RSVP acceptance, auto-send thank-you message to guest via WhatsApp (if number provided) or email. Uses "Thank You" template. |
 | P1-09 | Admin Event Manager | Admin adds/edits/deletes celebration events: name, date, time, venue name, venue address (Google Maps URL), venue image upload, icon selection, display order. |
 | P1-10 | Admin Theme Editor | Global site controls: primary/secondary/accent colors, font family, font style, hero image upload, invitation template upload + name overlay position config, layout/frame/pattern selection. Changes reflect site-wide instantly. |
@@ -417,7 +417,7 @@ ADMIN ROUTES (all protected by Supabase Auth session)
 
 ### P0-07 — Admin Guest Management
 - [ ] Admin can add a guest: name (required), relationship (dropdown), slot_count (number) → code auto-generated
-- [ ] Generated code format: `[SURNAME]-[3-digit-number]` e.g., `SILVA-001`
+- [x] Generated code format (changed 2026-09-03, per explicit request): `[CATEGORY]-[FIRST_NAME]-[random-3-digits]` e.g., `NEI-RU-628` (Neighbours, Ruwan, random). Replaces the originally specified `[SURNAME]-[3-digit-sequence]` (e.g. `SILVA-001`), which was sequential per surname and easy to enumerate. See MEMORY.md 2026-09-03 for the full reasoning. Relationship categories are now configurable via `GUEST_CATEGORIES` (src/admin/categories.js) rather than fixed to the four listed in P0-07's dropdown.
 - [ ] Admin can edit any guest field (name, relationship, slot count)
 - [ ] Admin can soft-delete a guest (hidden from guest-facing site, preserved in DB)
 - [ ] Guest list shows: name, code, relationship, slot count, RSVP status, WhatsApp number, last updated

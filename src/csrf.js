@@ -20,8 +20,19 @@ export function getOrCreateCsrfToken(req, res) {
 }
 
 export function verifyCsrfToken(req) {
-  const cookieToken = req.cookies && req.cookies[csrfCookieName];
-  const headerToken = req.headers[csrfHeaderName];
+  // Support both Express req and Next.js NextRequest
+  let cookieToken, headerToken;
+
+  if (req.cookies && typeof req.cookies.get === 'function') {
+    // Next.js style
+    cookieToken = req.cookies.get(csrfCookieName)?.value;
+    headerToken = req.headers.get(csrfHeaderName);
+  } else {
+    // Express style
+    cookieToken = req.cookies && req.cookies[csrfCookieName];
+    headerToken = req.headers[csrfHeaderName];
+  }
+
   return (
     typeof cookieToken === 'string' &&
     typeof headerToken === 'string' &&
