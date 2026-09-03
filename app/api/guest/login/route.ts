@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loginGuestByCode, loginGuestByName } from '@/src/guest-auth/index.js';
-import { signSession, verifySession } from '@/src/session.js';
+import { signSession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

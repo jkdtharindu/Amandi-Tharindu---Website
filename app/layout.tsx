@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import SiteHeader from "@/components/public/SiteHeader";
-import PageFooter from "@/components/public/PageFooter";
 
 export const metadata: Metadata = {
   title: "Amandi & Tharindu",
@@ -11,20 +9,14 @@ export const metadata: Metadata = {
 };
 
 /**
- * Replaces the prototype's `pageWrapper(title, bodyContent, scripts)` helper
- * from src/server.js. Per-page <title> now comes from each route's own
- * `metadata` export rather than a wrapper argument.
+ * Document shell only. The public wedding chrome (header/footer) lives in
+ * `app/(public)/layout.tsx` so that `/admin` can render its own chrome
+ * instead of the guest-facing one.
  */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <div className="page-shell">
-          <SiteHeader />
-          {children}
-          <PageFooter />
-        </div>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

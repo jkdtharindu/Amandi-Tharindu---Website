@@ -16,7 +16,7 @@ export default function InvitationClient({
   currentRsvpStatus,
 }: InvitationClientProps) {
   const [showForm, setShowForm] = useState(false);
-  const [attending, setAttending] = useState(true);
+  const [attending, setAttending] = useState(currentRsvpStatus !== 'declined');
   const [participantNames, setParticipantNames] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ export default function InvitationClient({
       } else {
         setMessage(data.message || data.reason || 'Unable to save RSVP. Please try again.');
       }
-    } catch (err) {
+    } catch {
       setMessage('An error occurred. Please try again.');
     } finally {
       setLoading(false);

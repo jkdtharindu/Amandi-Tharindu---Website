@@ -1,8 +1,6 @@
 import { cookies } from 'next/headers';
 import { findGuestByCode, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
 import { verifySession } from '@/src/session.js';
-import SiteHeader from '@/components/public/SiteHeader';
-import PageFooter from '@/components/public/PageFooter';
 import InvitationClient from './InvitationClient';
 
 export default async function InvitationPage({
@@ -23,20 +21,18 @@ export default async function InvitationPage({
 
   if (!guest) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <SiteHeader />
+      <div>
         <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
           <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
             <h1 className="text-2xl font-bold text-red-800 mb-2">Invitation not found</h1>
             <p className="text-red-700 mb-6">
-              We couldn't find an invitation with code <strong>{code}</strong>.
+              We couldn&apos;t find an invitation with code <strong>{code}</strong>.
             </p>
             <a href="/login" className="inline-block py-2 px-6 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-700">
               Back to login
             </a>
           </div>
         </main>
-        <PageFooter />
       </div>
     );
   }
@@ -48,9 +44,7 @@ export default async function InvitationPage({
   const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader />
-
+    <div>
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
         <div className="space-y-6">
           {/* Guest Info Card */}
@@ -143,8 +137,6 @@ export default async function InvitationPage({
           />
         </div>
       </main>
-
-      <PageFooter />
     </div>
   );
 }

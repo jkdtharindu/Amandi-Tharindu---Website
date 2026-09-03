@@ -2,12 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import SiteHeader from '@/components/public/SiteHeader';
-import PageFooter from '@/components/public/PageFooter';
+
+type Candidate = { id?: string; code: string; name: string };
+
+type LoginResult = {
+  success?: boolean;
+  guestId?: string;
+  code?: string;
+  type?: string;
+  candidates?: Candidate[];
+  error?: string;
+};
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<LoginResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [csrfToken, setCsrfToken] = useState<string>('');
 
@@ -56,7 +65,7 @@ export default function LoginPage() {
       } else {
         setResult({ error: data.message || data.reason || 'Login failed.' });
       }
-    } catch (err) {
+    } catch {
       setResult({ error: 'An error occurred. Please try again.' });
     } finally {
       setLoading(false);
@@ -86,7 +95,7 @@ export default function LoginPage() {
       } else {
         setResult({ error: 'Could not select that guest. Please try again.' });
       }
-    } catch (err) {
+    } catch {
       setResult({ error: 'An error occurred. Please try again.' });
     } finally {
       setLoading(false);
@@ -94,9 +103,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader />
-
+    <div>
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
         <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10">
           <div className="text-center mb-8">
@@ -154,13 +161,13 @@ export default function LoginPage() {
           )}
 
           {/* Candidates state */}
-          {result?.type === 'candidates' && result.candidates?.length > 0 && (
+          {result?.type === 'candidates' && result.candidates && result.candidates.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
               <p className="text-blue-900 font-semibold mb-4">
                 Multiple matches found. Please select your guest record:
               </p>
               <div className="space-y-3">
-                {result.candidates.map((candidate: any) => (
+                {result.candidates.map((candidate: Candidate) => (
                   <div
                     key={candidate.code}
                     className="flex items-center justify-between bg-white p-4 rounded-xl border border-blue-100"
@@ -197,8 +204,6 @@ export default function LoginPage() {
           </p>
         </div>
       </main>
-
-      <PageFooter />
     </div>
   );
 }

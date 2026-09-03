@@ -4,7 +4,7 @@ import { rsvpResponses } from '../data/rsvpStore.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
-function mapGuestRow(row) {
+export function mapGuestRow(row) {
   if (!row) return null;
   return {
     id: row.id,
@@ -21,7 +21,7 @@ function mapGuestRow(row) {
   };
 }
 
-function mapResponseRow(row) {
+export function mapResponseRow(row) {
   if (!row) return null;
   return {
     guestId: row.guest_id,

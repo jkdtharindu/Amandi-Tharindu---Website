@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 3010",
     "lint": "eslint",
-    "test": "node --test tests/guest-login.test.mjs tests/guest-login-name.test.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\"",
     "start:legacy": "node src/server.js",
     "start:browser": "node scripts/start-with-browser.js",
     "smoke": "node src/smoke.js",
@@ -15,7 +15,8 @@
     "append-memory": "node bin/append-memory.js",
     "migrate": "node scripts/run-migrations.js",
     "hitl:migrate": "node scripts/hitl-preflight.js migrate",
-    "seed:db": "node scripts/seed-local-db.js"
+    "seed:db": "node scripts/seed-local-db.js",
+    "admin:set-password": "node scripts/set-admin-password.js"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
