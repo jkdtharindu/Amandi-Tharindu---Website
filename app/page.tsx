@@ -21,7 +21,7 @@ export default function HomePage() {
           invitation.
         </p>
         <div className="button-group">
-          <Link className="button button-primary" href="/invitation">
+          <Link className="button button-primary" href="/login">
             Find Your Invitation
           </Link>
           <Link className="button button-secondary" href="/our-story">

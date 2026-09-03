@@ -15,7 +15,7 @@ const NAV_LINKS = [
   { href: "/the-celebration", label: "Celebration" },
   { href: "/gallery", label: "Gallery" },
   { href: "/wishes", label: "Wishes" },
-  { href: "/invitation", label: "Invitation" },
+  { href: "/login", label: "Invitation" },
 ];
 
 export default function SiteHeader() {
