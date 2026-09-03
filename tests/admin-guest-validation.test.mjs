@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  RELATIONSHIPS,
+  getRelationships,
   validateGuestInput,
 } from '../src/admin/guestValidation.js';
 
-test('exposes the four relationship groups from the PRD', () => {
-  assert.deepEqual([...RELATIONSHIPS], [
+test('exposes the default relationship groups', () => {
+  const relationships = getRelationships();
+  assert.deepEqual([...relationships], [
     'Relations',
     'Colleagues',
     'Neighbours',

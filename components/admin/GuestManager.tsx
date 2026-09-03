@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import WhatsAppReminderModal from './WhatsAppReminderModal';
 
 export type Guest = {
   id: string;
@@ -12,7 +13,6 @@ export type Guest = {
   rsvpStatus: string;
 };
 
-const RELATIONSHIPS = ['Relations', 'Colleagues', 'Neighbours', 'Friends'];
 const STATUSES = ['all', 'pending', 'accepted', 'declined'];
 
 const STATUS_STYLES: Record<string, string> = {
@@ -28,16 +28,24 @@ type FormState = {
   whatsappNumber: string;
 };
 
-const EMPTY_FORM: FormState = {
-  name: '',
-  relationship: 'Relations',
-  slotCount: '1',
-  whatsappNumber: '',
-};
-
 /** Guest CRUD, filtering, and search (PRD P0-07). */
-export default function GuestManager({ initialGuests }: { initialGuests: Guest[] }) {
+export default function GuestManager({
+  initialGuests,
+  categories = ['Relations', 'Colleagues', 'Neighbours', 'Friends'],
+  siteUrl,
+}: {
+  initialGuests: Guest[];
+  categories?: string[];
+  siteUrl: string;
+}) {
+  const EMPTY_FORM: FormState = {
+    name: '',
+    relationship: categories[0] || 'Relations',
+    slotCount: '1',
+    whatsappNumber: '',
+  };
   const [guests, setGuests] = useState<Guest[]>(initialGuests);
+  const [reminderGuest, setReminderGuest] = useState<Guest | null>(null);
   const [status, setStatus] = useState('all');
   const [relationship, setRelationship] = useState('all');
   const [search, setSearch] = useState('');
@@ -239,7 +247,7 @@ export default function GuestManager({ initialGuests }: { initialGuests: Guest[]
               className="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
             >
               <option value="all">All groups</option>
-              {RELATIONSHIPS.map((value) => (
+              {categories.map((value) => (
                 <option key={value} value={value}>
                   {value}
                 </option>
@@ -314,7 +322,7 @@ export default function GuestManager({ initialGuests }: { initialGuests: Guest[]
                 onChange={(e) => setForm({ ...form, relationship: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
               >
-                {RELATIONSHIPS.map((value) => (
+                {categories.map((value) => (
                   <option key={value} value={value}>
                     {value}
                   </option>
@@ -436,7 +444,18 @@ export default function GuestManager({ initialGuests }: { initialGuests: Guest[]
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {guest.whatsappNumber ?? <span className="text-slate-400">—</span>}
+                    {guest.whatsappNumber && guest.rsvpStatus === 'pending' ? (
+                      <button
+                        type="button"
+                        onClick={() => setReminderGuest(guest)}
+                        className="text-emerald-700 hover:text-emerald-900 hover:underline"
+                        title="Send an RSVP reminder on WhatsApp"
+                      >
+                        {guest.whatsappNumber}
+                      </button>
+                    ) : (
+                      guest.whatsappNumber ?? <span className="text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <button
@@ -473,6 +492,14 @@ export default function GuestManager({ initialGuests }: { initialGuests: Guest[]
       <p className="mt-3 text-xs text-slate-500">
         Showing {guests.length} guest{guests.length === 1 ? '' : 's'}.
       </p>
+
+      {reminderGuest && (
+        <WhatsAppReminderModal
+          guest={reminderGuest}
+          siteUrl={siteUrl}
+          onClose={() => setReminderGuest(null)}
+        />
+      )}
     </div>
   );
 }

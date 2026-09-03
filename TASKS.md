@@ -3,9 +3,9 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Scoping / Initial implementation started
-- Current focus: Guest access flow and public page polish
-- Priority: Build the first vertical slice end-to-end
+- Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added.
+- Current focus: P1 features (theme editor, section manager, full messaging center)
+- Priority: Decide P1 scope order next
 
 ## Working Principles
 - Use strict TDD for each slice
@@ -13,10 +13,11 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Prefer small, shippable increments over large speculative work
 
 ## PRD Alignment Summary
-- Phase 1 complete; Phase 2 now includes code login, name login, and ambiguous-name recovery.
-- Core launch scope still requires the personalized invitation page, RSVP flow, sticky RSVP bar, admin auth, guest/dashboard management, and messaging/theme features.
-- Current prototype is a working Express demo; the PRD stack calls for Next.js + Supabase + Vercel.
-- Estimated completion: ~30% of the current checklist, ~15-20% of full PRD launch scope.
+- Phases 1-4 (foundation, guest access, public pages, admin core) are built on the PRD-specified Next.js 16 stack — the Express prototype (`src/server.js`) is now legacy-only, kept for `npm run smoke`/`start:legacy`.
+- Admin auth deviates from the PRD's Supabase Auth call-out (env-credential instead — see MEMORY.md 2026-09-03).
+- Guest invitation code format deviates from the PRD's `[SURNAME]-[NNN]` spec (see MEMORY.md 2026-09-03 and PRD P0-07).
+- Messaging (P1-06/P1-07) has a slim interim slice (single-guest WhatsApp reminder, wa.me link) — the full group-send/template/log spec is still unbuilt.
+- Still missing from PRD scope: theme editor, section manager, event manager, full messaging center, production deploy.
 
 ## Implementation Backlog (updated)
 
@@ -49,9 +50,9 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 
 ### Phase 4 — Admin Experience
 - [x] Admin authentication (P0-09) — env-credential login, scrypt hash, signed session cookie with expiry, all `/admin/*` routes protected, logout
-- [x] Guest management (P0-07) — add/edit/soft-delete, auto code generation, filter by status and group, search by name or code
+- [x] Guest management (P0-07) — add/edit/soft-delete, auto code generation (`[CATEGORY]-[FIRSTNAME]-[random]`, configurable categories via `GUEST_CATEGORIES`), filter by status and group, search by name or code
 - [x] RSVP dashboard (P0-08) — invited/accepted/declined/pending counts, individual headcount, breakdown chart, CSV export
-- [ ] Messaging center
+- [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open.
 - [ ] Theme editor
 - [ ] Section manager
 
@@ -93,22 +94,28 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - `npm test` now runs every file in `tests/`. The legacy `guest-login-api` tests had been failing since CSRF was added to the demo server because their helper never sent a token; the helper now fetches one.
 - Public routes moved into an `app/(public)/` route group so `/admin` no longer inherits the wedding header and footer. URLs are unchanged.
 
+## Code Format & Messaging Follow-ups (2026-09-03)
+
+- The 4-5 guests created during earlier manual testing (Ruwan, Sunil, Kamala, Nimal, Thar) still carry the old `[SURNAME]-[NNN]` code. They still work (code isn't re-validated against the new format), but any admin edit does not retroactively regenerate the code — only new guests get the new format. Regenerating the old ones means deleting and re-adding them (their RSVP history would need to be preserved separately, or accepted as a fresh start).
+- `GUEST_CATEGORIES` is read from `process.env` on every call (`src/admin/categories.js`) — no restart-free hot reload guarantee outside Next.js dev's own env-var handling; confirm behavior before relying on changing it without a redeploy in production.
+- WhatsApp reminder button only renders for guests with `rsvpStatus === 'pending'` AND a `whatsappNumber` on file. No UI path yet for guests without a WhatsApp number (accepted/declined guests, or pending guests with no number).
+- No message send is logged anywhere (no `MessageLog` — PRD P1-07 domain concept still unimplemented). If audit history of reminders sent becomes a requirement, this needs a data store, which is a schema decision (HITL-gated migration).
+- `NEXT_PUBLIC_SITE_URL` is not set in `.env`; the admin guest page falls back to `http://localhost:3010` for the invitation link inside reminder messages. Must be set correctly before this feature is usable against a deployed site.
+
 ## Current Blockers
 - Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
 ## Next Actions (step-by-step)
-1. Harden auth & sessions: add `SESSION_SECRET` guidance, sign/secure cookies (`HttpOnly`, `Secure`, `SameSite`), add CSRF protection, and include a `.env.example`.
-2. Migrate prototype to the PRD stack: scaffold a Next.js 14 (App Router) + TypeScript app and port demo routes/API to Next route handlers.
-3. Implement DB adapter & migration runner: replace the in-memory `guestStore` with a Supabase/pg adapter, map code → `guests` table, and add a safe migration/seed runner for `migrations/*.sql`.
-4. Normalize schema and naming: ensure DB field naming (snake_case) matches PRD and add a mapping layer in code to avoid casing drift (`is_deleted` ⇄ `isDeleted`, `rsvp_status`, etc.).
-5. Implement API route(s) for name-based login and ambiguous resolution (`POST /api/guest/login` to accept `code | name`) and return a consistent shaped response (`{ type: 'exact'|'candidates', ... }`).
-6. Add integration and E2E tests that exercise full flows (login → session cookie → invitation → RSVP submit → RSVPResponse persistence) and admin flows.
-7. Implement Admin surface & auth: Supabase Auth single-Admin setup, protected `/admin/*` routes, guest CRUD, RSVP dashboard, ThemeSettings editor, and SectionManager per P0.
-8. Messaging sandbox + templates: build MessageTemplate management, MessageLog recording, a sandbox mode (no external sends), and a HITL-gated send flow for WhatsApp/SMS/Email.
-9. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production.
-10. Security & production readiness: harden session cookies, add input validation, rate-limiting for login attempts, and privacy review for guest data before any public exposure.
-11. Continue Slice 2 TDD: disambiguation UI/selection flow, RSVP form UI, and RSVP change/update flow. Prioritize tests-first for each piece.
+1. Theme editor (P1-10): global colors/fonts/hero image/invitation overlay config, admin-editable.
+2. Section manager (P1-11): admin-defined custom content blocks on public pages.
+3. Event manager (P1-09): admin CRUD for celebration events (name, date, venue, map link).
+4. Full messaging center (P1-06/P1-07): decide whether to keep the wa.me-based approach and extend it (bulk send, more templates) or move to Twilio (needs HITL — costs money, needs business account + template pre-approval). Add a persisted `MessageLog` either way.
+5. Regenerate the old-format guest codes (Ruwan, Sunil, Kamala, Nimal, Thar) created during testing, or accept them as-is (they still function).
+6. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production.
+7. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure.
+8. Mobile responsiveness review across public + admin surfaces.
+9. Deployment prep: Vercel config, production env vars, HITL-gated deploy.
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.

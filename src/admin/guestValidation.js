@@ -5,13 +5,12 @@
  * problems in a single pass rather than one per submit.
  */
 
-/** The relationship groups the admin can choose from (PRD §7 assumptions). */
-export const RELATIONSHIPS = Object.freeze([
-  'Relations',
-  'Colleagues',
-  'Neighbours',
-  'Friends',
-]);
+import { getCategories } from './categories.js';
+
+/** The relationship groups the admin can choose from (customizable via GUEST_CATEGORIES env var). */
+export function getRelationships() {
+  return getCategories();
+}
 
 const MIN_SLOT_COUNT = 1;
 const MAX_SLOT_COUNT = 99;
@@ -25,8 +24,9 @@ export function validateGuestInput(input = {}) {
   }
 
   const relationship = String(input.relationship ?? '').trim();
-  if (!RELATIONSHIPS.includes(relationship)) {
-    errors.relationship = `Relationship must be one of: ${RELATIONSHIPS.join(', ')}.`;
+  const validRelationships = getRelationships();
+  if (!validRelationships.includes(relationship)) {
+    errors.relationship = `Relationship must be one of: ${validRelationships.join(', ')}.`;
   }
 
   const slotCount = Number(input.slotCount);

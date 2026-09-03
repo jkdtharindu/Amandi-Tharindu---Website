@@ -39,14 +39,14 @@ export async function listAllRsvpResponses() {
  */
 
 /**
- * Creates a guest, auto-generating a unique `[SURNAME]-[NNN]` code.
+ * Creates a guest, auto-generating a unique `[CATEGORY]-[FIRST_NAME]-[RANDOM]` code.
  *
  * @param {GuestInput} input
  */
 export async function createGuest({ name, relationship, slotCount, whatsappNumber = null }) {
   const existing = await listAllGuests();
   // Soft-deleted guests keep their codes reserved, so pass every code.
-  const code = generateGuestCode(name, existing.map((guest) => guest.code));
+  const code = generateGuestCode(name, relationship, existing.map((guest) => guest.code));
 
   if (!isDbEnabled()) {
     const guest = {

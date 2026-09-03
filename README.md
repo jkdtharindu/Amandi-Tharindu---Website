@@ -7,28 +7,40 @@ Prerequisites
 - npm
 - Optional: Supabase CLI / psql for running migrations
 
-Quick start
+Quick start (Next.js app — primary)
 
 ```bash
 cd "c:\Users\User\Desktop\AT WD"
 npm install
 npm test
-npm run smoke
-npm start
+npm run dev
 ```
+
+Then open http://localhost:3010.
 
 If PowerShell blocks script execution, use CMD instead:
 
 ```bash
 cmd /c "npm test"
-cmd /c "npm run smoke"
+cmd /c "npm run dev"
 ```
 
 Notes
-- `npm test` runs unit tests (node's `--test`).
-- `npm run smoke` runs an in-process server smoke test that exercises `/api/guest/login` and `/invitation/:code`.
-- The public site pages now reuse a shared page wrapper and a modern wedding-themed layout.
-- The current server is a minimal demo: session persistence is an HTTP-only cookie named `guest_session`. Do not use this in production.
+- `npm test` runs every test file under `tests/` (node's `--test`).
+- `npm run dev` starts the Next.js app on port 3010 — this is the real app (public pages + admin panel), not the legacy demo.
+- `npm run smoke` / `npm run start:legacy` exercise the older Express prototype (`src/server.js`), kept side-by-side for now.
+- The public site pages reuse a shared page wrapper and a modern wedding-themed layout.
+- Guest sessions are a signed, expiring `guest_session` cookie (see `SESSION_SECRET` below) — not the legacy demo cookie.
+
+Admin panel
+
+```bash
+# One-time: generate an admin password hash and add it to .env
+echo "your-password" | npm run admin:set-password
+# Then set ADMIN_EMAIL and paste the printed ADMIN_PASSWORD_HASH into .env
+```
+
+Open http://localhost:3010/admin to sign in. Guest relationship categories default to `Relations, Colleagues, Neighbours, Friends` — override with a `GUEST_CATEGORIES` env var (comma-separated) to add your own.
 
 Migrations (Supabase / Postgres)
 
@@ -69,9 +81,9 @@ HITL (Human-in-the-Loop)
 Per `HITL.md`, DO NOT run production migrations, deploys, or messaging commands without explicit human approval. Any migration or deploy to production must be confirmed with the exact HITL checkpoint message.
 
 Next steps for developers
-- Replace in-memory demo data with Supabase-backed storage
-- Harden session handling (signed/secure cookies or JWTs)
-- Implement full Next.js `app/` routes for invitation and admin panels
+- Replace in-memory demo data with Supabase-backed storage (works today when `DATABASE_URL` is set; in-memory is the local fallback)
+- Theme editor, section manager, and event manager (P1) — not yet built
+- Full messaging center (P1-06/P1-07) — only a single-guest WhatsApp reminder exists today (wa.me deep link, no Twilio, no message log)
 
 Contact
 - Project PRD: `amandi-tharindu-wedding-PRD.md`

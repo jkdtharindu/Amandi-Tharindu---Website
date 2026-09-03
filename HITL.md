@@ -40,3 +40,7 @@ Because this project is a guest-facing wedding website with RSVP handling and me
 - Wait for a clear explicit confirmation before continuing
 
 Note: UI polish and local prototype changes (code edits, styling, docs) do not bypass HITL requirements — any deploys, migrations, or external sends still require the exact HITL checkpoint confirmation.
+
+## Clarification: WhatsApp reminder button (added 2026-09-03)
+
+The admin guest list has a "send RSVP reminder" button on pending guests with a WhatsApp number. It builds a `wa.me` deep link from an admin-editable message and opens it — nothing is sent programmatically. The admin still presses Send inside WhatsApp under their own account. This does NOT call an external paid API and does NOT by itself constitute "sending WhatsApp... messages to guests" in the automated sense the rule above is guarding against, so it does not require its own HITL checkpoint. If this is later replaced with a programmatic send (Twilio, or any provider called directly from server code), that change brings back the full HITL requirement above.

@@ -3,51 +3,61 @@ import assert from 'node:assert/strict';
 
 import { generateGuestCode } from '../src/admin/generateGuestCode.js';
 
-test('generates a SURNAME-001 code from the last word of the name', () => {
-  assert.equal(generateGuestCode('Nimal Silva', []), 'SILVA-001');
+test('generates code with category-firstname-random format', () => {
+  const code = generateGuestCode('Nimal Silva', 'Relations', []);
+  assert.match(code, /^REL-NI-\d{3}$/);
 });
 
-test('uses a single-word name as the surname', () => {
-  assert.equal(generateGuestCode('Nimal', []), 'NIMAL-001');
+test('extracts first 2 letters from first name', () => {
+  const code = generateGuestCode('Alexander Smith', 'Colleagues', []);
+  assert.match(code, /^COL-AL-\d{3}$/);
 });
 
-test('increments the sequence when the surname is already taken', () => {
-  const existing = ['SILVA-001', 'SILVA-002'];
-  assert.equal(generateGuestCode('Kamala Silva', existing), 'SILVA-003');
+test('extracts first 3 letters from relationship/category', () => {
+  const code = generateGuestCode('Ruwan Perera', 'Neighbours', []);
+  assert.match(code, /^NEI-RU-\d{3}$/);
 });
 
-test('sequences surnames independently of each other', () => {
-  const existing = ['SILVA-001', 'SILVA-002', 'PERERA-001'];
-  assert.equal(generateGuestCode('Ruwan Perera', existing), 'PERERA-002');
+test('handles single-word names', () => {
+  const code = generateGuestCode('Nimal', 'Friends', []);
+  assert.match(code, /^FRI-NI-\d{3}$/);
 });
 
-test('fills a gap left by a removed code rather than reusing a live one', () => {
-  // SILVA-002 was soft-deleted and its code freed; the next code must not collide.
-  const existing = ['SILVA-001', 'SILVA-003'];
-  assert.equal(generateGuestCode('Amal Silva', existing), 'SILVA-002');
+test('avoids existing codes case-insensitively', () => {
+  const existing = ['REL-NI-042', 'REL-NI-123', 'REL-NI-500'];
+  const code = generateGuestCode('Nimal Silva', 'Relations', existing);
+  assert.match(code, /^REL-NI-\d{3}$/);
+  assert(!existing.map((c) => c.toUpperCase()).includes(code.toUpperCase()));
 });
 
-test('strips non-alphabetic characters from the surname', () => {
-  assert.equal(generateGuestCode("Nimal D'Silva-Fernando", []), 'DSILVAFERNANDO-001');
+test('avoids collisions with mixed case existing codes', () => {
+  const existing = ['rel-ni-500'];
+  const code = generateGuestCode('Nimal Silva', 'Relations', existing);
+  assert.match(code, /^REL-NI-\d{3}$/);
+  assert(!existing.map((c) => c.toUpperCase()).includes(code.toUpperCase()));
 });
 
-test('ignores trailing whitespace and casing when deriving the surname', () => {
-  assert.equal(generateGuestCode('  nimal   silva  ', []), 'SILVA-001');
+test('strips non-alphabetic characters from name', () => {
+  const code = generateGuestCode("N1m4l D'S1lv4-F3rnnd0", 'Relations', []);
+  assert.match(code, /^REL-NM-\d{3}$/);
 });
 
-test('is case-insensitive when checking existing codes', () => {
-  assert.equal(generateGuestCode('Nimal Silva', ['silva-001']), 'SILVA-002');
+test('strips non-alphabetic characters from relationship', () => {
+  const code = generateGuestCode('Nimal Silva', 'R3l@t10ns!', []);
+  assert.match(code, /^RLT-NI-\d{3}$/);
+});
+
+test('ignores whitespace and casing in input', () => {
+  const code = generateGuestCode('  NIMAL   SILVA  ', '  RELATIONS  ', []);
+  assert.match(code, /^REL-NI-\d{3}$/);
 });
 
 test('rejects a name with no usable letters', () => {
-  assert.throws(() => generateGuestCode('   ', []), /invalid_name/);
-  assert.throws(() => generateGuestCode('123 456', []), /invalid_name/);
+  assert.throws(() => generateGuestCode('   ', 'Relations', []), /invalid_name/);
+  assert.throws(() => generateGuestCode('123 456', 'Relations', []), /invalid_name/);
 });
 
-test('rejects a surname that has exhausted its 999 codes', () => {
-  const existing = Array.from(
-    { length: 999 },
-    (_, i) => `SILVA-${String(i + 1).padStart(3, '0')}`
-  );
-  assert.throws(() => generateGuestCode('Nimal Silva', existing), /code_space_exhausted/);
+test('rejects a relationship with no usable letters', () => {
+  assert.throws(() => generateGuestCode('Nimal Silva', '   ', []), /invalid_relationship/);
+  assert.throws(() => generateGuestCode('Nimal Silva', '123 456', []), /invalid_relationship/);
 });
