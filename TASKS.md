@@ -2,6 +2,8 @@
 
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
+⚠️ **BRANCH DIVERGENCE ALERT (2026-09-04):** `feature/ui-wrapping` (last commit 2026-08-30) contains a complete Theme Editor, Section Manager, and Table Arrangement features + 8 database migrations. It was never merged into this branch, yet migrations 004–008 were applied to the live database. See BRANCH_STRATEGY.md and MEMORY.md. **Decision needed:** Merge or archive `feature/ui-wrapping`. For now, the P1-10 Theme Editor and P1-14 Table Planning work are partially built on the unmerged branch; do not start new implementation on these features until the branch situation is resolved.
+
 ## Project Status
 - Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added.
 - Current focus: P1 features (theme editor, section manager, full messaging center)

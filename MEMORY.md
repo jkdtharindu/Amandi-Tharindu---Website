@@ -27,10 +27,9 @@ Alternative considered:
 
 4) Deprecated patterns (old approaches we've moved away from)
 
-[YYYY-MM-DD] Decision: 
-Reason: 
-Alternative considered: 
-
+[2026-09-04] Pattern: Allowing unmerged feature branches to drift in parallel (feature/ui-wrapping diverged from feature/nextjs-supabase-migration 5+ days ago, was never merged, yet its database migrations were applied to the live database without code integration).
+Reason: Lack of branch strategy and merge discipline; multiple sessions working without clear coordination on which branch is "primary."
+What we do now: See BRANCH_STRATEGY.md — enforces 2-week merge-or-archive lifetime, requires schema/code sync, flags cross-session drift immediately.
 
 [2026-09-03] Decision: Admin authentication uses env-credential (ADMIN_EMAIL + scrypt ADMIN_PASSWORD_HASH) instead of Supabase Auth.
 Reason: ADMIN_EMAIL and ADMIN_PASSWORD_HASH were already provisioned in .env before the admin slice was built; a single-admin account doesn't need a full auth provider.
@@ -49,5 +48,7 @@ Reason: user wants the ability to add custom categories without a code change.
 Alternative considered: a database-backed categories table — rejected for now because it needs a migration (HITL-gated); the env var reuses the existing ADMIN_EMAIL-style config pattern and needs no schema change.
 
 5) Last session summary (leave blank — Claude will fill this in)
+
+[2026-09-04] Summary: Discovered critical branch divergence: `feature/ui-wrapping` (unmerged, last touched 2026-08-30) contains 8 migrations + Theme Editor/Section Manager/Table Arrangement features. Live database has had migrations 004–008 from that branch applied, but code was never merged into active development branch (feature/nextjs-supabase-migration), causing schema/code drift. Established BRANCH_STRATEGY.md as SOP to prevent this: 2-week merge-or-archive lifetimes, schema/code sync enforcement, HITL gates on migrations. **Action required:** Decide whether to merge feature/ui-wrapping or archive it. This session's Theme Editor work (duplicate) was discarded; see git cleanup at 3d41ed9+cleanup.
 
 [2026-09-03] Summary: Verified the P0 admin panel (auth, guest CRUD, RSVP dashboard) built in the prior session end-to-end in the browser, then shipped three follow-on changes: (1) invitation codes now use `[CATEGORY]-[FIRSTNAME]-[random]` instead of `[SURNAME]-[sequence]`, (2) guest categories are configurable via GUEST_CATEGORIES, (3) a WhatsApp RSVP-reminder button (preview, edit, then open in WhatsApp — no auto-send) on pending guests in the guest table. 79/79 tests passing, build clean. The admin-panel commit and the code-format/category/WhatsApp changes are not yet committed (working tree only) as of this entry.
