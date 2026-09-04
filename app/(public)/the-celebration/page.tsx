@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
+import { listSections } from "@/src/sections/sectionsRepo.js";
+import CustomSections from "@/components/public/CustomSections";
 
 export async function generateMetadata(): Promise<Metadata> {
   let settings;
@@ -33,7 +35,19 @@ const CELEBRATION_EVENTS = [
   },
 ];
 
-export default function CelebrationPage() {
+export default async function CelebrationPage() {
+  // listSections() must never throw, or a transient DB hiccup takes down
+  // the page — same reasoning as loadThemeSettings elsewhere. Section page
+  // key is "celebration" (VALID_PAGES), matching this route's legacy path
+  // (/celebration), not the Next.js folder name (the-celebration).
+  let sections;
+  try {
+    sections = await listSections("celebration");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    sections = [];
+  }
+
   return (
     <>
       <section className="hero-panel">
@@ -69,6 +83,7 @@ export default function CelebrationPage() {
           </div>
         ))}
       </section>
+      <CustomSections sections={sections} />
     </>
   );
 }

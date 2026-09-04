@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
+import { listSections } from "@/src/sections/sectionsRepo.js";
+import CustomSections from "@/components/public/CustomSections";
 
 export async function generateMetadata(): Promise<Metadata> {
   let settings;
@@ -21,7 +23,17 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 const PLACEHOLDER_TILES = ["Photo 1", "Photo 2", "Photo 3", "Photo 4"];
 
-export default function GalleryPage() {
+export default async function GalleryPage() {
+  // listSections() must never throw, or a transient DB hiccup takes down
+  // the page — same reasoning as loadThemeSettings elsewhere.
+  let sections;
+  try {
+    sections = await listSections("gallery");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    sections = [];
+  }
+
   return (
     <>
       <section className="hero-panel">
@@ -39,6 +51,7 @@ export default function GalleryPage() {
           </div>
         ))}
       </section>
+      <CustomSections sections={sections} />
     </>
   );
 }

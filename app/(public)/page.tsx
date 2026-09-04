@@ -4,6 +4,8 @@ import Countdown from "@/components/public/Countdown";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
+import { listSections } from "@/src/sections/sectionsRepo.js";
+import CustomSections from "@/components/public/CustomSections";
 
 // getThemeSettings() hits the DB on every request; this must never throw, or
 // a transient DB hiccup takes down every page on the site.
@@ -24,6 +26,16 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Ports the prototype's `GET /home` route from src/server.js. */
 export default async function HomePage() {
   const settings = await loadThemeSettings();
+
+  // listSections() must never throw, or a transient DB hiccup takes down
+  // the page — same reasoning as loadThemeSettings above.
+  let sections;
+  try {
+    sections = await listSections("home");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    sections = [];
+  }
 
   return (
     <>
@@ -79,6 +91,7 @@ export default async function HomePage() {
           </p>
         </div>
       </section>
+      <CustomSections sections={sections} />
     </>
   );
 }

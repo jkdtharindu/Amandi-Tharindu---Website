@@ -8,6 +8,8 @@ const LINKS = [
   { href: '/admin/dashboard', label: 'Dashboard' },
   { href: '/admin/guests', label: 'Guests' },
   { href: '/admin/theme', label: 'Theme' },
+  { href: '/admin/sections', label: 'Sections' },
+  { href: '/admin/table-arrangement', label: 'Table Arrangement' },
 ];
 
 export default function AdminNav({ email }: { email: string }) {

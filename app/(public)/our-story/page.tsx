@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
+import { listSections } from "@/src/sections/sectionsRepo.js";
+import CustomSections from "@/components/public/CustomSections";
 
 export async function generateMetadata(): Promise<Metadata> {
   let settings;
@@ -33,7 +35,17 @@ const MILESTONES = [
   },
 ];
 
-export default function OurStoryPage() {
+export default async function OurStoryPage() {
+  // listSections() must never throw, or a transient DB hiccup takes down
+  // the page — same reasoning as loadThemeSettings elsewhere.
+  let sections;
+  try {
+    sections = await listSections("our-story");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    sections = [];
+  }
+
   return (
     <>
       <section className="hero-panel">
@@ -53,6 +65,7 @@ export default function OurStoryPage() {
           </div>
         ))}
       </section>
+      <CustomSections sections={sections} />
     </>
   );
 }
