@@ -133,6 +133,7 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-12 | Sticky Navigation | Navigation bar fixed at top on all pages. Links: Home, Our Story, The Celebration, Gallery, Invitation, Wishes. Elegant font. Mobile hamburger menu. |
 | P1-13 | Mobile Responsiveness | Full functionality on iOS and Android mobile browsers. All pages, forms, admin panel, and RSVP flow work on screens ≥ 320px wide. |
 | P1-14 | Table Planning & Guest Categorization | Each Participant's Age Category (elder/adult/youth/child) is captured at RSVP time. Admin assigns individual Participants — not whole Guest family units — to numbered seating Tables, filterable by Age Category and RelationshipType, so people of a matching generation from different families/colleagues can be seated together. **Proposed 2026-09-03 — not yet built.** Full spec in §14. |
+| P1-15 | Pre-Login Site Gate & Invitation Reveal | Unauthenticated visitors see only a full-screen landing state (couple names, gold divider, invitation-code input — no nav, no content, no countdown). A valid code plays a ~2s envelope-opening animation before revealing the invitation and unlocking the full site (nav, all public pages, countdown, sticky RSVP bar). **Owner-confirmed 2026-08-29 — not yet built; rediscovered and logged 2026-09-05, see MEMORY.md.** Full spec in §15. |
 
 ---
 
@@ -609,6 +610,39 @@ seating_tables (
 - Exact Age Category labels/count (Elder/Adult/Youth/Child vs. a numeric age input?) — decide with the couple.
 - Should Table assignment happen automatically (suggested groupings) or purely manual drag/select? MVP should be manual only.
 - Does this replace or sit alongside the existing `rsvp_responses.participant_names text[]` column? (Proposal above replaces it via migration; the alternative — keep the array and add a parallel `participants` table — is more duplication, so avoid unless a strong reason emerges during design.)
+
+---
+
+## 15. Pre-Login Site Gate & Invitation Reveal (Owner-confirmed 2026-08-29 — Not Yet Built)
+
+> Status: Owner-confirmed during a UI/UX "Grill Me" session on 2026-08-29, documented at the
+> time in `docs/WEDDING_UI_UX_SPEC.md` §4 ("Site States") and §6 ("Envelope Animation"), and
+> in `docs/MEMORY.md`'s 2026-08-29 entry. It was never carried into this PRD or `TASKS.md`
+> when decided, so no session ever picked it up, and the site was built ungated instead —
+> today every public page (Home, Our Story, Celebration, Gallery, Wishes) is visible to any
+> visitor with no code required. Rediscovered 2026-09-05 when the user asked whether this
+> feature existed; logged here and in `TASKS.md` so it has a real backlog entry this time.
+> See `TASKS.md` for the recommended Claude model (not yet confirmed with the user).
+
+### Problem
+Guests currently browse the full public site before ever entering their invitation code. The owner's confirmed UX intent is a single cinematic "reveal": a guest should see nothing of the site until their code is entered, so their first real content is the personalized invitation itself, reached through a deliberate sequence rather than a login form followed by ordinary browsing.
+
+### Requirement
+1. **Pre-login gate (State 1).** For an unauthenticated visitor, every currently-public route (`/`, `/our-story`, `/the-celebration`, `/gallery`, `/wishes`) instead shows one full-screen landing state: no navigation, no footer, no page content, **no countdown**. Just the couple's names (staggered fade-in), a thin gold divider drawing in beneath them, and one input — "Enter your invitation code" (Great Vibes-styled placeholder example, e.g. "SILVA-001"). An invalid code shows an inline error below the field; no page reload.
+2. **Post-login unlock (State 2).** Once a valid guest session exists, the full site unlocks exactly as it behaves today — nav, all public pages (countdown included, per P1-01), sticky RSVP bar, invitation page.
+3. **Invitation reveal animation.** On successful login, before the invitation page renders, play a ~2s envelope-opening sequence: a sealed envelope graphic (ivory body, antique-gold border, burgundy wax seal) fills ~80% of viewport width → flap lifts (~0.8s) → invitation card slides out (~0.6s) → envelope fades → card scales to fill the viewport. Falls back to a styled HTML/CSS card in the same palette if no invitation template image is set.
+
+### Open Questions (resolve before implementation)
+- **Gating vs. shareability:** locking every public page behind a code makes them unindexable and unshareable (no link previews, no browsing before a guest has their card in hand). The site being built and shipped ungated may have been a deliberate later call, not just an oversight — confirm current intent with the user before building, rather than assuming the 2026-08-29 decision still stands as-is.
+- **Code-only vs. name login:** the 2026-08-29 spec's other confirmed decisions (not built either) describe removing name-based login entirely in favor of QR-code-only entry. Today's actual login flow supports both code and name, including ambiguous-name recovery (Phase 2, Slices 2–3, still in active use). Decide whether this gate coexists with name login or requires removing it — a real behavior change for existing guests, not just a visual one.
+- **Mechanism:** gate via a `middleware.ts`/`proxy.ts`-level redirect keyed on the guest session cookie, applied across the existing `app/(public)/` route group, vs. per-page checks — an architecture decision affecting every public route, not purely a UI change.
+
+### Acceptance Criteria (draft — refine before implementation)
+- [ ] An unauthenticated visit to any currently-public route renders only the gate screen described above — no nav, no content, no countdown.
+- [ ] Valid code submission transitions into the envelope-reveal animation, then the invitation page.
+- [ ] Invalid code shows the inline error without a page reload.
+- [ ] Once logged in, all existing public pages and the sticky RSVP bar behave exactly as they do today — no regression from the ungated version.
+- [ ] Both open questions above are resolved with the user (not assumed) before coding begins.
 
 ---
 
