@@ -17,7 +17,8 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Admin auth deviates from the PRD's Supabase Auth call-out (env-credential instead — see MEMORY.md 2026-09-03).
 - Guest invitation code format deviates from the PRD's `[SURNAME]-[NNN]` spec (see MEMORY.md 2026-09-03 and PRD P0-07).
 - Messaging (P1-06/P1-07) has a slim interim slice (single-guest WhatsApp reminder, wa.me link) — the full group-send/template/log spec is still unbuilt.
-- Still missing from PRD scope: theme editor, section manager, event manager, full messaging center, production deploy.
+- Table Planning & Guest Categorization (P1-14) is a newly proposed feature (added 2026-09-03, not in the original PRD scope) — full spec documented in the PRD §14. Not started.
+- Still missing from PRD scope: theme editor, section manager, event manager, full messaging center, table planning/seating management (P1-14, new), production deploy.
 
 ## Implementation Backlog (updated)
 
@@ -55,6 +56,8 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open.
 - [ ] Theme editor
 - [ ] Section manager
+- [ ] Table planning & seating management (P1-14, proposed 2026-09-03) — per-participant Age Category captured at RSVP; new `/admin/tables` page for assigning individual Participants (not whole Guest family units) to seating Tables, filterable by Age Category and RelationshipType. Needs a DB migration (`participants`, `seating_tables` — HITL required). Spec only, not started — see PRD §14.
+  - **Recommended Claude model: Opus.** Reason: spans a schema/migration design decision (replacing `rsvp_responses.participant_names`), a guest-facing form change, and a new multi-filter admin UI — worth a deeper planning pass before implementation. Once scoped into slices, individual slices can be implemented with Sonnet.
 
 ### Phase 5 — Polish & Launch
 - [ ] Mobile responsiveness review
@@ -111,11 +114,12 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 2. Section manager (P1-11): admin-defined custom content blocks on public pages.
 3. Event manager (P1-09): admin CRUD for celebration events (name, date, venue, map link).
 4. Full messaging center (P1-06/P1-07): decide whether to keep the wa.me-based approach and extend it (bulk send, more templates) or move to Twilio (needs HITL — costs money, needs business account + template pre-approval). Add a persisted `MessageLog` either way.
-5. Regenerate the old-format guest codes (Ruwan, Sunil, Kamala, Nimal, Thar) created during testing, or accept them as-is (they still function).
-6. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production.
-7. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure.
-8. Mobile responsiveness review across public + admin surfaces.
-9. Deployment prep: Vercel config, production env vars, HITL-gated deploy.
+5. Table planning & seating management (P1-14, new 2026-09-03): implement per-participant Age Category on RSVP accept, migrate `participant_names` into a structured `participants` table (HITL — schema migration), and build the `/admin/tables` seating-assignment page. **Use Opus for the initial design/planning pass** (see backlog note above); Sonnet is fine for scoped implementation slices afterward. Spec: PRD §14.
+6. Regenerate the old-format guest codes (Ruwan, Sunil, Kamala, Nimal, Thar) created during testing, or accept them as-is (they still function).
+7. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production.
+8. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure.
+9. Mobile responsiveness review across public + admin surfaces.
+10. Deployment prep: Vercel config, production env vars, HITL-gated deploy.
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.

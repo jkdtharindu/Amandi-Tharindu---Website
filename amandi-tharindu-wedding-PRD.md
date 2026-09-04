@@ -132,6 +132,7 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-11 | Admin Section Manager | Admin can add new custom content sections to any page (title, content, display order, visibility toggle). Enables couple to expand the site post-launch without a developer. |
 | P1-12 | Sticky Navigation | Navigation bar fixed at top on all pages. Links: Home, Our Story, The Celebration, Gallery, Invitation, Wishes. Elegant font. Mobile hamburger menu. |
 | P1-13 | Mobile Responsiveness | Full functionality on iOS and Android mobile browsers. All pages, forms, admin panel, and RSVP flow work on screens ≥ 320px wide. |
+| P1-14 | Table Planning & Guest Categorization | Each Participant's Age Category (elder/adult/youth/child) is captured at RSVP time. Admin assigns individual Participants — not whole Guest family units — to numbered seating Tables, filterable by Age Category and RelationshipType, so people of a matching generation from different families/colleagues can be seated together. **Proposed 2026-09-03 — not yet built.** Full spec in §14. |
 
 ---
 
@@ -557,6 +558,57 @@ With love, Amandi & Tharindu 💍🎊
 └── supabase/
     └── migrations/                 # All DB migration SQL files
 ```
+
+---
+
+## 14. Table Planning & Seating Management (Proposed — Added 2026-09-03)
+
+> Status: Not yet built — documentation only, so implementation can start later without re-deriving the requirement. See `TASKS.md` for the backlog entry and recommended Claude model.
+
+### Problem
+A Guest record represents one family unit under a single InvitationCode, but the people who actually attend span generations — grandparents, parents, young adults, and children. Today `rsvp_responses.participant_names` is a flat array of names with no per-person attributes, so the Admin cannot tell who is a child versus an elder, and has no way to seat individual attendees rather than whole family units.
+
+### Requirement
+1. **Guest-side — per-participant categorization at RSVP.** When a Guest accepts and enters participant names (already capped at `slot_count`, per P0-03), each name must now also get an Age Category selected from a small fixed set (e.g., Elder, Adult, Youth, Child), so the headcount-matching participant list captures *who* is coming, not just how many.
+2. **Admin-side — table planning across families.** The Admin needs a seating/table-planning view where individual Participants (not whole Guest family units) can be assigned to a numbered Table. The Admin should be able to filter/sort participants by Age Category and by the Guest's RelationshipType (Relations/Colleagues/Neighbours/Friends), so that, e.g., elders from different families can be grouped at one table and children from different families at another — mirroring how seating is actually planned.
+3. Tables have a capacity; the Admin should see remaining seats per table while assigning.
+
+### Proposed Schema Changes
+```sql
+-- Replaces the flat rsvp_responses.participant_names array with structured rows.
+-- Migration must preserve existing participant_names data (backfill into participants,
+-- default age_category to 'adult' since no historical data distinguishes it) — HITL required.
+participants (
+  id uuid PRIMARY KEY,
+  rsvp_response_id uuid REFERENCES rsvp_responses(id) ON DELETE CASCADE,
+  guest_id uuid REFERENCES guests(id),        -- denormalized for fast table-planning queries
+  name text NOT NULL,
+  age_category text NOT NULL DEFAULT 'adult', -- elder | adult | youth | child
+  table_id uuid REFERENCES seating_tables(id),
+  created_at timestamptz DEFAULT now()
+)
+
+seating_tables (
+  id uuid PRIMARY KEY,
+  label text NOT NULL,                        -- e.g., "Table 1", admin-chosen
+  capacity integer NOT NULL,
+  notes text,
+  display_order integer DEFAULT 0
+)
+```
+
+### Acceptance Criteria (draft — refine before implementation)
+- [ ] RSVP accept form: each participant name field has an adjacent Age Category selector; all names+categories submit together, still capped at `slot_count`.
+- [ ] Existing accepted RSVPs (participant_names array, no category) are backfilled into `participants` with `age_category = 'adult'` and remain editable by the Guest afterwards.
+- [ ] New admin page `/admin/tables`: list of Tables (create/edit/delete, set label/capacity), and an unassigned-participants pool filterable by Age Category and RelationshipType.
+- [ ] Admin can assign/reassign a Participant to a Table; assignment persists immediately; a Table cannot exceed its capacity (UI blocks over-assignment, or warns clearly).
+- [ ] Dashboard/CSV export (P0-08) gains an optional per-participant view (name, age category, table) alongside the existing per-family-unit view.
+- [ ] Works on mobile (Admin may plan tables from a phone at the venue).
+
+### Open Questions (resolve before implementation)
+- Exact Age Category labels/count (Elder/Adult/Youth/Child vs. a numeric age input?) — decide with the couple.
+- Should Table assignment happen automatically (suggested groupings) or purely manual drag/select? MVP should be manual only.
+- Does this replace or sit alongside the existing `rsvp_responses.participant_names text[]` column? (Proposal above replaces it via migration; the alternative — keep the array and add a parallel `participants` table — is more duplication, so avoid unless a strong reason emerges during design.)
 
 ---
 

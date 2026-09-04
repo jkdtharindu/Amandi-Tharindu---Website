@@ -45,6 +45,19 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Definition: A person attending the wedding on behalf of a Guest’s family unit.
 - Do not call it: `guest`, `member`, `attendee` in the context of family RSVP details
 - Example: A Guest with `slot_count = 4` can enter up to four participant names.
+- Note (proposed 2026-09-03, not yet built): each Participant will also carry an `AgeCategory` and an optional `SeatingTable` assignment — see PRD §14 and `TASKS.md`.
+
+### AgeCategory
+- Canonical name: `AgeCategory`
+- Definition: The generational classification (elder, adult, youth, or child) assigned to a Participant, captured at RSVP time and used for seating/table planning.
+- Do not call it: `age group`, `age band`, `demographic`
+- Example: Each Participant gets an AgeCategory when the Guest submits their RSVP. **Proposed 2026-09-03 — not yet built.**
+
+### SeatingTable
+- Canonical name: `SeatingTable`
+- Definition: A numbered/labeled table at the reception venue with a fixed capacity, to which the Admin assigns individual Participants (across different Guest family units) rather than whole Guests.
+- Do not call it: `table` (ambiguous with a database table), `seat group`
+- Example: The Admin assigns Participants to a SeatingTable on the `/admin/tables` page, filtering by AgeCategory and RelationshipType. **Proposed 2026-09-03 — not yet built.**
 
 ### SlotCount
 - Canonical name: `SlotCount`
