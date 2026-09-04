@@ -2,7 +2,7 @@
 
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
-⚠️ **BRANCH DIVERGENCE ALERT (2026-09-04):** `feature/ui-wrapping` (last commit 2026-08-30) contains a complete Theme Editor, Section Manager, and Table Arrangement features + 8 database migrations. It was never merged into this branch, yet migrations 004–008 were applied to the live database. See BRANCH_STRATEGY.md and MEMORY.md. **Decision needed:** Merge or archive `feature/ui-wrapping`. For now, the P1-10 Theme Editor and P1-14 Table Planning work are partially built on the unmerged branch; do not start new implementation on these features until the branch situation is resolved.
+✅ **BRANCH DIVERGENCE RESOLVED (2026-09-04):** Merged `feature/ui-wrapping` into this branch (commit 4a9f07a). Brings Theme Editor (P1-10), Section Manager (P1-11), Table Arrangement (P1-14), Supabase Storage adapter, and migrations 004–008. Database already has these applied; re-running them is idempotent. See BRANCH_STRATEGY.md for SOP to prevent this in future.
 
 ## Project Status
 - Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added.
@@ -56,10 +56,9 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Guest management (P0-07) — add/edit/soft-delete, auto code generation (`[CATEGORY]-[FIRSTNAME]-[random]`, configurable categories via `GUEST_CATEGORIES`), filter by status and group, search by name or code
 - [x] RSVP dashboard (P0-08) — invited/accepted/declined/pending counts, individual headcount, breakdown chart, CSV export
 - [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open.
-- [ ] Theme editor
-- [ ] Section manager
-- [ ] Table planning & seating management (P1-14, proposed 2026-09-03) — per-participant Age Category captured at RSVP; new `/admin/tables` page for assigning individual Participants (not whole Guest family units) to seating Tables, filterable by Age Category and RelationshipType. Needs a DB migration (`participants`, `seating_tables` — HITL required). Spec only, not started — see PRD §14.
-  - **Recommended Claude model: Opus.** Reason: spans a schema/migration design decision (replacing `rsvp_responses.participant_names`), a guest-facing form change, and a new multi-filter admin UI — worth a deeper planning pass before implementation. Once scoped into slices, individual slices can be implemented with Sonnet.
+- [✔] Theme editor (P1-10, merged from feature/ui-wrapping 2026-09-04) — admin-editable colors, fonts, couple/venue info with site-wide live updates via CSS custom properties.
+- [✔] Section manager (P1-11, merged from feature/ui-wrapping 2026-09-04) — admin CRUD for custom content sections on public pages.
+- [✔] Table planning & seating management (P1-14, merged from feature/ui-wrapping 2026-09-04) — per-participant Age Category capture at RSVP, `/admin/tables` page for admin to assign individual Participants to seating Tables, filterable by Age Category and RelationshipType. Schema: `participants`, `seating_tables` tables (migrations 007–008). Tested on feature/ui-wrapping.
 
 ### Phase 5 — Polish & Launch
 - [ ] Mobile responsiveness review
