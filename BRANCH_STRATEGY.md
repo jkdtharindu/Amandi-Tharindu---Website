@@ -9,7 +9,7 @@ This project has a history of branch divergence (e.g., `feature/ui-wrapping` bui
 ## Primary Branch Rules
 
 ### Active Development Branch
-- **Current:** `feature/nextjs-supabase-migration`
+- **Current:** `main`, directly, until the next feature branch is opened. `feature/nextjs-supabase-migration` (the previous primary) merged into `main` via PR #4 on 2026-09-04 (commit 3560128) and was deleted, both locally and on origin.
 - Only one primary feature branch at a time.
 - All in-progress work targets this branch (or a short-lived feature branch off it).
 - Code + database must stay in sync: no migration is applied to the live database unless its migration file exists **committed** on this branch.
@@ -76,15 +76,13 @@ When multiple Claude sessions are working on the same repo:
 - Multiple branches have recent commits that touch the same files (indicates parallel work that should have been merged earlier).
 - Database has a column/table that doesn't match any migration file in `migrations/`.
 
-## Current State (as of 2026-09-04)
+## Current State (as of 2026-09-04, end of day)
 
-**Issue identified:** `feature/ui-wrapping` (last commit 2026-08-30) contains:
-- Migrations 003–008 (8 total, vs. 2 on primary branch)
-- Complete Theme Editor, Section Manager, Table Arrangement features
-- Supabase Storage adapter
-- **Status:** Unmerged, partially applied to live database (migrations 004–008 were run, code was not merged in)
+**Resolved — `feature/ui-wrapping` divergence:** merged into `feature/nextjs-supabase-migration` earlier today (commit 4a9f07a), bringing in migrations 003–008, Theme Editor, Section Manager, Table Arrangement, and the Supabase Storage adapter. No longer a known drift issue.
 
-**Decision required:** Merge or archive this branch. Until then, TASKS.md and future sessions should treat it as a known drift issue.
+**Resolved — a second, independent divergence found the same day:** while opening PR #4 (`feature/nextjs-supabase-migration` → `main`), GitHub reported a merge conflict — `main` had, in parallel and without visibility into this branch, built its own competing Theme Editor (different files, different `theme_settings` schema, both migrations numbered `003`). Resolved by keeping this branch's schema (already live) and porting `main`'s working UI onto it. Full writeup: MEMORY.md 2026-09-04 ("Past mistakes"). PR #4 merged to `main` (commit 3560128); `feature/nextjs-supabase-migration` deleted after.
+
+**No known open drift as of this entry.** `main` is the sole active line of development until a new feature branch is opened.
 
 ## References
 - TASKS.md — tracks feature slices and completion status
