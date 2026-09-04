@@ -29,9 +29,15 @@ function getCsrfToken(port) {
   });
 }
 
-async function requestJSON(options, body) {
+/**
+ * `extraCookie` lets callers ride along an existing session cookie (e.g.
+ * `guest_session=...` captured from a prior login response) alongside the
+ * freshly-fetched CSRF cookie.
+ */
+async function requestJSON(options, body, extraCookie) {
   const token = await getCsrfToken(options.port);
   const data = JSON.stringify(body);
+  const cookie = extraCookie ? `csrf_token=${token}; ${extraCookie}` : `csrf_token=${token}`;
 
   return new Promise((resolve, reject) => {
     const req = http.request(
@@ -41,7 +47,7 @@ async function requestJSON(options, body) {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(data),
           "x-csrf-token": token,
-          Cookie: `csrf_token=${token}`,
+          Cookie: cookie,
         },
       },
       (res) => {
@@ -64,86 +70,97 @@ async function requestJSON(options, body) {
   });
 }
 
-test('POST /api/guest/login accepts code and returns a session', async () => {
+/**
+ * Spins up a fresh app on an ephemeral port for the duration of `fn`, always
+ * closing the server afterwards — including when `fn` throws. Without the
+ * try/finally, a failed assertion mid-test leaves the server listening,
+ * which keeps node's event loop alive and hangs the entire `node --test`
+ * run (every file under tests/), not just this one.
+ */
+async function withApp(fn) {
   const app = createApp();
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
+  try {
+    return await fn(server.address().port);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+}
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { code: 'SILVA-001' });
+test('POST /api/guest/login accepts code and returns a session', async () => {
+  await withApp(async (port) => {
+    const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { code: 'SILVA-001' });
 
-  assert.equal(result.statusCode, 200);
-  assert.equal(result.body.success, true);
-  assert.equal(result.body.guestId, 'guest-1');
-  assert.ok(result.headers['set-cookie']?.length > 0, 'should set session cookie');
-
-  await new Promise((resolve) => server.close(resolve));
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.success, true);
+    assert.equal(result.body.guestId, 'guest-1');
+    assert.ok(result.headers['set-cookie']?.length > 0, 'should set session cookie');
+  });
 });
 
 test('POST /api/guest/login accepts exact name and returns a session', async () => {
-  const app = createApp();
-  const server = http.createServer(app);
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
+  await withApp(async (port) => {
+    const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Nimal Silva' });
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Nimal Silva' });
-
-  assert.equal(result.statusCode, 200);
-  assert.equal(result.body.success, true);
-  assert.equal(result.body.type, 'exact');
-  assert.ok(result.body.guestId);
-
-  await new Promise((resolve) => server.close(resolve));
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.success, true);
+    assert.equal(result.body.type, 'exact');
+    assert.ok(result.body.guestId);
+  });
 });
 
 test('POST /api/guest/login returns candidates for ambiguous name', async () => {
-  const app = createApp();
-  const server = http.createServer(app);
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
+  await withApp(async (port) => {
+    const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Silva' });
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Silva' });
-
-  assert.equal(result.statusCode, 200);
-  assert.equal(result.body.success, false);
-  assert.equal(result.body.type, 'candidates');
-  assert.ok(Array.isArray(result.body.candidates));
-  assert.ok(result.body.candidates.length >= 1);
-
-  await new Promise((resolve) => server.close(resolve));
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.success, false);
+    assert.equal(result.body.type, 'candidates');
+    assert.ok(Array.isArray(result.body.candidates));
+    assert.ok(result.body.candidates.length >= 1);
+  });
 });
 
 test('POST /api/guest/login returns 400 when missing code and name', async () => {
-  const app = createApp();
-  const server = http.createServer(app);
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
+  await withApp(async (port) => {
+    const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, {});
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, {});
-
-  assert.equal(result.statusCode, 400);
-  assert.equal(result.body.success, false);
-  assert.equal(result.body.reason, 'missing_identifier');
-
-  await new Promise((resolve) => server.close(resolve));
+    assert.equal(result.statusCode, 400);
+    assert.equal(result.body.success, false);
+    assert.equal(result.body.reason, 'missing_identifier');
+  });
 });
 
 test('POST /api/guest/rsvp accepts a response and returns success', async () => {
-  const app = createApp();
-  const server = http.createServer(app);
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
+  await withApp(async (port) => {
+    // The RSVP route requires an authenticated guest session (see
+    // tests/guest-session.test.mjs) — log in first to obtain the
+    // `guest_session` cookie and carry it on the RSVP request.
+    const loginResult = await requestJSON(
+      { hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' },
+      { code: 'SILVA-001' }
+    );
+    assert.equal(loginResult.statusCode, 200, 'login should succeed before attempting the RSVP');
 
-  const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/rsvp', method: 'POST' }, {
-    code: 'SILVA-001',
-    attending: true,
-    participantNames: ['Nimal Silva', 'Anu Silva'],
+    const setCookie = loginResult.headers['set-cookie'] || [];
+    const sessionCookie = setCookie.find((c) => c.startsWith('guest_session='));
+    assert.ok(sessionCookie, 'login response should set a guest_session cookie');
+    const sessionCookiePair = sessionCookie.split(';')[0];
+
+    const result = await requestJSON(
+      { hostname: '127.0.0.1', port, path: '/api/guest/rsvp', method: 'POST' },
+      {
+        code: 'SILVA-001',
+        attending: true,
+        participantNames: ['Nimal Silva', 'Anu Silva'],
+      },
+      sessionCookiePair
+    );
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.success, true);
+    assert.equal(result.body.rsvp.attending, true);
+    assert.deepEqual(result.body.rsvp.participantNames, ['Nimal Silva', 'Anu Silva']);
   });
-
-  assert.equal(result.statusCode, 200);
-  assert.equal(result.body.success, true);
-  assert.equal(result.body.rsvp.attending, true);
-  assert.deepEqual(result.body.rsvp.participantNames, ['Nimal Silva', 'Anu Silva']);
-
-  await new Promise((resolve) => server.close(resolve));
 });
