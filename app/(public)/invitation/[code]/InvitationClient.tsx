@@ -7,6 +7,7 @@ interface InvitationClientProps {
   slotCount: number;
   hasResponded: boolean;
   currentRsvpStatus: string;
+  coupleNames?: string;
 }
 
 export default function InvitationClient({
@@ -14,6 +15,7 @@ export default function InvitationClient({
   slotCount,
   hasResponded,
   currentRsvpStatus,
+  coupleNames = "Amandi & Tharindu",
 }: InvitationClientProps) {
   const [showForm, setShowForm] = useState(false);
   const [attending, setAttending] = useState(currentRsvpStatus !== 'declined');
@@ -82,7 +84,7 @@ export default function InvitationClient({
         <div className="fixed bottom-0 left-0 right-0 bg-amber-50 border-t border-amber-200 px-4 py-4 shadow-lg">
           <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <span className="text-gray-800 font-semibold">
-              Amandi & Tharindu are waiting for your response 💍 — Will you join us?
+              {coupleNames} are waiting for your response 💍 — Will you join us?
             </span>
             <div className="flex gap-3">
               <button

@@ -1,22 +1,41 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Countdown from "@/components/public/Countdown";
+import { getThemeSettings } from "@/src/theme/themeRepo.js";
+import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
+import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 
-export const metadata: Metadata = {
-  title: "Amandi & Tharindu — Home",
-};
+// getThemeSettings() hits the DB on every request; this must never throw, or
+// a transient DB hiccup takes down every page on the site.
+async function loadThemeSettings() {
+  try {
+    return await getThemeSettings();
+  } catch (error) {
+    console.error("getThemeSettings failed, falling back to defaults:", error);
+    return { ...defaultThemeSettings };
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await loadThemeSettings();
+  return { title: `${settings.coupleNames} — Home` };
+}
 
 /** Ports the prototype's `GET /home` route from src/server.js. */
-export default function HomePage() {
+export default async function HomePage() {
+  const settings = await loadThemeSettings();
+
   return (
     <>
       <section className="hero-panel">
-        <span className="hero-flag">Save the date — 14 December 2026</span>
+        <span className="hero-flag">
+          Save the date — {formatWeddingDate(settings.weddingDate)}
+        </span>
         <h1>
           Join us for a celebration of love, family, and new beginnings.
         </h1>
         <p>
-          Welcome to the wedding website for Amandi &amp; Tharindu. Discover our
+          Welcome to the wedding website for {settings.coupleNames}. Discover our
           story, event details, gallery, wishes, and access your personalized
           invitation.
         </p>
@@ -28,7 +47,7 @@ export default function HomePage() {
             Our Story
           </Link>
         </div>
-        <Countdown />
+        <Countdown targetDate={`${settings.weddingDate}T15:00:00`} />
       </section>
       <section className="section-grid">
         <div className="feature-card">

@@ -3,13 +3,27 @@ import type { CSSProperties, ReactNode } from "react";
 import "./globals.css";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { buildFontFaceCss } from "@/src/theme/fontFaces.js";
+import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 
-export const metadata: Metadata = {
-  title: "Amandi & Tharindu",
-  description:
-    "Wedding website for Amandi Wijesundara and Tharindu Jayanetti — Monday, 14 December 2026.",
-};
+// getThemeSettings() hits the DB on every request; this must never throw, or
+// a transient DB hiccup takes down every page on the site.
+async function loadThemeSettings() {
+  try {
+    return await getThemeSettings();
+  } catch (error) {
+    console.error("getThemeSettings failed, falling back to defaults:", error);
+    return { ...defaultThemeSettings };
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await loadThemeSettings();
+  return {
+    title: settings.coupleNames,
+    description: `Wedding website for ${settings.coupleNames} — ${formatWeddingDate(settings.weddingDate)}.`,
+  };
+}
 
 const DEFAULT_FONT_SANS =
   'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -37,15 +51,7 @@ function fontFamilyFor(fontFamily: string): string {
  * instead of the guest-facing one.
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  // getThemeSettings() hits the DB on every request; this must never throw,
-  // or a transient DB hiccup takes down every page on the site.
-  let settings;
-  try {
-    settings = await getThemeSettings();
-  } catch (error) {
-    console.error("getThemeSettings failed, falling back to defaults:", error);
-    settings = { ...defaultThemeSettings };
-  }
+  const settings = await loadThemeSettings();
 
   const themeStyle: CSSProperties & Record<string, string> = {
     "--color-brand": settings.primaryColor,

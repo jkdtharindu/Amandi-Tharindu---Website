@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
 import { findGuestByCode, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
 import { verifySession } from '@/src/session.js';
+import { getThemeSettings } from '@/src/theme/themeRepo.js';
+import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
 import InvitationClient from './InvitationClient';
 
 export default async function InvitationPage({
@@ -42,6 +44,16 @@ export default async function InvitationPage({
   const rsvp = loggedIn ? await findRsvpResponseByGuestId(guest.id) : null;
   const hasResponded = Boolean(rsvp);
   const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
+
+  // getThemeSettings() hits the DB on every request; this must never throw,
+  // or a transient DB hiccup takes down every page on the site.
+  let settings;
+  try {
+    settings = await getThemeSettings();
+  } catch (error) {
+    console.error('getThemeSettings failed, falling back to defaults:', error);
+    settings = { ...defaultThemeSettings };
+  }
 
   return (
     <div>
@@ -134,6 +146,7 @@ export default async function InvitationPage({
             slotCount={guest.slotCount}
             hasResponded={hasResponded}
             currentRsvpStatus={rsvpStatus}
+            coupleNames={settings.coupleNames}
           />
         </div>
       </main>

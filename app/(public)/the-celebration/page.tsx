@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
+import { getThemeSettings } from "@/src/theme/themeRepo.js";
+import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 
-export const metadata: Metadata = {
-  title: "The Celebration — Amandi & Tharindu",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  let settings;
+  try {
+    settings = await getThemeSettings();
+  } catch (error) {
+    console.error("getThemeSettings failed, falling back to defaults:", error);
+    settings = { ...defaultThemeSettings };
+  }
+  return { title: `The Celebration — ${settings.coupleNames}` };
+}
 
 /**
  * Ports the prototype's `GET /celebration` route from src/server.js.
