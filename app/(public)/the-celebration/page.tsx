@@ -3,6 +3,9 @@ import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 import { listSections } from "@/src/sections/sectionsRepo.js";
 import CustomSections from "@/components/public/CustomSections";
+import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
+import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
+import type { CelebrationEvent } from "@/components/admin/EventManager";
 
 export async function generateMetadata(): Promise<Metadata> {
   let settings;
@@ -15,37 +18,25 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `The Celebration — ${settings.coupleNames}` };
 }
 
-/**
- * Ports the prototype's `GET /celebration` route from src/server.js.
- * Events are static here, matching the prototype. Making them admin-managed
- * via the `events` table is deferred (PRD P1-03 / P1-09).
- */
-const CELEBRATION_EVENTS = [
-  {
-    name: "Ceremony",
-    date: "Monday, 14 December 2026",
-    time: "3:00 PM",
-    venue: "Sunrise Garden Hall",
-  },
-  {
-    name: "Reception",
-    date: "Monday, 14 December 2026",
-    time: "6:00 PM",
-    venue: "Moonlight Banquet Hall",
-  },
-];
-
 export default async function CelebrationPage() {
-  // listSections() must never throw, or a transient DB hiccup takes down
-  // the page — same reasoning as loadThemeSettings elsewhere. Section page
-  // key is "celebration" (VALID_PAGES), matching this route's legacy path
-  // (/celebration), not the Next.js folder name (the-celebration).
+  // listSections()/listEvents() must never throw, or a transient DB hiccup
+  // takes down the page — same reasoning as loadThemeSettings elsewhere.
+  // Section page key is "celebration" (VALID_PAGES), matching this route's
+  // legacy path (/celebration), not the Next.js folder name (the-celebration).
   let sections;
   try {
     sections = await listSections("celebration");
   } catch (error) {
     console.error("listSections failed, falling back to none:", error);
     sections = [];
+  }
+
+  let events: CelebrationEvent[];
+  try {
+    events = await listEvents();
+  } catch (error) {
+    console.error("listEvents failed, falling back to none:", error);
+    events = [];
   }
 
   return (
@@ -59,21 +50,21 @@ export default async function CelebrationPage() {
         </p>
       </section>
       <section className="section-grid">
-        {CELEBRATION_EVENTS.map((event) => (
-          <div className="event-card" key={event.name}>
+        {events.map((event) => (
+          <div className="event-card" key={event.id}>
             <h2>{event.name}</h2>
             <p>
-              <strong>Date:</strong> {event.date}
+              <strong>Date:</strong> {formatWeddingDate(event.eventDate)}
             </p>
             <p>
-              <strong>Time:</strong> {event.time}
+              <strong>Time:</strong> {event.eventTime}
             </p>
             <p>
-              <strong>Venue:</strong> {event.venue}
+              <strong>Venue:</strong> {event.venueName}
             </p>
             <p>
               <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(event.venue)}`}
+                href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
                 target="_blank"
                 rel="noreferrer"
               >

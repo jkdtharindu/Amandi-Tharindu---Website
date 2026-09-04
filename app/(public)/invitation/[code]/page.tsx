@@ -3,6 +3,9 @@ import { findGuestByCode, findRsvpResponseByGuestId } from '@/src/guest-auth/gue
 import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
+import { listEvents } from '@/src/celebration-events/celebrationEventsRepo.js';
+import { formatWeddingDate } from '@/src/theme/formatWeddingDate.js';
+import type { CelebrationEvent } from '@/components/admin/EventManager';
 import InvitationClient from './InvitationClient';
 
 export default async function InvitationPage({
@@ -53,6 +56,16 @@ export default async function InvitationPage({
   } catch (error) {
     console.error('getThemeSettings failed, falling back to defaults:', error);
     settings = { ...defaultThemeSettings };
+  }
+
+  // listEvents() must never throw, or a transient DB hiccup takes down the
+  // page — same reasoning as getThemeSettings above.
+  let events: CelebrationEvent[];
+  try {
+    events = await listEvents();
+  } catch (error) {
+    console.error('listEvents failed, falling back to none:', error);
+    events = [];
   }
 
   return (
@@ -109,34 +122,22 @@ export default async function InvitationPage({
           <div className="bg-white rounded-3xl shadow-lg p-8">
             <h2 className="text-2xl font-bold mb-6 text-gray-900">Event Details</h2>
             <div className="grid md:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ceremony</h3>
-                <p className="text-gray-700 mb-1"><strong>Date:</strong> Monday, 14 December 2026</p>
-                <p className="text-gray-700 mb-1"><strong>Time:</strong> 3:00 PM</p>
-                <p className="text-gray-700 mb-3"><strong>Venue:</strong> Sunrise Garden Hall</p>
-                <a
-                  href="https://maps.google.com/?q=Sunrise Garden Hall"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline font-semibold"
-                >
-                  View on Google Maps →
-                </a>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Reception</h3>
-                <p className="text-gray-700 mb-1"><strong>Date:</strong> Monday, 14 December 2026</p>
-                <p className="text-gray-700 mb-1"><strong>Time:</strong> 6:00 PM</p>
-                <p className="text-gray-700 mb-3"><strong>Venue:</strong> Moonlight Banquet Hall</p>
-                <a
-                  href="https://maps.google.com/?q=Moonlight Banquet Hall"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline font-semibold"
-                >
-                  View on Google Maps →
-                </a>
-              </div>
+              {events.map((event) => (
+                <div key={event.id}>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.name}</h3>
+                  <p className="text-gray-700 mb-1"><strong>Date:</strong> {formatWeddingDate(event.eventDate)}</p>
+                  <p className="text-gray-700 mb-1"><strong>Time:</strong> {event.eventTime}</p>
+                  <p className="text-gray-700 mb-3"><strong>Venue:</strong> {event.venueName}</p>
+                  <a
+                    href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline font-semibold"
+                  >
+                    View on Google Maps →
+                  </a>
+                </div>
+              ))}
             </div>
           </div>
 
