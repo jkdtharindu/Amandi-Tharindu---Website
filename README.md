@@ -52,9 +52,10 @@ psql <CONN_STRING> -f migrations/001_create_guests.sql
 psql <CONN_STRING> -f migrations/002_create_rsvp_responses.sql
 psql <CONN_STRING> -f migrations/003_create_admin_theme_sections.sql
 psql <CONN_STRING> -f migrations/004_add_theme_palette_font_choice.sql
+# ...continue in order through 009_create_celebration_events.sql
 ```
 
-Or apply every pending migration in order with `npm run migrate` (see `scripts/run-migrations.js`).
+Or apply every pending migration in order with `npm run migrate` (see `scripts/run-migrations.js`) — this is the recommended way; it tracks what's already applied in a `schema_migrations` table, so re-running it is a no-op once everything's current.
 
 Or use the Supabase CLI:
 
@@ -63,6 +64,7 @@ supabase db push --file migrations/001_create_guests.sql
 supabase db push --file migrations/002_create_rsvp_responses.sql
 supabase db push --file migrations/003_create_admin_theme_sections.sql
 supabase db push --file migrations/004_add_theme_palette_font_choice.sql
+# ...continue in order through 009_create_celebration_events.sql
 ```
 
 Or use the project HITL preflight command for local migrations:
@@ -88,7 +90,7 @@ Per `HITL.md`, DO NOT run production migrations, deploys, or messaging commands 
 
 Next steps for developers
 - Replace in-memory demo data with Supabase-backed storage (works today when `DATABASE_URL` is set; in-memory is the local fallback)
-- Theme editor, section manager, and event manager (P1) — not yet built
+- Theme editor, section manager, table planning, and event manager (P1) are built — see `/admin/theme`, `/admin/sections`, `/admin/table-arrangement`, `/admin/events`
 - Full messaging center (P1-06/P1-07) — only a single-guest WhatsApp reminder exists today (wa.me deep link, no Twilio, no message log)
 
 Contact

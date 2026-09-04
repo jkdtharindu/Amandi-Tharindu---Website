@@ -28,9 +28,9 @@ Frontend (Next.js app) <-- HTTPS --> API route handlers (Next.js) <-- Supabase c
 Prototype note: current `src/server.js` runs an Express demo server used by `src/smoke.js` to exercise login flows.
 
 **Folder structure (top-level) and purpose**
-- **`app/`**: Next.js App Router sources — built, not planned. `app/(public)/` is the wedding-facing route group (home, story, celebration, gallery, wishes, login, invitation); `app/admin/` is the admin panel (login, dashboard, guests), protected by `lib/adminGuard.ts`; `app/api/` holds route handlers for both guest and admin flows.
-- **`components/admin/`**: admin-only UI (`AdminNav.tsx`, `GuestManager.tsx`, `RsvpChart.tsx`, `WhatsAppReminderModal.tsx`).
-- **`components/public/`**: wedding-facing UI (`SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, etc.).
+- **`app/`**: Next.js App Router sources — built, not planned. `app/(public)/` is the wedding-facing route group (home, story, celebration, gallery, wishes, login, invitation); `app/admin/` is the admin panel (login, dashboard, guests, theme, events, sections, table-arrangement), protected by `lib/adminGuard.ts`; `app/api/` holds route handlers for both guest and admin flows.
+- **`components/admin/`**: admin-only UI (`AdminNav.tsx`, `GuestManager.tsx`, `RsvpChart.tsx`, `WhatsAppReminderModal.tsx`, `ThemeEditor.tsx`, `EventManager.tsx`, `SectionManager.tsx`, `TableArrangement.tsx`).
+- **`components/public/`**: wedding-facing UI (`SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, `CustomSections.tsx`, etc.).
 - **`lib/`**: cross-cutting server helpers, e.g. `adminGuard.ts` (session check + redirect for `/admin/*` pages and 401 for `/api/admin/*`).
 - **`src/admin/`**: admin business logic, framework-agnostic JS (unit-tested without Next.js): `adminAuth.js`, `adminSession.js`, `adminRepo.js` (DB/in-memory data access), `generateGuestCode.js`, `guestValidation.js`, `guestQueries.js`, `categories.js` (configurable relationship groups), `messageTemplates.js` (WhatsApp reminder template + wa.me link builder).
 - **`src/`** (remainder): legacy Express prototype, kept side-by-side for `npm run smoke` / `npm run start:legacy`. Key files:
@@ -38,6 +38,7 @@ Prototype note: current `src/server.js` runs an Express demo server used by `src
   - **`src/smoke.js`**: smoke test that exercises login + invitation flow against the legacy server
   - **`src/guest-auth/`**: guest-session authentication helpers (`loginGuestByCode.js`, `loginGuestByName.js`) — shared by both the legacy server and the Next.js API routes
   - **`src/data/guestStore.js`**: in-memory guest fixture (used when `DATABASE_URL` is unset)
+- **`src/theme/`**, **`src/sections/`**, **`src/table-arrangement/`**, **`src/celebration-events/`**: framework-agnostic domain logic for the theme editor, section manager, table planning, and event manager (P1-09/P1-10/P1-11/P1-14) — each has a `*Repo.js` (DB-or-in-memory dual mode, same pattern as `src/admin/adminRepo.js`) and its own validation module, unit-tested independently of Next.js. `src/celebration-events/` is the newest of the four (2026-09-04).
 - **`migrations/`**: SQL migration files matching PRD schema (apply with a migration runner before using a real DB)
 - **`tests/`**: unit and integration tests (TDD slices) — run as `tests/**/*.test.mjs`, not a fixed file list
 - **`package.json`**: scripts for the Next.js app (primary) and the legacy prototype (`:legacy` suffix)
