@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 
 const serverCommand = 'node';
-const serverArgs = ['src/server.js'];
+const serverArgs = ['src/main.js'];
 const appUrl = 'http://localhost:3000/home';
 let browserOpened = false;
 
