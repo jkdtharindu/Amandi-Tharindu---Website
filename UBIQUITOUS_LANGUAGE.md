@@ -53,12 +53,6 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `age group`, `age band`, `demographic`
 - Example: Each Participant gets an AgeCategory when the Guest submits their RSVP. **Proposed 2026-09-03 — not yet built.**
 
-### SeatingTable
-- Canonical name: `SeatingTable`
-- Definition: A numbered/labeled table at the reception venue with a fixed capacity, to which the Admin assigns individual Participants (across different Guest family units) rather than whole Guests.
-- Do not call it: `table` (ambiguous with a database table), `seat group`
-- Example: The Admin assigns Participants to a SeatingTable on the `/admin/tables` page, filtering by AgeCategory and RelationshipType. **Proposed 2026-09-03 — not yet built.**
-
 ### SlotCount
 - Canonical name: `SlotCount`
 - Definition: The maximum number of participants a Guest is allowed to include in their RSVP.
@@ -147,10 +141,10 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 
 ### SeatingTable
 - Canonical name: `SeatingTable`
-- Definition: A physical table at the reception, with a name/number and a seat capacity, to which Participants are assigned.
-- Do not call it: `table` (ambiguous with database tables), `desk`, `group`
-- Example: A SeatingTable named "Table 4" seats eight Participants.
-- Note: Planned for P2-06. Never use the bare word `table` in code for this concept — it collides with database terminology.
+- Definition: A physical table at the reception, with a name/number and a seat capacity, to which the Admin assigns Guests.
+- Do not call it: `table` (ambiguous with database tables), `desk`, `group`, `seat group`
+- Example: A SeatingTable named "Table 4" seats eight Guests, assigned by the Admin on `/admin/table-arrangement`.
+- Note: Built 2026-09-04 (`seating_tables`/`table_seats`, migrations 007–008). Scoped down from the per-Participant, AgeCategory/RelationshipType-filtered vision proposed 2026-09-03 (see `Participant`'s note above and PRD §14) — the built version assigns whole Guests to seats, not individual Participants, and the admin UI has no AgeCategory or RelationshipType filter. Revisit if per-participant seating is still wanted; until then, `SeatAssignment` below still describes the unbuilt finer-grained version.
 
 ### SeatAssignment
 - Canonical name: `SeatAssignment`
