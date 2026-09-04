@@ -50,15 +50,19 @@ To apply locally using psql:
 ```bash
 psql <CONN_STRING> -f migrations/001_create_guests.sql
 psql <CONN_STRING> -f migrations/002_create_rsvp_responses.sql
-psql <CONN_STRING> -f migrations/003_create_theme_settings.sql
+psql <CONN_STRING> -f migrations/003_create_admin_theme_sections.sql
+psql <CONN_STRING> -f migrations/004_add_theme_palette_font_choice.sql
 ```
+
+Or apply every pending migration in order with `npm run migrate` (see `scripts/run-migrations.js`).
 
 Or use the Supabase CLI:
 
 ```bash
 supabase db push --file migrations/001_create_guests.sql
 supabase db push --file migrations/002_create_rsvp_responses.sql
-supabase db push --file migrations/003_create_theme_settings.sql
+supabase db push --file migrations/003_create_admin_theme_sections.sql
+supabase db push --file migrations/004_add_theme_palette_font_choice.sql
 ```
 
 Or use the project HITL preflight command for local migrations:

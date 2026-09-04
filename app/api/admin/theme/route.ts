@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getThemeSettings, updateThemeSettings } from '@/src/admin/themeRepo.js';
-import { validateThemeInput } from '@/src/admin/themeValidation.js';
+import { getThemeSettings, updateThemeSettings } from '@/src/theme/themeRepo.js';
+import { validateThemeInput } from '@/src/theme/basicThemeValidation.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
-/** Current global theme settings (P1-10). */
+/** Current global theme settings (P1-10). Colors + font only — the simple admin form's slice of the fuller theme_settings schema (see src/theme/themeRepo.js). */
 export async function GET(): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
 
@@ -12,7 +12,7 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json({ success: true, settings });
 }
 
-/** Updates the single theme_settings row (P1-10). */
+/** Updates the colors + font fields of the single theme_settings row (P1-10). */
 export async function PUT(request: NextRequest): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
 
@@ -48,8 +48,25 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const settings = await updateThemeSettings(value);
-    return NextResponse.json({ success: true, settings });
+    const result = await updateThemeSettings(value);
+    if (!result.success) {
+      const errors = Object.fromEntries(
+        (result.errors ?? []).map((err: { field: string; reason: string }) => [
+          err.field,
+          err.reason,
+        ])
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          reason: 'validation_failed',
+          message: 'Please correct the highlighted fields.',
+          errors,
+        },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json({ success: true, settings: result.settings });
   } catch (error) {
     console.error('updateThemeSettings failed:', error);
     return NextResponse.json(

@@ -28,21 +28,28 @@ Alternative considered: free-text `font_family` matching the PRD's literal `text
 Reason: 
 Alternative considered: 
 
+[2026-09-04] Mistake: `main` and `feature/nextjs-supabase-migration` each independently built a full Theme Editor (P1-10) — different files, different `theme_settings` schemas, and both numbered their migration `003` — with neither branch aware of the other's work. Discovered only when PR #4 hit a merge conflict.
+Reason: same root cause as the feature/ui-wrapping divergence above — no branch coordination, so two sessions built the same PRD item from scratch in parallel.
+Correction: kept this branch's schema/migrations (003 + 004) as canonical — it was already applied to the live database — and ported `main`'s working `/admin/theme` page, `ThemeEditor` component, and API route onto it. Dropped `main`'s competing `migrations/003_create_theme_settings.sql`, `src/admin/themeRepo.js`, and `src/admin/themeValidation.js`; added `src/theme/basicThemeValidation.js` (curated color/font validation for the simple form) and rewired `app/layout.tsx` to read theme settings from `src/theme/themeRepo.js` and render fonts via the self-hosted `src/theme/fontFaces.js` (`buildFontFaceCss()`) instead of `next/font/google`, since the self-hosted `public/fonts/` pipeline already existed on this branch unused. The curated font list changed from `Default/Cormorant Garamond/Playfair Display/EB Garamond` to `Default/Cormorant Garamond/Playfair Display/Cinzel` to match what's actually self-hosted.
+
 
 4) Deprecated patterns (old approaches we've moved away from)
+
+[2026-09-04] Pattern: Allowing unmerged feature branches to drift in parallel (feature/ui-wrapping diverged from feature/nextjs-supabase-migration 5+ days ago, was never merged, yet its database migrations were applied to the live database without code integration).
+Reason: Lack of branch strategy and merge discipline; multiple sessions working without clear coordination on which branch is "primary."
+What we do now: See BRANCH_STRATEGY.md — enforces 2-week merge-or-archive lifetime, requires schema/code sync, flags cross-session drift immediately.
 
 [YYYY-MM-DD] Decision: 
 Reason: 
 Alternative considered: 
 
-[2026-09-03] Decision: The Theme Editor (P1-10) slice's `theme_settings` table holds only `primary_color`, `secondary_color`, `accent_color`, `font_family`, `font_style` — not the full PRD schema (`hero_image_url`, `invitation_template_url`, `couple_names`, `wedding_date`, `venue_name`, `venue_address`, `patterns`, `custom_css`).
+[2026-09-03] Decision (main, superseded 2026-09-04 — see section 3 below): The Theme Editor (P1-10) slice's `theme_settings` table on `main` held only `primary_color`, `secondary_color`, `accent_color`, `font_family`, `font_style` — not the full PRD schema (`hero_image_url`, `invitation_template_url`, `couple_names`, `wedding_date`, `venue_name`, `venue_address`, `patterns`, `custom_css`).
 Reason: none of the omitted fields have a rendering consumer yet — `couple_names`/`wedding_date` alone are hardcoded across ~8 files (SiteHeader, PageFooter, Countdown, root layout metadata, several page titles), and persisting fields nothing reads would ship dead config.
-Alternative considered: implement the full PRD schema in one migration now — rejected to keep the admin form free of no-op fields; follow-up `ALTER TABLE` migrations are planned as each consuming feature is built (see TASKS.md Next Action 1a for couple_names/wedding_date).
+Alternative considered: implement the full PRD schema in one migration now — rejected to keep the admin form free of no-op fields. Moot after 2026-09-04: this branch's `theme_settings` schema (migrations 003/004, already applied to the live DB) already has these columns.
 
-[2026-09-03] Decision: `theme_settings` is a single row seeded directly in its migration (`INSERT ... DEFAULT VALUES`); app code always does `UPDATE ... RETURNING *` with no `WHERE` clause, never an upsert.
-Reason: the migration guarantees exactly one row exists, so `getThemeSettings`/`updateThemeSettings` don't need to branch between INSERT and UPDATE.
-Alternative considered: fetch-then-insert-or-update (upsert-by-existence) — rejected as unnecessary complexity given the row's existence is guaranteed at migration time.
-
+[2026-09-03] Decision (main, superseded 2026-09-04): `main`'s `theme_settings` was a single row seeded directly in its migration (`INSERT ... DEFAULT VALUES`); app code always did `UPDATE ... RETURNING *` with no `WHERE` clause, never an upsert.
+Reason: the migration guaranteed exactly one row exists, so `getThemeSettings`/`updateThemeSettings` didn't need to branch between INSERT and UPDATE.
+Alternative considered: fetch-then-insert-or-update (upsert-by-existence) — rejected as unnecessary complexity given the row's existence was guaranteed at migration time. This migration was dropped in the 2026-09-04 merge (see section 3) in favor of this branch's own single-row `theme_settings` seed, which follows the same no-WHERE-clause pattern.
 
 [2026-09-03] Decision: Admin authentication uses env-credential (ADMIN_EMAIL + scrypt ADMIN_PASSWORD_HASH) instead of Supabase Auth.
 Reason: ADMIN_EMAIL and ADMIN_PASSWORD_HASH were already provisioned in .env before the admin slice was built; a single-admin account doesn't need a full auth provider.
@@ -61,6 +68,8 @@ Reason: user wants the ability to add custom categories without a code change.
 Alternative considered: a database-backed categories table — rejected for now because it needs a migration (HITL-gated); the env var reuses the existing ADMIN_EMAIL-style config pattern and needs no schema change.
 
 5) Last session summary (leave blank — Claude will fill this in)
+
+[2026-09-04] Summary: Discovered critical branch divergence: `feature/ui-wrapping` (unmerged, last touched 2026-08-30) contains 8 migrations + Theme Editor/Section Manager/Table Arrangement features. Live database has had migrations 004–008 from that branch applied, but code was never merged into active development branch (feature/nextjs-supabase-migration), causing schema/code drift. Established BRANCH_STRATEGY.md as SOP to prevent this: 2-week merge-or-archive lifetimes, schema/code sync enforcement, HITL gates on migrations. **Action required:** Decide whether to merge feature/ui-wrapping or archive it. This session's Theme Editor work (duplicate) was discarded; see git cleanup at 3d41ed9+cleanup.
 
 [2026-09-03] Summary: Verified the P0 admin panel (auth, guest CRUD, RSVP dashboard) built in the prior session end-to-end in the browser, then shipped three follow-on changes: (1) invitation codes now use `[CATEGORY]-[FIRSTNAME]-[random]` instead of `[SURNAME]-[sequence]`, (2) guest categories are configurable via GUEST_CATEGORIES, (3) a WhatsApp RSVP-reminder button (preview, edit, then open in WhatsApp — no auto-send) on pending guests in the guest table. 79/79 tests passing, build clean. The admin-panel commit and the code-format/category/WhatsApp changes are not yet committed (working tree only) as of this entry.
 

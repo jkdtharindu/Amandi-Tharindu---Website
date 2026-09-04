@@ -1,8 +1,8 @@
 import AdminNav from '@/components/admin/AdminNav';
 import ThemeEditor from '@/components/admin/ThemeEditor';
 import { requireAdminPage } from '@/lib/adminGuard';
-import { getThemeSettings } from '@/src/admin/themeRepo.js';
-import { FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '@/src/admin/themeValidation.js';
+import { getThemeSettings } from '@/src/theme/themeRepo.js';
+import { FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '@/src/theme/basicThemeValidation.js';
 
 export const dynamic = 'force-dynamic';
 

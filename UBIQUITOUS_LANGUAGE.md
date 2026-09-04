@@ -45,6 +45,19 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Definition: A person attending the wedding on behalf of a Guest’s family unit.
 - Do not call it: `guest`, `member`, `attendee` in the context of family RSVP details
 - Example: A Guest with `slot_count = 4` can enter up to four participant names.
+- Note (proposed 2026-09-03, not yet built): each Participant will also carry an `AgeCategory` and an optional `SeatingTable` assignment — see PRD §14 and `TASKS.md`.
+
+### AgeCategory
+- Canonical name: `AgeCategory`
+- Definition: The generational classification (elder, adult, youth, or child) assigned to a Participant, captured at RSVP time and used for seating/table planning.
+- Do not call it: `age group`, `age band`, `demographic`
+- Example: Each Participant gets an AgeCategory when the Guest submits their RSVP. **Proposed 2026-09-03 — not yet built.**
+
+### SeatingTable
+- Canonical name: `SeatingTable`
+- Definition: A numbered/labeled table at the reception venue with a fixed capacity, to which the Admin assigns individual Participants (across different Guest family units) rather than whole Guests.
+- Do not call it: `table` (ambiguous with a database table), `seat group`
+- Example: The Admin assigns Participants to a SeatingTable on the `/admin/tables` page, filtering by AgeCategory and RelationshipType. **Proposed 2026-09-03 — not yet built.**
 
 ### SlotCount
 - Canonical name: `SlotCount`
@@ -94,6 +107,20 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `theme`, `config`, `design settings`
 - Example: The `theme_settings` table stores the site-wide visual rules.
 
+### ThemePalette
+- Canonical name: `ThemePalette`
+- Definition: A named, pre-approved set of colours (primary, background, accent, ink) that the Admin selects to set the site's visual identity in one action.
+- Do not call it: `palette`, `colour scheme`, `skin`, `preset`, `swatch`
+- Example: Selecting the `Chateau Green` ThemePalette restyles every page, the invitation, and the admin panel.
+- Note: A ThemePalette is a *selection*, not a set of loose colour fields. Custom colours remain a secondary option; see PRD §4.1.
+
+### FontChoice
+- Canonical name: `FontChoice`
+- Definition: A named pairing of a display face (headings) and a body face, selected by the Admin from a curated list.
+- Do not call it: `font`, `typeface`, `font family`, `typography setting`
+- Example: The `Playfair` FontChoice sets Playfair Display for headings and Inter for body text.
+- Note: A FontChoice must ship an actual loadable font source. Naming a family without loading it silently falls back to a system font.
+
 ### InvitationTemplate
 - Canonical name: `InvitationTemplate`
 - Definition: The base invitation image and overlay configuration used to personalize guest invitations.
@@ -118,6 +145,27 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `section`, `component`, `widget`
 - Example: A custom SiteSection can be added under the admin section manager.
 
+### SeatingTable
+- Canonical name: `SeatingTable`
+- Definition: A physical table at the reception, with a name/number and a seat capacity, to which Participants are assigned.
+- Do not call it: `table` (ambiguous with database tables), `desk`, `group`
+- Example: A SeatingTable named "Table 4" seats eight Participants.
+- Note: Planned for P2-06. Never use the bare word `table` in code for this concept — it collides with database terminology.
+
+### SeatAssignment
+- Canonical name: `SeatAssignment`
+- Definition: The link between one Participant and one seat number at a SeatingTable.
+- Do not call it: `booking`, `placement`, `allocation`, `chair`
+- Example: A SeatAssignment places Nimal Silva at seat 3 of Table 4.
+- Note: Planned for P2-06. The user-facing word may be "chair", but the code term is `SeatAssignment`.
+
+### RSVPCutoff
+- Canonical name: `RSVPCutoff`
+- Definition: The date after which Guests can no longer submit or change an RSVP, freezing the headcount for catering and seating.
+- Do not call it: `deadline`, `lock date`, `freeze`, `closing date`
+- Example: After the RSVPCutoff passes, the Invitation page shows the final response instead of a change option.
+- Note: Planned for P2-07, pending the clarification recorded in the PRD.
+
 ---
 
 ## Forbidden Terms
@@ -136,6 +184,11 @@ The following generic terms are not acceptable in this project context. Replace 
 - `asset` → `GalleryPhoto` or `InvitationTemplate`
 - `theme` → `ThemeSettings`
 - `config` → `ThemeSettings` or `SiteSection`
+- `palette` / `colour scheme` / `preset` → `ThemePalette`
+- `font` / `typeface` / `font family` → `FontChoice`
+- `table` → `SeatingTable` (reserve the bare word for database tables)
+- `chair` / `seat` → `SeatAssignment`
+- `deadline` / `lock date` → `RSVPCutoff`
 
 ---
 

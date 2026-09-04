@@ -5,7 +5,7 @@ import {
   FONT_FAMILY_OPTIONS,
   FONT_STYLE_OPTIONS,
   validateThemeInput,
-} from '../src/admin/themeValidation.js';
+} from '../src/theme/basicThemeValidation.js';
 
 const VALID_INPUT = {
   primaryColor: '#B8860B',
@@ -72,7 +72,7 @@ test('exposes the curated font options', () => {
     'Default',
     'Cormorant Garamond',
     'Playfair Display',
-    'EB Garamond',
+    'Cinzel',
   ]);
   assert.deepEqual([...FONT_STYLE_OPTIONS], ['italic', 'normal']);
 });

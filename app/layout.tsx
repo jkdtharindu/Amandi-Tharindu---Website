@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
-import { Cormorant_Garamond, Playfair_Display, EB_Garamond } from "next/font/google";
 import "./globals.css";
-import { getThemeSettings } from "@/src/admin/themeRepo.js";
+import { getThemeSettings } from "@/src/theme/themeRepo.js";
+import { buildFontFaceCss } from "@/src/theme/fontFaces.js";
+import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 
 export const metadata: Metadata = {
   title: "Amandi & Tharindu",
@@ -10,44 +11,21 @@ export const metadata: Metadata = {
     "Wedding website for Amandi Wijesundara and Tharindu Jayanetti — Monday, 14 December 2026.",
 };
 
-/**
- * Curated theme fonts (PRD P1-10). next/font requires each font's loader to
- * be a static top-level call, so every option is loaded unconditionally —
- * the admin's choice just selects which one's CSS variable `--font-sans`
- * points to (see `fontVarFor` below).
- */
-const cormorantGaramond = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-cormorant",
-});
-
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-playfair",
-});
-
-const ebGaramond = EB_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-eb-garamond",
-});
-
 const DEFAULT_FONT_SANS =
   'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
-function fontVarFor(fontFamily: string): string {
+/**
+ * Curated theme fonts (PRD P1-10), self-hosted via `@font-face` rules built
+ * by `buildFontFaceCss()` (src/theme/fontFaces.js) from `public/fonts/` —
+ * no Google Fonts request, so the site still works when that's unreachable.
+ * The admin's font choice just selects the literal family name here.
+ */
+function fontFamilyFor(fontFamily: string): string {
   switch (fontFamily) {
     case "Cormorant Garamond":
-      return "var(--font-cormorant), serif";
     case "Playfair Display":
-      return "var(--font-playfair), serif";
-    case "EB Garamond":
-      return "var(--font-eb-garamond), serif";
+    case "Cinzel":
+      return `'${fontFamily}', serif`;
     default:
       return DEFAULT_FONT_SANS;
   }
@@ -59,23 +37,30 @@ function fontVarFor(fontFamily: string): string {
  * instead of the guest-facing one.
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const settings = await getThemeSettings();
+  // getThemeSettings() hits the DB on every request; this must never throw,
+  // or a transient DB hiccup takes down every page on the site.
+  let settings;
+  try {
+    settings = await getThemeSettings();
+  } catch (error) {
+    console.error("getThemeSettings failed, falling back to defaults:", error);
+    settings = { ...defaultThemeSettings };
+  }
 
   const themeStyle: CSSProperties & Record<string, string> = {
     "--color-brand": settings.primaryColor,
     "--color-canvas": settings.secondaryColor,
     "--color-accent": settings.accentColor,
     "--color-accent-deep": settings.accentColor,
-    "--font-sans": fontVarFor(settings.fontFamily),
+    "--font-sans": fontFamilyFor(settings.fontFamily),
     fontStyle: settings.fontStyle,
   };
 
   return (
-    <html
-      lang="en"
-      className={`${cormorantGaramond.variable} ${playfairDisplay.variable} ${ebGaramond.variable}`}
-      style={themeStyle}
-    >
+    <html lang="en" style={themeStyle}>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss() }} />
+      </head>
       <body>{children}</body>
     </html>
   );

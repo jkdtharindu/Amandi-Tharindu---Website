@@ -1,15 +1,19 @@
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 /**
- * Curated font choices (PRD P1-10). Free-text font_family isn't safe: this
- * app has no font-loading infrastructure beyond these, so an arbitrary name
- * would silently fail to render for visitors without it installed.
+ * Curated options for the simple colors+font admin form (`/admin/theme`).
+ * Free-text font_family isn't safe there: the curated set is exactly what
+ * `buildFontFaceCss()` (src/theme/fontFaces.js) self-hosts via
+ * `public/fonts/`, so an arbitrary name would silently fail to render for
+ * visitors. The richer `src/theme/mergeThemeUpdate.js` path (palette/font
+ * pickers, not yet wired to any admin UI) intentionally allows free-form
+ * values instead — this module only guards the simple form.
  */
 export const FONT_FAMILY_OPTIONS = [
   'Default',
   'Cormorant Garamond',
   'Playfair Display',
-  'EB Garamond',
+  'Cinzel',
 ];
 
 export const FONT_STYLE_OPTIONS = ['italic', 'normal'];

@@ -2,6 +2,8 @@
 
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
+✅ **BRANCH DIVERGENCE RESOLVED (2026-09-04):** Merged `feature/ui-wrapping` into this branch (commit 4a9f07a). Brings Theme Editor (P1-10), Section Manager (P1-11), Table Arrangement (P1-14), Supabase Storage adapter, and migrations 004–008. Database already has these applied; re-running them is idempotent. See BRANCH_STRATEGY.md for SOP to prevent this in future.
+
 ## Project Status
 - Status: Next.js 16 migration complete; admin panel (auth, guest CRUD, RSVP dashboard) built and verified; WhatsApp reminder slim slice added; theme editor slim slice (colors + font, site-wide) added.
 - Current focus: P1 features (section manager, event manager, full messaging center)
@@ -17,7 +19,8 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Admin auth deviates from the PRD's Supabase Auth call-out (env-credential instead — see MEMORY.md 2026-09-03).
 - Guest invitation code format deviates from the PRD's `[SURNAME]-[NNN]` spec (see MEMORY.md 2026-09-03 and PRD P0-07).
 - Messaging (P1-06/P1-07) has a slim interim slice (single-guest WhatsApp reminder, wa.me link) — the full group-send/template/log spec is still unbuilt.
-- Still missing from PRD scope: theme editor, section manager, event manager, full messaging center, production deploy.
+- Table Planning & Guest Categorization (P1-14) is a newly proposed feature (added 2026-09-03, not in the original PRD scope) — full spec documented in the PRD §14. Not started.
+- Still missing from PRD scope: theme editor, section manager, event manager, full messaging center, table planning/seating management (P1-14, new), production deploy.
 
 ## Model Assignment Convention
 - Every open backlog item and Next Action below carries a `Model:` tag — the Claude model recommended for that task's complexity/risk, so it can be confirmed with the user (human-in-the-loop, per `HITL.md`) before work starts.
@@ -59,8 +62,9 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Guest management (P0-07) — add/edit/soft-delete, auto code generation (`[CATEGORY]-[FIRSTNAME]-[random]`, configurable categories via `GUEST_CATEGORIES`), filter by status and group, search by name or code
 - [x] RSVP dashboard (P0-08) — invited/accepted/declined/pending counts, individual headcount, breakdown chart, CSV export
 - [~] Messaging center — slim slice only: single-guest WhatsApp reminder button (preview/edit, then `wa.me` deep link, admin sends manually). No bulk send, no Twilio, no persisted message log, no SMS/email. Full P1-06/P1-07 spec still open. — Model: Opus 5
-- [x] Theme editor (P1-10) — slim slice: `/admin/theme` edits primary/secondary/accent colors and font family/style, applied site-wide instantly via CSS custom properties set on `<html>` in `app/layout.tsx`. Font choice is a curated set (Default, Cormorant Garamond, Playfair Display, EB Garamond) loaded via `next/font/google`, not free text — the app has no other font-loading infrastructure, so an arbitrary name would silently fail to render. Deferred to a follow-up: hero/invitation image fields (URL-only, no upload UI, per decision — Supabase Storage has zero usage anywhere in this codebase), invitation name-overlay rendering, `couple_names`/`wedding_date`/`venue_name`/`venue_address` (hardcoded across ~8 files, not wired), `patterns`/`custom_css` (no rendering consumer yet). See `migrations/003_create_theme_settings.sql`, `src/admin/themeRepo.js`, `src/admin/themeValidation.js`. — Model: Sonnet 5
-- [ ] Section manager — Model: Opus 5
+- [x] Theme editor (P1-10, reconciled 2026-09-04) — `/admin/theme` edits primary/secondary/accent colors and font family/style, applied site-wide instantly via CSS custom properties set on `<html>` in `app/layout.tsx`. Backend is this branch's richer schema (`src/theme/themeRepo.js`, `theme_settings` from migrations 003–004, already applied to the live DB — also holds palette/font-choice/hero-image/invitation-overlay/couple-venue columns, not yet exposed in this simple form). Font choice is a curated set (Default, Cormorant Garamond, Playfair Display, Cinzel) self-hosted via `@font-face` (`src/theme/fontFaces.js` + `public/fonts/`), not free text or Google Fonts — an arbitrary name would silently fail to render, and self-hosting avoids a Google Fonts dependency. `main` independently built a competing slim implementation in parallel (see MEMORY.md 2026-09-04 "Past mistakes"); its working `/admin/theme` page, `ThemeEditor` component, and API route were kept and rewired onto this schema, its competing migration/backend dropped. Still deferred: hero/invitation image fields, invitation name-overlay rendering, `couple_names`/`wedding_date`/`venue_name`/`venue_address` (columns exist, not wired into any render path — see Next Action 1a), `patterns`/`custom_css` (no rendering consumer), and the palette/font-choice pickers (`src/theme/palettes.js`) themselves have no admin UI yet.
+- [✔] Section manager (P1-11, merged from feature/ui-wrapping 2026-09-04) — admin CRUD for custom content sections on public pages.
+- [✔] Table planning & seating management (P1-14, merged from feature/ui-wrapping 2026-09-04) — per-participant Age Category capture at RSVP, `/admin/tables` page for admin to assign individual Participants to seating Tables, filterable by Age Category and RelationshipType. Schema: `participants`, `seating_tables` tables (migrations 007–008). Tested on feature/ui-wrapping.
 
 ### Phase 5 — Polish & Launch
 - [ ] Mobile responsiveness review — Model: Sonnet 5
@@ -113,16 +117,17 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
 ## Next Actions (step-by-step)
-1. ~~Theme editor (P1-10)~~ — done (slim slice: colors + font family/style, site-wide). See Phase 4 note above.
-1a. Wire `theme_settings.couple_names`/`wedding_date` (once added) into `SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, `app/layout.tsx` metadata, and the per-page `<title>`s that currently hardcode "Amandi & Tharindu" / 14 Dec 2026 — needs an `ALTER TABLE theme_settings ADD COLUMN ...` migration first. (Model: Sonnet 5)
-2. Section manager (P1-11): admin-defined custom content blocks on public pages. (Model: Opus 5)
+1. ~~Theme editor (P1-10)~~ — done, reconciled 2026-09-04 (see Phase 4 note above).
+1a. Wire `theme_settings.couple_names`/`wedding_date` into `SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, `app/layout.tsx` metadata, and the per-page `<title>`s that currently hardcode "Amandi & Tharindu" / 14 Dec 2026 — no migration needed, this branch's `theme_settings` (migration 003) already has both columns; this is purely a render-wiring task. (Model: Sonnet 5)
+2. ~~Section manager (P1-11)~~ — done, merged from feature/ui-wrapping 2026-09-04 (see Phase 4 note above).
 3. Event manager (P1-09): admin CRUD for celebration events (name, date, venue, map link). (Model: Sonnet 5)
 4. Full messaging center (P1-06/P1-07): decide whether to keep the wa.me-based approach and extend it (bulk send, more templates) or move to Twilio (needs HITL — costs money, needs business account + template pre-approval). Add a persisted `MessageLog` either way. (Model: Opus 5)
-5. Regenerate the old-format guest codes (Ruwan, Sunil, Kamala, Nimal, Thar) created during testing, or accept them as-is (they still function). (Model: Haiku 4.5)
-6. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production. (Model: Opus 5)
-7. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure. (Model: Opus 5)
-8. Mobile responsiveness review across public + admin surfaces. (Model: Sonnet 5)
-9. Deployment prep: Vercel config, production env vars, HITL-gated deploy. (Model: Sonnet 5)
+5. ~~Table planning & seating management (P1-14)~~ — done, merged from feature/ui-wrapping 2026-09-04 (see Phase 4 note above).
+6. Regenerate the old-format guest codes (Ruwan, Sunil, Kamala, Nimal, Thar) created during testing, or accept them as-is (they still function). (Model: Haiku 4.5)
+7. Enforce HITL programmatically: add a reusable preflight helper (CLI and CI check) that prints the exact `HITL.md` prompt and requires explicit confirmation before deploys, migrations, sending messages, secrets changes, or pushes to production. (Model: Opus 5)
+8. Security & production readiness: move admin login throttling to a shared store, add an `updated_at` column to `guests` (needs migration/HITL), set `NEXT_PUBLIC_SITE_URL` for production, privacy review for guest data before any public exposure. (Model: Opus 5)
+9. Mobile responsiveness review across public + admin surfaces. (Model: Sonnet 5)
+10. Deployment prep: Vercel config, production env vars, HITL-gated deploy. (Model: Sonnet 5)
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.

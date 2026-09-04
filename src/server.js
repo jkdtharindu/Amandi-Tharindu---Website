@@ -1,15 +1,289 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
+import multer from 'multer';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loginGuestByCode, loginGuestByName } from './guest-auth/index.js';
 import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
 import {
   findGuestByCode,
+  findGuestById,
   findRsvpResponseByGuestId,
   updateGuestRsvpStatus,
   upsertRsvpResponse,
+  listGuestsForAdmin,
+  createGuest,
+  updateGuest,
+  softDeleteGuest,
+  listAllRsvpResponses,
 } from './guest-auth/guestRepo.js';
+import { computeRsvpStats } from './rsvp/rsvpStats.js';
+import { buildGuestCsv } from './rsvp/guestCsv.js';
+import { adminStore, isAdminConfigured } from './data/adminStore.js';
+import { verifyAdminCredentials } from './admin-auth/verifyAdminCredentials.js';
+import { getThemeSettings, updateThemeSettings } from './theme/themeRepo.js';
+import { THEME_FIELD_GROUPS, FIELD_LABELS } from './theme/mergeThemeUpdate.js';
+import { readableTextColor } from './theme/colors.js';
+import { THEME_PALETTES, FONT_CHOICES } from './theme/palettes.js';
+import { buildFontFaceCss } from './theme/fontFaces.js';
+
+const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+import { themeSettings as themeDefaults } from './data/themeStore.js';
+import {
+  listSections,
+  createSection,
+  updateSection,
+  deleteSection,
+} from './sections/sectionsRepo.js';
+import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js';
+import { VALID_RELATIONSHIP_TYPES } from './guest-auth/validateGuestInput.js';
+import { generateInvitationCode } from './guest-auth/generateInvitationCode.js';
+import {
+  listSeatingTables,
+  createSeatingTable,
+  updateSeatingTable,
+  deleteSeatingTable,
+  assignGuestToSeat,
+  unassignGuestFromSeat,
+  listUnassignedGuests,
+} from './table-arrangement/tableArrangementRepo.js';
+import { buildTableArrangementExport, buildTableArrangementSummary } from './table-arrangement/tableArrangementExport.js';
+import {
+  uploadImage,
+  isStorageConfigured,
+  MAX_FILE_SIZE_BYTES,
+  ALLOWED_MIME_TYPES,
+  ALLOWED_FOLDERS,
+} from './storage/supabaseStorage.js';
+
+const ADMIN_SESSION_COOKIE = 'admin_session';
+const GUEST_SESSION_COOKIE = 'guest_session';
+
+/** Slice 14 (admin image upload). Buffers in memory -- images are capped at 5MB and go straight to Supabase Storage, never to disk. */
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE_BYTES },
+  fileFilter(req, file, cb) {
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      const error = new Error('invalid_file_type');
+      error.code = 'INVALID_FILE_TYPE';
+      return cb(error);
+    }
+    cb(null, true);
+  },
+});
+
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/** Escapes untrusted values before they are interpolated into HTML. */
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
+}
+
+/** Maps a public route path to the SiteSection page key used by the admin. */
+const SECTION_PAGE_BY_ROUTE = {
+  '/home': 'home',
+  '/story': 'our-story',
+  '/celebration': 'celebration',
+  '/gallery': 'gallery',
+  '/wishes': 'wishes',
+};
+
+async function findAdminByEmail(email) {
+  return adminStore.find((a) => a.email.toLowerCase() === String(email).trim().toLowerCase()) || null;
+}
+
+function getAdminFromRequest(req) {
+  const signed = req.cookies && req.cookies[ADMIN_SESSION_COOKIE];
+  const adminId = verifySession(signed);
+  return adminStore.find((a) => a.id === adminId) || null;
+}
+
+/**
+ * Resolves the Guest proved by the signed `guest_session` cookie, or null.
+ *
+ * The cookie carries the guest's id, so the lookup goes through guestRepo —
+ * which excludes soft-deleted guests. Removing a guest therefore revokes any
+ * session they still hold, with no extra bookkeeping.
+ */
+async function getGuestFromRequest(req) {
+  const signed = req.cookies && req.cookies[GUEST_SESSION_COOKIE];
+  const guestId = verifySession(signed);
+  if (!guestId) return null;
+  return findGuestById(guestId);
+}
+
+function requireAdminPage(req, res, next) {
+  const admin = getAdminFromRequest(req);
+  if (!admin) {
+    return res.redirect('/admin');
+  }
+  req.admin = admin;
+  next();
+}
+
+function requireAdminApi(req, res, next) {
+  const admin = getAdminFromRequest(req);
+  if (!admin) {
+    return res.status(401).json({ success: false, reason: 'not_authenticated', message: 'Admin login required.' });
+  }
+  req.admin = admin;
+  next();
+}
+
+/** One headline figure on the RSVP dashboard (P0-08). */
+function statTile(label, key, value, hint, suffix = '') {
+  return `
+    <div class="stat-tile">
+      <span class="stat-label">${escapeHtml(label)}</span>
+      <strong class="stat-value"><span data-stat="${escapeHtml(key)}">${Number(value) || 0}</span>${escapeHtml(suffix)}</strong>
+      <span class="stat-hint">${escapeHtml(hint)}</span>
+    </div>
+  `;
+}
+
+/**
+ * Horizontal bar chart of the RSVP breakdown, as inline SVG.
+ *
+ * Server-rendered with real numbers so the chart is correct in the first paint
+ * rather than appearing only after a fetch, and self-contained so the admin
+ * panel pulls no third-party charting library — same constraint as the
+ * self-hosted webfonts.
+ */
+function renderRsvpChart(stats) {
+  const bars = [
+    { key: 'accepted', label: 'Accepted', value: stats.acceptedFamilies, fill: '#1B5E38' },
+    { key: 'declined', label: 'Declined', value: stats.declinedFamilies, fill: '#8A5A44' },
+    { key: 'pending', label: 'Pending', value: stats.pendingFamilies, fill: '#B08A2E' },
+  ];
+
+  // Scale to the largest bar, never to zero.
+  const max = Math.max(...bars.map((bar) => bar.value), 1);
+  const trackWidth = 260;
+  const rowHeight = 44;
+  const height = bars.length * rowHeight + 12;
+
+  const rows = bars
+    .map((bar, index) => {
+      const y = index * rowHeight + 10;
+      const width = Math.round((bar.value / max) * trackWidth);
+      return `
+        <text x="0" y="${y + 20}" class="chart-label">${escapeHtml(bar.label)}</text>
+        <rect x="90" y="${y + 4}" width="${trackWidth}" height="24" rx="12" class="chart-track" />
+        <rect data-bar="${bar.key}" x="90" y="${y + 4}" width="${width}" height="24" rx="12" fill="${bar.fill}" />
+        <text data-bar-value="${bar.key}" x="${96 + width}" y="${y + 20}" class="chart-value">${bar.value}</text>
+      `;
+    })
+    .join('');
+
+  return `
+    <svg viewBox="0 0 400 ${height}" role="img" width="100%" style="max-width: 460px;"
+         aria-label="RSVP breakdown: ${bars.map((bar) => `${bar.label} ${bar.value}`).join(', ')} guest units">
+      ${rows}
+    </svg>
+  `;
+}
+
+function adminPageWrapper(title, bodyContent, scripts = '', theme = null) {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <style>${buildStyles(theme)}
+          .admin-shell { max-width: 960px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; }
+          .admin-nav { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--color-line); margin-bottom: 1.5rem; align-items: center; }
+          .admin-nav a, .admin-nav button { text-decoration: none; font-weight: 600; color: var(--color-muted); background: none; border: none; font: inherit; cursor: pointer; padding: 0; }
+          .field-group { background: var(--color-surface); border-radius: 20px; padding: 1.5rem; box-shadow: 0 12px 30px rgba(43, 33, 24, 0.06); margin-bottom: 1.25rem; }
+          .field-group h2 { margin: 0 0 1rem; font-size: 1.2rem; }
+          .field-row { margin-bottom: 0.85rem; }
+          .field-row label { font-size: 0.9rem; }
+          .field-row input { padding: 0.6rem 0.75rem; border-radius: 12px; }
+          .field-hint { display: block; font-weight: 400; color: var(--color-muted); font-size: 0.8rem; margin-top: 0.15rem; }
+          .save-btn { background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: 999px; padding: 0.6rem 1.25rem; font-weight: 700; cursor: pointer; }
+          .status-msg { font-size: 0.9rem; margin-top: 0.5rem; min-height: 1.2rem; }
+          .status-msg.success { color: #15803d; }
+          .status-msg.error { color: #b91c1c; }
+          .section-item { border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; margin-bottom: 0.85rem; }
+          .section-item .section-item-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+          .checkbox-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+          .checkbox-row input { width: auto; }
+          .field-hint-inline { font-weight: 400; color: var(--color-muted); font-size: 0.8rem; }
+          .code-preview { font-size: 0.9rem; color: var(--color-muted); margin: 0.75rem 0; }
+          .code-preview strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--color-ink); font-size: 1rem; }
+          .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
+          .stat-tile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 16px; padding: 1rem; }
+          .stat-label { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-muted); }
+          .stat-value { display: block; font-size: 1.9rem; line-height: 1.2; margin: 0.2rem 0; color: var(--color-primary); font-family: var(--font-display); }
+          .stat-hint { display: block; font-size: 0.8rem; color: var(--color-muted); }
+          .chart-label { font-size: 13px; font-weight: 600; fill: var(--color-ink); }
+          .chart-value { font-size: 13px; font-weight: 700; fill: var(--color-ink); }
+          .chart-track { fill: var(--color-line); opacity: 0.45; }
+          a.save-btn { display: inline-block; text-decoration: none; }
+          .guest-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+          .guest-table th, .guest-table td { text-align: left; padding: 0.65rem 0.5rem; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+          .guest-table th { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+          .guest-filters { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 1rem; }
+          .guest-row-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+          .badge-deleted { color: #b91c1c; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; }
+          .guest-list-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+          .guest-list-header h2 { margin: 0; }
+          .guest-bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+          .guest-detail-row td { background: var(--color-secondary); }
+          .guest-detail-panel p { margin: 0.35rem 0; }
+          .guest-table tr.hidden { display: none; }
+          .palette-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+          .palette-swatch { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; padding: 0.85rem; border-radius: 14px; border: 2px solid var(--color-line); background: var(--color-surface); cursor: pointer; text-align: left; font: inherit; color: var(--color-ink); }
+          .palette-swatch.selected { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary) inset; }
+          .swatch-colors { display: flex; gap: 0.3rem; }
+          .swatch-colors span { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); display: inline-block; }
+          .swatch-name { font-weight: 600; font-size: 0.85rem; }
+          .font-choice-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0; }
+          .font-choice-option { padding: 0.6rem 1.1rem; border-radius: 999px; border: 2px solid var(--color-line); background: var(--color-surface); cursor: pointer; font-size: 1.05rem; color: var(--color-ink); }
+          .font-choice-option.selected { border-color: var(--color-primary); background: var(--color-secondary); }
+          .theme-preview { margin: 1rem 0; padding: 1.25rem 1.5rem; border-radius: 16px; background: var(--preview-secondary, var(--color-secondary)); border: 1px solid var(--color-line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+          .preview-heading { font-family: var(--font-display); color: var(--preview-primary, var(--color-primary)); font-size: 1.3rem; }
+          .preview-button { display: inline-block; background: var(--preview-primary, var(--color-primary)); color: #fff; border-radius: 999px; padding: 0.6rem 1.25rem; font-weight: 700; font-size: 0.9rem; }
+        </style>
+      </head>
+      <body>
+        <div class="admin-shell">
+          <header class="admin-nav">
+            <strong>Admin</strong>
+            <a href="/admin/theme">Theme</a>
+            <a href="/admin/sections">Sections</a>
+            <a href="/admin/guests">Guests</a>
+            <a href="/admin/rsvp">RSVP Dashboard</a>
+            <a href="/admin/table-arrangement">Table Arrangement</a>
+            <button id="admin-logout" type="button">Log out</button>
+          </header>
+          ${bodyContent}
+        </div>
+        <script>
+          function getCookieValue(name) {
+            return document.cookie.split('; ').reduce((value, cookie) => {
+              const [cookieName, cookieValue] = cookie.split('=');
+              return cookieName === name ? decodeURIComponent(cookieValue) : value;
+            }, '');
+          }
+          const csrfToken = getCookieValue('csrf_token');
+          const logoutBtn = document.getElementById('admin-logout');
+          if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+              await fetch('/api/admin/logout', { method: 'POST', headers: { 'x-csrf-token': csrfToken } });
+              window.location.href = '/admin';
+            });
+          }
+        </script>
+        ${scripts}
+      </body>
+    </html>
+  `;
+}
 
 const siteNav = `
   <nav class="site-nav">
@@ -22,60 +296,219 @@ const siteNav = `
   </nav>
 `;
 
-const baseStyles = `
+/**
+ * Builds the site stylesheet from ThemeSettings. Admin-editable values are
+ * emitted as CSS custom properties so a theme change is reflected site-wide.
+ */
+function buildStyles(theme) {
+  const t = { ...themeDefaults, ...(theme || {}) };
+  return `
+  ${buildFontFaceCss()}
   :root {
     color-scheme: light;
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: #1f2937;
-    background: #f8fafc;
+    --color-primary: ${t.primaryColor};
+    --color-secondary: ${t.secondaryColor};
+    --color-accent: ${t.accentColor};
+    --color-on-primary: ${readableTextColor(t.primaryColor)};
+    --color-on-accent: ${readableTextColor(t.accentColor)};
+    --color-ink: #2B2118;
+    --color-muted: #5B5147;
+    --color-surface: #FFFFFF;
+    --color-line: rgba(43, 33, 24, 0.12);
+    --font-display: "${t.fontFamily}", Georgia, "Times New Roman", serif;
+    --font-display-style: ${t.fontStyle};
+    --font-body: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-body);
+    color: var(--color-ink);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
-  body { background: radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 30%), #f8fafc; }
+  body { background: var(--color-secondary); color: var(--color-ink); }
   img { max-width: 100%; display: block; }
   a { color: inherit; }
-  .page-shell { max-width: 1180px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; }
-  .page-shell h1, .page-shell h2, .page-shell h3 { color: #0f172a; }
+  .page-shell { max-width: 1180px; margin: 0 auto; padding: 1.75rem 1.5rem 4.5rem; }
+  .page-shell h1, .page-shell h2, .page-shell h3 { color: var(--color-ink); font-family: var(--font-display); font-style: var(--font-display-style); font-weight: 600; }
   .site-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 0; }
-  .site-brand { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #334155; }
+  .site-brand { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-ink); }
   .site-nav { display: flex; flex-wrap: wrap; gap: 1rem; }
-  .site-nav a { text-decoration: none; font-weight: 600; color: #475569; transition: color 0.2s ease; }
-  .site-nav a:hover { color: #2563eb; }
-  .hero-panel { background: white; border-radius: 32px; padding: 2.5rem; box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08); }
-  .hero-panel { text-align: center; max-width: 900px; margin: 0 auto; }
-  .hero-flag { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-size: 0.95rem; margin-bottom: 1.4rem; }
-  .hero-panel h1 { margin: 0 0 1rem; font-size: clamp(2.5rem, 4vw, 4.2rem); line-height: 1.02; }
-  .hero-panel p { margin: 0 0 1.75rem; color: #475569; font-size: 1.05rem; line-height: 1.78; max-width: 68rem; }
+  .site-nav a { text-decoration: none; font-weight: 600; color: var(--color-muted); transition: color 0.2s ease; }
+  .site-nav a:hover { color: var(--color-primary); }
+  .hero-panel { background: var(--color-surface); border-radius: 32px; padding: 2.5rem; box-shadow: 0 30px 90px rgba(43, 33, 24, 0.08); text-align: center; max-width: 900px; margin: 0 auto; }
+  .hero-flag { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 999px; background: var(--color-secondary); color: var(--color-ink); font-size: 0.95rem; margin-bottom: 1.4rem; border: 1px solid var(--color-line); }
+  .hero-panel h1 { margin: 0 0 1rem; font-size: clamp(2.2rem, 4vw, 4rem); line-height: 1.08; }
+  .hero-panel p { margin: 0 0 1.75rem; color: var(--color-muted); font-size: 1.05rem; line-height: 1.78; max-width: 68rem; }
   .button { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: none; border-radius: 999px; padding: 1rem 1.6rem; font-weight: 700; cursor: pointer; text-decoration: none; }
-  .button-primary { background: #2563eb; color: white; }
-  .button-secondary { background: transparent; color: #334155; border: 1px solid rgba(100, 116, 139, 0.22); }
+  .button-primary { background: var(--color-primary); color: var(--color-on-primary); }
+  .button-secondary { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); }
   .section-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
-  .feature-card, .event-card, .gallery-card, .wish-card, .story-card { background: white; border-radius: 28px; padding: 1.75rem; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06); }
-  .gallery-card { min-height: 180px; display: flex; align-items: center; justify-content: center; color: #64748b; }
+  .feature-card, .event-card, .gallery-card, .wish-card, .story-card { background: var(--color-surface); border-radius: 28px; padding: 1.75rem; box-shadow: 0 18px 36px rgba(43, 33, 24, 0.06); }
+  .gallery-card { min-height: 180px; display: flex; align-items: center; justify-content: center; color: var(--color-muted); overflow: hidden; padding: 0; }
+  .gallery-card img { width: 100%; height: 100%; object-fit: cover; }
   .story-card { padding: 1.5rem; }
   .feature-card h2, .event-card h2, .story-card h3 { margin: 0 0 0.75rem; }
-  .feature-card p, .event-card p, .story-card p, .wish-card p { margin: 0; color: #475569; line-height: 1.75; }
+  .feature-card p, .event-card p, .story-card p, .wish-card p { margin: 0; color: var(--color-muted); line-height: 1.75; }
+  .hero-image { border-radius: 28px; margin: 0 auto 2rem; max-height: 420px; object-fit: cover; width: 100%; }
   .countdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
-  .countdown-item { background: #1d4ed8; color: white; border-radius: 24px; padding: 1.3rem; text-align: center; }
-  .countdown-item strong { display: block; font-size: 2rem; line-height: 1; }
-  .section-title { font-size: 1.75rem; margin: 0 0 1rem; }
-  .page-footer { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.95rem; }
+  .countdown-item { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); border-radius: 20px; padding: 1.3rem; text-align: center; font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase; }
+  .countdown-item strong { display: block; font-size: 2.4rem; line-height: 1.1; font-family: var(--font-display); font-weight: 500; letter-spacing: 0; color: var(--color-primary); }
+  .section-title { font-size: 1.75rem; margin: 0 0 1rem; font-family: var(--font-display); }
+  .page-footer { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--color-line); color: var(--color-muted); font-size: 0.95rem; }
   .grid-panel { display: grid; gap: 1.25rem; }
   .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
   .responsive-stack { display: grid; gap: 1.5rem; }
-  label { display: block; margin-bottom: 0.75rem; font-weight: 600; color: #334155; }
-  input[type="text"], input[type="email"], textarea { width: 100%; padding: 0.95rem 1rem; border-radius: 18px; border: 1px solid #cbd5e1; font: inherit; color: #0f172a; }
+  .custom-sections { display: grid; gap: 1.25rem; margin-top: 2.5rem; }
+  .hidden { display: none; }
+  .invitation-canvas { position: relative; max-width: 720px; margin: 0 auto 2rem; border-radius: 24px; overflow: hidden; box-shadow: 0 24px 60px rgba(43, 33, 24, 0.14); }
+  .invitation-canvas img { width: 100%; display: block; }
+  .invitation-name { position: absolute; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; font-family: var(--font-display); font-style: var(--font-display-style); }
+  .invitation-fallback { max-width: 720px; margin: 0 auto 2rem; padding: 3rem 2rem; text-align: center; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 24px; }
+  .invitation-fallback .invitation-name-static { font-family: var(--font-display); font-style: var(--font-display-style); font-size: clamp(1.8rem, 4vw, 2.6rem); color: var(--color-primary); margin: 0.75rem 0; }
+  .rsvp-pill { display: inline-block; padding: 0.35rem 0.9rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--color-line); }
+  .rsvp-pill.accepted { background: #E8F3EC; color: #1B5E38; border-color: #1B5E38; }
+  .rsvp-pill.declined { background: #F1EEEB; color: #5B5147; }
+  .rsvp-pill.pending { background: var(--color-secondary); color: var(--color-ink); }
+  .response-card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 24px; padding: 1.75rem; margin-top: 1.25rem; }
+  .detail-list { display: grid; gap: 0.4rem; margin: 0 0 1rem; padding: 0; list-style: none; color: var(--color-muted); }
+  .detail-list strong { color: var(--color-ink); }
+  .session-note { margin: 1.25rem 0 0; padding-top: 1rem; border-top: 1px solid var(--color-line); font-size: 0.9rem; color: var(--color-muted); }
+  .link-button { background: none; border: none; padding: 0; font: inherit; color: var(--color-primary); text-decoration: underline; cursor: pointer; }
+  .link-button:hover { text-decoration: none; }
+  .choice-row { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 1rem 0; }
+  .choice-row label { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-weight: 600; }
+  .choice-row input { width: auto; }
+  .sticky-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--color-surface); border-top: 1px solid var(--color-line); padding: 0.9rem 1.25rem; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.75rem 1.25rem; box-shadow: 0 -8px 24px rgba(43, 33, 24, 0.08); text-align: center; }
+  .sticky-bar .sticky-actions { display: flex; gap: 0.6rem; }
+  .sticky-bar button { border: none; border-radius: 999px; padding: 0.65rem 1.4rem; font-weight: 700; font: inherit; font-weight: 700; cursor: pointer; }
+  .accept { background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: 999px; padding: 0.75rem 1.5rem; font-weight: 700; }
+  .decline { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); border-radius: 999px; padding: 0.75rem 1.5rem; font-weight: 700; }
+  label { display: block; margin-bottom: 0.75rem; font-weight: 600; color: var(--color-ink); }
+  input[type="text"], input[type="email"], input[type="password"], textarea, select { width: 100%; padding: 0.95rem 1rem; border-radius: 18px; border: 1px solid var(--color-line); font: inherit; color: var(--color-ink); background: var(--color-surface); }
   textarea { min-height: 120px; resize: vertical; }
   button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
   @media (max-width: 760px) {
-    .page-shell { padding: 1.25rem 1rem 2rem; }
+    .page-shell { padding: 1.25rem 1rem 5rem; }
     .site-header { flex-direction: column; align-items: flex-start; }
     .countdown { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .hero-panel { padding: 1.75rem; }
   }
 `;
+}
 
-function pageWrapper(title, bodyContent, scripts = '') {
+/**
+ * Renders the ThemePalette picker (PRD §4.1): swatches, not text entry.
+ * Selecting one writes all three colours at once via a hidden input that
+ * the existing generic form-submit script already picks up.
+ */
+function renderPaletteGroup(group, settings) {
+  const swatches = THEME_PALETTES.map((palette) => {
+    const selected = settings.paletteName === palette.id;
+    return `
+      <button type="button" class="palette-swatch${selected ? ' selected' : ''}"
+        data-palette-id="${escapeHtml(palette.id)}"
+        data-primary="${escapeHtml(palette.primaryColor)}"
+        data-secondary="${escapeHtml(palette.secondaryColor)}"
+        data-accent="${escapeHtml(palette.accentColor)}">
+        <span class="swatch-colors">
+          <span style="background:${escapeHtml(palette.primaryColor)}"></span>
+          <span style="background:${escapeHtml(palette.secondaryColor)}"></span>
+          <span style="background:${escapeHtml(palette.accentColor)}"></span>
+        </span>
+        <span class="swatch-name">${escapeHtml(palette.name)}</span>
+      </button>
+    `;
+  }).join('');
+
+  const activePalette = THEME_PALETTES.find((p) => p.id === settings.paletteName);
+  const previewPrimary = activePalette ? activePalette.primaryColor : settings.primaryColor;
+  const previewSecondary = activePalette ? activePalette.secondaryColor : settings.secondaryColor;
+
+  return `
+    <form class="field-group" data-group="${group.id}">
+      <h2>${group.label}</h2>
+      <p class="field-hint">Pick a look — sets the colours below in one step. Custom hex values remain available under Advanced Colours.</p>
+      <input type="hidden" data-field="paletteName" value="${escapeHtml(settings.paletteName ?? '')}" />
+      <div class="palette-grid">${swatches}</div>
+      <div class="theme-preview" data-palette-preview style="--preview-primary:${escapeHtml(previewPrimary)};--preview-secondary:${escapeHtml(previewSecondary)}">
+        <span class="preview-heading">Amandi &amp; Tharindu</span>
+        <span class="preview-button">Explore RSVP</span>
+      </div>
+      <button class="save-btn" type="submit">Save Wedding Palette</button>
+      <div class="status-msg" data-status></div>
+    </form>
+  `;
+}
+
+/**
+ * Renders the FontChoice picker (PRD §4.1): a curated list, each name shown
+ * in its own face. Webfonts are not yet self-hosted (PRD §4.1 item 4), so a
+ * non-system face still falls back to Georgia until that ships.
+ */
+function renderFontChoiceGroup(group, settings) {
+  const options = FONT_CHOICES.map((font) => {
+    const selected = settings.fontChoice === font.id;
+    return `
+      <button type="button" class="font-choice-option${selected ? ' selected' : ''}"
+        data-font-id="${escapeHtml(font.id)}"
+        data-display-font="${escapeHtml(font.displayFont)}"
+        data-font-style="${escapeHtml(font.fontStyle)}"
+        style="font-family:'${escapeHtml(font.displayFont)}', Georgia, serif; font-style:${escapeHtml(font.fontStyle)};">
+        ${escapeHtml(font.name)}
+      </button>
+    `;
+  }).join('');
+
+  return `
+    <form class="field-group" data-group="${group.id}">
+      <h2>${group.label}</h2>
+      <p class="field-hint">Pick a heading font from the curated list — shown in its own face below.</p>
+      <input type="hidden" data-field="fontChoice" value="${escapeHtml(settings.fontChoice ?? '')}" />
+      <div class="font-choice-grid">${options}</div>
+      <div class="theme-preview" data-font-preview style="font-family:'${escapeHtml(settings.fontFamily)}', Georgia, serif; font-style:${escapeHtml(settings.fontStyle)};">
+        Amandi &amp; Tharindu
+      </div>
+      <button class="save-btn" type="submit">Save Font Pairing</button>
+      <div class="status-msg" data-status></div>
+    </form>
+  `;
+}
+
+function formatWeddingDate(isoDate) {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return isoDate;
+  return parsed.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Renders admin-managed SiteSections for a public page. Visible sections only,
+ * already ordered by the repo.
+ */
+function renderSections(sections = []) {
+  const visible = sections.filter((section) => section.isVisible);
+  if (visible.length === 0) return '';
+
+  const cards = visible
+    .map(
+      (section) => `
+        <article class="story-card">
+          ${section.title ? `<h3>${escapeHtml(section.title)}</h3>` : ''}
+          ${section.content ? `<p>${escapeHtml(section.content)}</p>` : ''}
+        </article>
+      `
+    )
+    .join('');
+
+  return `<section class="custom-sections">${cards}</section>`;
+}
+
+function pageWrapper(title, bodyContent, scripts = '', theme = null) {
+  const t = { ...themeDefaults, ...(theme || {}) };
+  const coupleNames = escapeHtml(t.coupleNames);
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -83,17 +516,17 @@ function pageWrapper(title, bodyContent, scripts = '') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${title}</title>
-        <style>${baseStyles}</style>
+        <style>${buildStyles(t)}</style>
       </head>
       <body>
         <div class="page-shell">
           <header class="site-header">
-            <div class="site-brand">Amandi & Tharindu</div>
+            <div class="site-brand">${coupleNames}</div>
             ${siteNav}
           </header>
           ${bodyContent}
           <footer class="page-footer">
-            <p>Wedding day: Monday, 14 December 2026 · Amandi & Tharindu’s celebration website</p>
+            <p>Wedding day: ${formatWeddingDate(t.weddingDate)} · ${coupleNames}’s celebration website</p>
           </footer>
         </div>
         ${scripts}
@@ -104,6 +537,9 @@ function pageWrapper(title, bodyContent, scripts = '') {
 
 export function createApp() {
   const app = express();
+  // Self-hosted webfonts (PRD §4.1 item 4) — served from our own origin so
+  // the site never depends on a third-party CDN being reachable.
+  app.use('/fonts', express.static(path.join(projectRoot, 'public', 'fonts'), { immutable: true, maxAge: '30d' }));
   app.use(cookieParser());
   app.use(bodyParser.json());
   app.use((req, res, next) => {
@@ -113,16 +549,32 @@ export function createApp() {
     next();
   });
 
+  // Load ThemeSettings and any admin-managed SiteSections for rendered pages so
+  // admin edits take effect site-wide without each route re-fetching them.
+  app.use(async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    try {
+      res.locals.theme = await getThemeSettings();
+      const sectionPage = SECTION_PAGE_BY_ROUTE[req.path];
+      res.locals.sections = sectionPage ? await listSections(sectionPage) : [];
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   app.get('/', (req, res) => {
     return res.redirect('/home');
   });
 
   app.get('/home', (req, res) => {
+    const theme = res.locals.theme;
     const bodyContent = `
       <section class="hero-panel">
-        <span class="hero-flag">Save the date — 14 December 2026</span>
+        ${theme.heroImageUrl ? `<img class="hero-image" src="${escapeHtml(theme.heroImageUrl)}" alt="${escapeHtml(theme.coupleNames)} on their wedding journey" />` : ''}
+        <span class="hero-flag">Save the date — ${formatWeddingDate(theme.weddingDate)}</span>
         <h1>Join us for a celebration of love, family, and new beginnings.</h1>
-        <p>Welcome to the wedding website for Amandi & Tharindu. Discover our story, event details, gallery, wishes, and access your personalized invitation.</p>
+        <p>Welcome to the wedding website for ${escapeHtml(theme.coupleNames)}. Discover our story, event details, gallery, wishes, and access your personalized invitation.</p>
         <div class="button-group">
           <a class="button button-primary" href="/login">Find Your Invitation</a>
           <a class="button button-secondary" href="/story">Our Story</a>
@@ -152,12 +604,13 @@ export function createApp() {
           <p>Read warm wishes from family and friends, and leave your own message to the couple.</p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
     const scripts = `
       <script>
         function updateCountdown() {
-          const weddingDate = new Date('2026-12-14T15:00:00');
+          const weddingDate = new Date('${theme.weddingDate}T15:00:00');
           const now = new Date();
           const diff = weddingDate - now;
           if (diff <= 0) return;
@@ -175,7 +628,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Amandi & Tharindu — Home', bodyContent, scripts));
+    return res.send(pageWrapper(`${escapeHtml(res.locals.theme.coupleNames)} — Home`, bodyContent, scripts, res.locals.theme));
   });
 
   app.get('/story', (req, res) => {
@@ -199,9 +652,10 @@ export function createApp() {
           <p>A romantic proposal under the stars sealed their promise to spend forever together.</p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Our Story — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper(`Our Story — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/celebration', (req, res) => {
@@ -227,9 +681,10 @@ export function createApp() {
           <p><a href="https://maps.google.com/?q=Moonlight Banquet Hall" target="_blank">View on Google Maps</a></p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('The Celebration — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper(`The Celebration — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/gallery', (req, res) => {
@@ -245,9 +700,10 @@ export function createApp() {
         <div class="gallery-card">Photo 3</div>
         <div class="gallery-card">Photo 4</div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Gallery — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper(`Gallery — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/wishes', (req, res) => {
@@ -271,9 +727,10 @@ export function createApp() {
           <p>So happy for you both — congratulations and best wishes.</p>
         </div>
       </section>
+      ${renderSections(res.locals.sections)}
     `;
 
-    return res.send(pageWrapper('Wishes — Amandi & Tharindu', bodyContent));
+    return res.send(pageWrapper(`Wishes — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, '', res.locals.theme));
   });
 
   app.get('/login', (req, res) => {
@@ -366,7 +823,7 @@ export function createApp() {
       </script>
     `;
 
-    return res.send(pageWrapper('Guest Login — Amandi & Tharindu', bodyContent, scripts));
+    return res.send(pageWrapper(`Guest Login — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, scripts, res.locals.theme));
   });
 
   app.post('/api/guest/login', async (req, res) => {
@@ -413,6 +870,19 @@ export function createApp() {
     return res.status(404).json(result);
   });
 
+  // Releases the guest session. Deliberately idempotent: a guest whose cookie
+  // has already expired should get a clean result when they tap "Sign out",
+  // not a confusing error. Matters most on a shared family phone, where the
+  // device is handed to the next guest.
+  app.post('/api/guest/logout', (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    res.clearCookie(GUEST_SESSION_COOKIE, { path: '/' });
+    return res.json({ success: true });
+  });
+
   app.post('/api/guest/rsvp', async (req, res) => {
     if (!verifyCsrfToken(req)) {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
@@ -424,9 +894,23 @@ export function createApp() {
       return res.status(400).json({ success: false, reason: 'missing_rsvp_data' });
     }
 
-    const guest = await findGuestByCode(code);
+    // Slice 18: the session — not the posted code — decides whose RSVP this is.
+    // Previously any caller who knew a code could overwrite that family's
+    // response. The code is still required, but only to confirm the client is
+    // answering for the guest it is signed in as.
+    const guest = await getGuestFromRequest(req);
     if (!guest) {
-      return res.status(404).json({ success: false, reason: 'guest_not_found' });
+      return res
+        .status(401)
+        .json({ success: false, reason: 'not_authenticated', message: 'Please sign in to respond.' });
+    }
+
+    if (guest.code !== code) {
+      return res.status(403).json({
+        success: false,
+        reason: 'not_your_invitation',
+        message: 'You can only respond to your own invitation.',
+      });
     }
 
     const result = await upsertRsvpResponse(guest.id, attending, attending ? participantNames || [] : []);
@@ -435,86 +919,152 @@ export function createApp() {
     return res.json({ success: true, rsvp: result });
   });
 
+  // Slice 18: the InvitationCode says WHICH invitation; the guest_session cookie
+  // proves the visitor is entitled to it. Both are required. The session is
+  // checked before the code is even looked up, so an unauthenticated visitor
+  // gets the same redirect for every code and cannot use this route to probe
+  // which codes exist.
   app.get('/invitation/:code', async (req, res) => {
     const { code } = req.params;
-    const signedSession = req.cookies && req.cookies.guest_session;
-    const sessionId = verifySession(signedSession);
+
+    const sessionGuest = await getGuestFromRequest(req);
+    if (!sessionGuest) {
+      return res.redirect('/login');
+    }
+
     const guest = await findGuestByCode(code);
 
-    if (!guest) return res.status(404).send('<h1>Invitation not found</h1>');
+    if (guest && guest.id !== sessionGuest.id) {
+      return res.status(403).send(
+        pageWrapper(
+          'Not your invitation',
+          `<section class="hero-panel">
+             <span class="hero-flag">Invitation</span>
+             <h1>That invitation belongs to someone else.</h1>
+             <p>You are signed in as <strong>${escapeHtml(sessionGuest.name)}</strong>. Each invitation can only be opened by the guest it was addressed to.</p>
+             <a class="button button-primary" href="/invitation/${encodeURIComponent(sessionGuest.code)}">Go to your invitation</a>
+             <a class="button button-secondary" href="/login">Sign in as someone else</a>
+           </section>`,
+          '',
+          res.locals.theme
+        )
+      );
+    }
 
+    if (!guest) {
+      return res
+        .status(404)
+        .send(
+          pageWrapper(
+            'Invitation not found',
+            `<section class="hero-panel">
+               <span class="hero-flag">Invitation</span>
+               <h1>We couldn’t find that invitation.</h1>
+               <p>Please check the code printed on your wedding card, or search by your name.</p>
+               <a class="button button-primary" href="/login">Find your invitation</a>
+             </section>`,
+            '',
+            res.locals.theme
+          )
+        );
+    }
+
+    const theme = res.locals.theme;
     const rsvp = await findRsvpResponseByGuestId(guest.id);
-    const loggedIn = sessionId === guest.id;
     const hasResponded = Boolean(rsvp);
     const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
+    const guestName = escapeHtml(guest.name);
 
-    return res.send(`
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Invitation - ${guest.name}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 720px; margin: auto; }
-            .sticky-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff8e6; border-top: 1px solid #ddd; padding: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; box-shadow: 0 -4px 16px rgba(0,0,0,0.05); }
-            .sticky-bar button { padding: 0.75rem 1rem; font-size: 1rem; border: none; cursor: pointer; }
-            .accept { background: #2f855a; color: white; }
-            .decline { background: #718096; color: white; }
-            .hidden { display: none; }
-            .response-card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; margin-top: 1rem; background: #f9fafb; }
-          </style>
-        </head>
-        <body>
-          <h1>Invitation for ${guest.name}</h1>
-          <p><strong>Code:</strong> ${guest.code}</p>
-          <p><strong>Relationship:</strong> ${guest.relationship}</p>
-          <p><strong>RSVP status:</strong> ${rsvpStatus}</p>
+    // P0-02: render the admin-uploaded InvitationTemplate with the guest's name
+    // overlaid at the position/size/colour configured in ThemeSettings.
+    const invitationCanvas = theme.invitationTemplateUrl
+      ? `<div class="invitation-canvas">
+           <img src="${escapeHtml(theme.invitationTemplateUrl)}" alt="Wedding invitation for ${guestName}" />
+           <span class="invitation-name" style="top: ${escapeHtml(theme.invitationNameTop)}; left: ${escapeHtml(theme.invitationNameLeft)}; font-size: ${escapeHtml(theme.invitationNameFontSize)}; color: ${escapeHtml(theme.invitationNameColor)};">${guestName}</span>
+         </div>`
+      : `<div class="invitation-fallback">
+           <span class="hero-flag">You are invited</span>
+           <p class="invitation-name-static">${guestName}</p>
+           <p>${escapeHtml(theme.coupleNames)} · ${formatWeddingDate(theme.weddingDate)}</p>
+         </div>`;
 
-          <section class="response-card">
-            <h2>Your invitation</h2>
-            <p>Welcome ${guest.name}! Please confirm your attendance by responding below.</p>
-            ${hasResponded ? `<p>Thank you. Your current response is <strong>${rsvpStatus}</strong>.</p>` : '<p>We are looking forward to your response.</p>'}
-            ${hasResponded ? '<p><button id="change-response" type="button">Change your response</button></p>' : ''}
-          </section>
+    const venueLine = theme.venueName
+      ? `<li><strong>Venue:</strong> ${escapeHtml(theme.venueName)}${theme.venueAddress ? ` — ${escapeHtml(theme.venueAddress)}` : ''}</li>`
+      : '';
 
-          <div id="rsvp-form" class="hidden">
-            <div class="response-card">
-              <h2>RSVP</h2>
-              <p>Slot count: ${guest.slotCount}</p>
-              <label>
-                <input type="radio" name="attending" value="yes" checked /> Accept
-              </label>
-              <label>
-                <input type="radio" name="attending" value="no" /> Decline
-              </label>
-              <div id="participant-section">
-                <label>
-                  Participant names (comma-separated)<br />
-                  <input id="participant_names" type="text" placeholder="Nimal Silva, Anu Silva" style="width:100%; padding:0.75rem; margin-top:0.5rem;" />
-                </label>
-              </div>
-              <button id="submit-rsvp" type="button" class="accept">Submit RSVP</button>
-              <p id="rsvp-message" aria-live="polite"></p>
-            </div>
+    const bodyContent = `
+      ${invitationCanvas}
+
+      <section class="response-card">
+        <span class="rsvp-pill ${rsvpStatus}">${rsvpStatus}</span>
+        <h2>Your invitation</h2>
+        <ul class="detail-list">
+          <li><strong>Guest:</strong> ${guestName}</li>
+          <li><strong>Code:</strong> ${escapeHtml(guest.code)}</li>
+          <li><strong>Places reserved for you:</strong> ${escapeHtml(guest.slotCount)}</li>
+          <li><strong>Date:</strong> ${formatWeddingDate(theme.weddingDate)}</li>
+          ${venueLine}
+        </ul>
+        ${
+          hasResponded
+            ? `<p>Thank you — your current response is <strong>${rsvpStatus}</strong>.</p>
+               <p><button id="change-response" type="button" class="decline">Change your response</button></p>`
+            : `<p>${escapeHtml(theme.coupleNames)} would love to know if you can join them.</p>`
+        }
+        <p class="session-note">
+          Signed in as <strong>${guestName}</strong>.
+          <button id="sign-out" type="button" class="link-button">Not you? Sign out</button>
+        </p>
+      </section>
+
+      <div id="rsvp-form" class="hidden">
+        <section class="response-card">
+          <h2>RSVP</h2>
+          <div class="choice-row">
+            <label><input type="radio" name="attending" value="yes" checked /> Joyfully accept</label>
+            <label><input type="radio" name="attending" value="no" /> Regretfully decline</label>
           </div>
-
-          <div id="invitation-content" class="response-card">
-            <h2>Event details</h2>
-            <p>This is a demo invitation page. The real site will include the wedding invitation template, event information, and a personalized overlay.</p>
+          <div id="participant-section">
+            <label for="participant_names">
+              Who is coming? Separate names with a comma (up to ${escapeHtml(guest.slotCount)}).
+              <input id="participant_names" type="text" placeholder="Nimal Silva, Anu Silva" />
+            </label>
           </div>
+          <button id="submit-rsvp" type="button" class="accept">Submit RSVP</button>
+          <p id="rsvp-message" aria-live="polite"></p>
+        </section>
+      </div>
 
-          <div id="sticky-bar" class="sticky-bar ${hasResponded ? 'hidden' : ''}">
-            <span>Amandi & Tharindu are waiting for your response 💍 — Will you join us?</span>
-            <div>
-              <button id="accept" class="accept">Accept</button>
-              <button id="decline" class="decline">Decline</button>
-            </div>
-          </div>
+      <div id="sticky-bar" class="sticky-bar ${hasResponded ? 'hidden' : ''}">
+        <span>${escapeHtml(theme.coupleNames)} are waiting for your response 💍 — Will you join us?</span>
+        <div class="sticky-actions">
+          <button id="accept" class="accept">Accept</button>
+          <button id="decline" class="decline">Decline</button>
+        </div>
+      </div>
+    `;
 
+    const scripts = `
           <script>
+            function getCookieValue(name) {
+              return document.cookie.split('; ').reduce((value, cookie) => {
+                const [cookieName, cookieValue] = cookie.split('=');
+                return cookieName === name ? decodeURIComponent(cookieValue) : value;
+              }, '');
+            }
+
             const showForm = () => {
               document.getElementById('rsvp-form').classList.remove('hidden');
               window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             };
+
+            document.getElementById('sign-out').addEventListener('click', async () => {
+              await fetch('/api/guest/logout', {
+                method: 'POST',
+                headers: { 'x-csrf-token': getCookieValue('csrf_token') },
+              });
+              window.location.href = '/login';
+            });
 
             document.getElementById('accept').addEventListener('click', () => {
               document.querySelector('input[name="attending"][value="yes"]').checked = true;
@@ -567,16 +1117,1408 @@ export function createApp() {
               }
             });
           </script>
-        </body>
-      </html>
-    `);
+    `;
+
+    return res.send(pageWrapper(`Invitation — ${guestName}`, bodyContent, scripts, theme));
+  });
+
+  app.get('/admin', (req, res) => {
+    const signed = req.cookies && req.cookies[ADMIN_SESSION_COOKIE];
+    const adminId = verifySession(signed);
+    if (adminStore.some((a) => a.id === adminId)) {
+      return res.redirect('/admin/theme');
+    }
+
+    const bodyContent = `
+      <section class="hero-panel">
+        <span class="hero-flag">Admin login</span>
+        <h1>Sign in to manage the wedding site.</h1>
+      </section>
+      <section class="story-card">
+        ${
+          isAdminConfigured()
+            ? ''
+            : `<p class="status-msg error">No admin account is configured yet. Run <code>npm run admin:hash</code>, then put the printed ADMIN_EMAIL and ADMIN_PASSWORD_HASH lines in your <code>.env</code> and restart.</p>`
+        }
+        <form id="admin-login-form" class="responsive-stack">
+          <label>Email<input id="admin-email" type="email" autocomplete="username" /></label>
+          <label>Password<input id="admin-password" type="password" autocomplete="current-password" /></label>
+          <button class="button button-primary" type="submit">Log in</button>
+        </form>
+        <div id="admin-login-result" role="status" aria-live="polite" style="margin-top: 1rem;"></div>
+      </section>
+    `;
+
+    const scripts = `
+      <script>
+        function getCookieValue(name) {
+          return document.cookie.split('; ').reduce((value, cookie) => {
+            const [cookieName, cookieValue] = cookie.split('=');
+            return cookieName === name ? decodeURIComponent(cookieValue) : value;
+          }, '');
+        }
+        const csrfToken = getCookieValue('csrf_token');
+        document.getElementById('admin-login-form').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const email = document.getElementById('admin-email').value.trim();
+          const password = document.getElementById('admin-password').value;
+          const result = document.getElementById('admin-login-result');
+          const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+            body: JSON.stringify({ email, password }),
+          });
+          const body = await res.json();
+          if (res.ok && body.success) {
+            window.location.href = '/admin/theme';
+            return;
+          }
+          result.textContent = body.message || 'Login failed. Please try again.';
+        });
+      </script>
+    `;
+
+    return res.send(pageWrapper(`Admin Login — ${escapeHtml(res.locals.theme.coupleNames)}`, bodyContent, scripts, res.locals.theme));
+  });
+
+  app.post('/api/admin/login', async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    // There is no fallback admin password. When the account is unconfigured,
+    // say so plainly rather than returning "incorrect email or password" for
+    // credentials that could never have worked.
+    if (!isAdminConfigured()) {
+      return res.status(503).json({
+        success: false,
+        reason: 'admin_not_configured',
+        message: 'No admin account is configured. Run `npm run admin:hash` and set ADMIN_EMAIL and ADMIN_PASSWORD_HASH.',
+      });
+    }
+
+    const { email, password } = req.body || {};
+    const adminRecord = await findAdminByEmail(email);
+    const result = verifyAdminCredentials(email, password, adminRecord);
+
+    if (!result.success) {
+      return res.status(401).json(result);
+    }
+
+    const signed = signSession(result.adminId);
+    res.cookie(ADMIN_SESSION_COOKIE, signed, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    return res.json(result);
+  });
+
+  app.post('/api/admin/logout', (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    res.clearCookie(ADMIN_SESSION_COOKIE, { path: '/' });
+    return res.json({ success: true });
+  });
+
+  app.get('/admin/theme', requireAdminPage, async (req, res) => {
+    const settings = await getThemeSettings();
+
+    const groupsHtml = THEME_FIELD_GROUPS.map((group) => {
+      if (group.id === 'palette') return renderPaletteGroup(group, settings);
+      if (group.id === 'font-choice') return renderFontChoiceGroup(group, settings);
+
+      const fieldsHtml = group.fields
+        .map((field) => {
+          const { label, hint } = FIELD_LABELS[field] || { label: field, hint: '' };
+          return `
+            <div class="field-row">
+              <label>${escapeHtml(label)}
+                ${hint ? `<span class="field-hint">${escapeHtml(hint)}</span>` : ''}
+                <input type="text" data-field="${field}" value="${escapeHtml(settings[field] ?? '')}" />
+              </label>
+            </div>
+          `;
+        })
+        .join('');
+
+      return `
+        <form class="field-group" data-group="${group.id}">
+          <h2>${group.label}</h2>
+          ${fieldsHtml}
+          <button class="save-btn" type="submit">Save ${group.label}</button>
+          <div class="status-msg" data-status></div>
+        </form>
+      `;
+    }).join('');
+
+    const bodyContent = `
+      <h1>Theme Editor</h1>
+      <p>Update each element below and save it independently. Changes apply site-wide immediately.</p>
+      ${groupsHtml}
+    `;
+
+    const scripts = `
+      <script>
+        document.querySelectorAll('form[data-group]').forEach((form) => {
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const status = form.querySelector('[data-status]');
+            const patch = {};
+            form.querySelectorAll('input[data-field]').forEach((input) => {
+              patch[input.getAttribute('data-field')] = input.value;
+            });
+            const res = await fetch('/api/admin/theme', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+              body: JSON.stringify(patch),
+            });
+            const body = await res.json();
+            if (res.ok && body.success) {
+              status.textContent = 'Saved.';
+              status.className = 'status-msg success';
+            } else {
+              status.textContent = (body.errors && body.errors.map((e) => e.field + ': ' + e.reason).join(', ')) || 'Save failed.';
+              status.className = 'status-msg error';
+            }
+          });
+        });
+
+        // ThemePalette picker: clicking a swatch stages the selection (hidden
+        // input + live preview) without saving. Save button persists it.
+        document.querySelectorAll('.palette-swatch').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const form = btn.closest('form');
+            const hidden = form.querySelector('input[data-field="paletteName"]');
+            hidden.value = btn.getAttribute('data-palette-id');
+            form.querySelectorAll('.palette-swatch').forEach((b) => b.classList.toggle('selected', b === btn));
+            const preview = form.querySelector('[data-palette-preview]');
+            if (preview) {
+              preview.style.setProperty('--preview-primary', btn.getAttribute('data-primary'));
+              preview.style.setProperty('--preview-secondary', btn.getAttribute('data-secondary'));
+            }
+          });
+        });
+
+        // FontChoice picker: same staged-preview pattern as the palette picker.
+        document.querySelectorAll('.font-choice-option').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const form = btn.closest('form');
+            const hidden = form.querySelector('input[data-field="fontChoice"]');
+            hidden.value = btn.getAttribute('data-font-id');
+            form.querySelectorAll('.font-choice-option').forEach((b) => b.classList.toggle('selected', b === btn));
+            const preview = form.querySelector('[data-font-preview]');
+            if (preview) {
+              preview.style.fontFamily = "'" + btn.getAttribute('data-display-font') + "', Georgia, serif";
+              preview.style.fontStyle = btn.getAttribute('data-font-style');
+            }
+          });
+        });
+      </script>
+    `;
+
+    return res.send(adminPageWrapper('Theme Editor — Admin', bodyContent, scripts, settings));
+  });
+
+  app.post('/api/admin/theme', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+
+    const result = await updateThemeSettings(req.body || {});
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    return res.json(result);
+  });
+
+  // Slice 14 (P0-02, P1-10): shared upload endpoint used by every admin page
+  // that manages an image (Theme Editor now; Gallery/Story/Events in Slices 16-17).
+  app.post('/api/admin/upload', requireAdminApi, (req, res, next) => {
+    // Checked before multer touches the body: CSRF lives in a header, not the
+    // multipart body, so there is no reason to buffer a file first.
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+
+    imageUpload.single('file')(req, res, (err) => {
+      if (!err) return next();
+
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          reason: 'file_too_large',
+          message: 'File exceeds the 5MB limit.',
+        });
+      }
+      if (err.code === 'INVALID_FILE_TYPE') {
+        return res.status(400).json({
+          success: false,
+          reason: 'invalid_file_type',
+          message: 'Only JPEG, PNG, and WebP images are allowed.',
+        });
+      }
+      return res.status(400).json({ success: false, reason: 'upload_error', message: err.message });
+    });
+  }, async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, reason: 'no_file', message: 'No file was uploaded.' });
+    }
+
+    const folder = ALLOWED_FOLDERS.includes(req.body.folder) ? req.body.folder : null;
+    if (!folder) {
+      return res.status(400).json({
+        success: false,
+        reason: 'invalid_folder',
+        message: `folder must be one of: ${ALLOWED_FOLDERS.join(', ')}`,
+      });
+    }
+
+    if (!isStorageConfigured()) {
+      return res.status(503).json({
+        success: false,
+        reason: 'storage_not_configured',
+        message: 'Image storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
+      });
+    }
+
+    try {
+      const { url } = await uploadImage({ buffer: req.file.buffer, mimeType: req.file.mimetype, folder });
+      return res.json({ success: true, url });
+    } catch {
+      return res.status(502).json({ success: false, reason: 'upload_failed', message: 'Upload failed. Please try again.' });
+    }
+  });
+
+  app.get('/admin/sections', requireAdminPage, async (req, res) => {
+    const sections = await listSections();
+
+    const sectionsHtml = sections
+      .map(
+        (section) => `
+          <div class="section-item" data-id="${section.id}">
+            <div class="section-item-header">
+              <strong>${section.page} / ${section.sectionType}</strong>
+              <span>${section.isVisible ? 'Visible' : 'Hidden'}</span>
+            </div>
+            <div class="field-row"><label>Title<input type="text" data-field="title" value="${String(section.title || '').replace(/"/g, '&quot;')}" /></label></div>
+            <div class="field-row"><label>Content<input type="text" data-field="content" value="${String(section.content || '').replace(/"/g, '&quot;')}" /></label></div>
+            <button class="save-btn" data-action="save" type="button">Save</button>
+            <button class="button button-secondary" data-action="toggle" type="button">${section.isVisible ? 'Hide' : 'Show'}</button>
+            <button class="button button-secondary" data-action="delete" type="button">Delete</button>
+            <div class="status-msg" data-status></div>
+          </div>
+        `
+      )
+      .join('') || '<p>No custom sections yet.</p>';
+
+    const pageOptions = VALID_PAGES.map((p) => `<option value="${p}">${p}</option>`).join('');
+    const typeOptions = VALID_SECTION_TYPES.map((t) => `<option value="${t}">${t}</option>`).join('');
+
+    const bodyContent = `
+      <h1>Section Manager</h1>
+      <p>Add custom content blocks to any public page.</p>
+      <form id="new-section-form" class="field-group">
+        <h2>Add Section</h2>
+        <div class="field-row"><label>Page<select id="new-section-page">${pageOptions}</select></label></div>
+        <div class="field-row"><label>Type<select id="new-section-type">${typeOptions}</select></label></div>
+        <div class="field-row"><label>Title<input id="new-section-title" type="text" /></label></div>
+        <div class="field-row"><label>Content<input id="new-section-content" type="text" /></label></div>
+        <button class="save-btn" type="submit">Add Section</button>
+        <div class="status-msg" data-status></div>
+      </form>
+      <div id="sections-list">${sectionsHtml}</div>
+    `;
+
+    const scripts = `
+      <script>
+        document.getElementById('new-section-form').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const status = event.target.querySelector('[data-status]');
+          const res = await fetch('/api/admin/sections', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+            body: JSON.stringify({
+              page: document.getElementById('new-section-page').value,
+              sectionType: document.getElementById('new-section-type').value,
+              title: document.getElementById('new-section-title').value,
+              content: document.getElementById('new-section-content').value,
+            }),
+          });
+          const body = await res.json();
+          if (res.ok && body.success) {
+            window.location.reload();
+          } else {
+            status.textContent = 'Could not add section.';
+            status.className = 'status-msg error';
+          }
+        });
+
+        document.querySelectorAll('.section-item').forEach((item) => {
+          const id = item.getAttribute('data-id');
+          const status = item.querySelector('[data-status]');
+
+          item.querySelector('[data-action="save"]').addEventListener('click', async () => {
+            const patch = {};
+            item.querySelectorAll('input[data-field]').forEach((input) => {
+              patch[input.getAttribute('data-field')] = input.value;
+            });
+            const res = await fetch('/api/admin/sections/' + id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+              body: JSON.stringify(patch),
+            });
+            const body = await res.json();
+            status.textContent = res.ok && body.success ? 'Saved.' : 'Save failed.';
+            status.className = res.ok && body.success ? 'status-msg success' : 'status-msg error';
+          });
+
+          item.querySelector('[data-action="toggle"]').addEventListener('click', async () => {
+            const isVisible = item.querySelector('.section-item-header span').textContent === 'Hidden';
+            await fetch('/api/admin/sections/' + id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+              body: JSON.stringify({ isVisible }),
+            });
+            window.location.reload();
+          });
+
+          item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+            await fetch('/api/admin/sections/' + id, {
+              method: 'DELETE',
+              headers: { 'x-csrf-token': csrfToken },
+            });
+            window.location.reload();
+          });
+        });
+      </script>
+    `;
+
+    return res.send(adminPageWrapper('Section Manager — Admin', bodyContent, scripts, res.locals.theme));
+  });
+
+  app.post('/api/admin/sections', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await createSection(req.body || {});
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.patch('/api/admin/sections/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await updateSection(req.params.id, req.body || {});
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.delete('/api/admin/sections/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await deleteSection(req.params.id);
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.get('/api/admin/guests', requireAdminApi, async (req, res) => {
+    const guests = await listGuestsForAdmin({
+      rsvpStatus: req.query.rsvpStatus || undefined,
+      relationship: req.query.relationship || undefined,
+      search: req.query.search || undefined,
+    });
+    return res.json({ success: true, guests });
+  });
+
+  app.post('/api/admin/guests', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    // Fetched rather than read from res.locals, which the theme middleware
+    // only populates for GET/HEAD — this is a POST. The format then travels
+    // with the call, so the repo needs no dependency on the settings store.
+    const theme = await getThemeSettings();
+    const result = await createGuest(req.body || {}, {
+      surnamePosition: theme.invitationCodeSurnamePosition,
+      groupPrefix: theme.invitationCodeGroupPrefix,
+    });
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.patch('/api/admin/guests/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await updateGuest(req.params.id, req.body || {});
+    if (!result.success) {
+      return res.status(result.reason === 'guest_not_found' ? 404 : 400).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.delete('/api/admin/guests/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid' });
+    }
+    const result = await softDeleteGuest(req.params.id);
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    return res.json(result);
+  });
+
+  app.get('/admin/guests', requireAdminPage, async (req, res) => {
+    const [guests, responses] = await Promise.all([
+      listGuestsForAdmin({
+        rsvpStatus: req.query.rsvpStatus || undefined,
+        relationship: req.query.relationship || undefined,
+        search: req.query.search || undefined,
+      }),
+      listAllRsvpResponses(),
+    ]);
+    const responseByGuest = new Map(responses.map((response) => [response.guestId, response]));
+
+    const theme = res.locals.theme || {};
+    const codeSurnamePosition = theme.invitationCodeSurnamePosition || 'first';
+    const codeGroupPrefix = Boolean(theme.invitationCodeGroupPrefix);
+    // Show the admin what the next code will actually look like, using a
+    // worked example rather than describing the rule in prose.
+    const codePreview = generateInvitationCode('Nimal Silva', [], {
+      surnamePosition: codeSurnamePosition,
+      groupPrefix: codeGroupPrefix,
+      relationship: 'Relations',
+    });
+
+    const relationshipOptions = VALID_RELATIONSHIP_TYPES.map(
+      (value) => `<option value="${value}" ${req.query.relationship === value ? 'selected' : ''}>${value}</option>`
+    ).join('');
+    const statusOptions = ['pending', 'accepted', 'declined']
+      .map((value) => `<option value="${value}" ${req.query.rsvpStatus === value ? 'selected' : ''}>${value}</option>`)
+      .join('');
+
+    const rowsHtml = guests
+      .map((guest) => {
+        const updatedLabel = guest.updatedAt || guest.createdAt || '—';
+        const response = responseByGuest.get(guest.id);
+        const participantNames = response && Array.isArray(response.participantNames) ? response.participantNames : [];
+        const participantNamesJson = escapeHtml(JSON.stringify(participantNames));
+
+        const detailBody = participantNames.length > 0
+          ? `<p><strong>Participant names (${participantNames.length}):</strong> ${escapeHtml(participantNames.join(', '))}</p>`
+          : `<p>No participant names recorded${guest.rsvpStatus === 'accepted' ? ' yet' : ''}.</p>`;
+
+        return `
+          <tr data-id="${escapeHtml(guest.id)}" data-name="${escapeHtml(guest.name)}" data-code="${escapeHtml(guest.code)}" data-relationship="${escapeHtml(guest.relationship)}" data-slot-count="${escapeHtml(String(guest.slotCount))}" data-rsvp-status="${escapeHtml(guest.rsvpStatus)}" data-participant-names="${participantNamesJson}" class="${guest.isDeleted ? 'guest-deleted' : ''}">
+            <td><input type="checkbox" class="row-select" aria-label="Select ${escapeHtml(guest.name)}" /></td>
+            <td>
+              <strong>${escapeHtml(guest.name)}</strong>
+              ${guest.isDeleted ? '<div class="badge-deleted">Deleted</div>' : ''}
+            </td>
+            <td><code>${escapeHtml(guest.code)}</code></td>
+            <td>${escapeHtml(guest.relationship)}</td>
+            <td>${escapeHtml(String(guest.slotCount))}</td>
+            <td>${escapeHtml(guest.rsvpStatus)}</td>
+            <td>${escapeHtml(guest.whatsappNumber || '—')}</td>
+            <td>${escapeHtml(String(updatedLabel))}</td>
+            <td>
+              <div class="guest-row-actions">
+                <button class="button button-secondary" data-action="details" type="button">View Details</button>
+                <button class="button button-secondary" data-action="edit" type="button">Edit</button>
+                ${guest.isDeleted ? '' : '<button class="button button-secondary" data-action="delete" type="button">Delete</button>'}
+              </div>
+            </td>
+          </tr>
+          <tr class="guest-detail-row hidden" data-detail-for="${escapeHtml(guest.id)}">
+            <td colspan="9">
+              <div class="guest-detail-panel">
+                <p><strong>RSVP status:</strong> ${escapeHtml(guest.rsvpStatus)}</p>
+                ${detailBody}
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join('') || '<tr><td colspan="9">No guests match these filters.</td></tr>';
+
+    const bodyContent = `
+      <h1>Guest Management</h1>
+      <p>Add guests, assign invitation codes, and review RSVP status.</p>
+
+      <div id="guest-filters" class="field-group guest-filters">
+        <div class="field-row">
+          <label>Search
+            <input id="filter-search" type="search" value="${escapeHtml(req.query.search || '')}" placeholder="Name or code" />
+          </label>
+        </div>
+        <div class="field-row">
+          <label>RSVP status
+            <select id="filter-rsvp-status">
+              <option value="">All</option>
+              ${statusOptions}
+            </select>
+          </label>
+        </div>
+        <div class="field-row">
+          <label>Relationship
+            <select id="filter-relationship">
+              <option value="">All</option>
+              ${relationshipOptions}
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <form id="code-format-form" class="field-group">
+        <h2>Invitation Code Format</h2>
+        <p class="field-hint">
+          Codes are printed on the cards and are how guests sign in, so this can be changed
+          freely now but is fixed once cards go to print.
+          <strong>Changing it never alters codes that already exist</strong> — only new ones.
+        </p>
+        <div class="field-row">
+          <label>Which part of the name to use
+            <select id="code-surname-position">
+                            <option value="first" ${codeSurnamePosition === 'first' ? 'selected' : ''}>First word — Wickramasinghe … Nimal → WICKRAMASINGHE</option>
+              <option value="last" ${codeSurnamePosition === 'last' ? 'selected' : ''}>Last word — Nimal Silva → SILVA</option>
+            </select>
+            <span class="field-hint">Sri Lankan names often place the family name first.</span>
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="checkbox-row">
+            <input id="code-group-prefix" type="checkbox" ${codeGroupPrefix ? 'checked' : ''} />
+            Add a group letter (R / C / N / F)
+          </label>
+          <span class="field-hint">Sorts codes by relationship — but the guest sees which group you filed them under.</span>
+        </div>
+        <p class="code-preview">Next code would look like: <strong id="code-preview-value">${escapeHtml(codePreview)}</strong></p>
+        <button class="save-btn" type="submit">Save format</button>
+        <p class="status-msg" data-status></p>
+      </form>
+
+      <form id="new-guest-form" class="field-group">
+        <h2>Add Guest</h2>
+        <div class="field-row"><label>Name<input id="new-guest-name" type="text" required /></label></div>
+        <div class="field-row">
+          <label>Relationship
+            <select id="new-guest-relationship">${relationshipOptions}</select>
+          </label>
+        </div>
+        <div class="field-row"><label>Slot count<input id="new-guest-slots" type="number" min="1" value="1" /></label></div>
+        <div class="field-row">
+          <label>Invitation code <span class="field-hint-inline">optional</span>
+            <input id="new-guest-code" type="text" placeholder="Leave blank to generate: ${escapeHtml(codePreview)}" />
+            <span class="field-hint">Set one by hand when the generated code reads wrongly. Letters, numbers and hyphens.</span>
+          </label>
+        </div>
+        <button class="save-btn" type="submit">Add Guest</button>
+        <div class="status-msg" data-status></div>
+      </form>
+
+      <div class="field-group">
+        <div class="guest-list-header">
+          <h2>Guest List (<span id="guest-list-count">${guests.length}</span>)</h2>
+          <div class="guest-bulk-actions">
+            <span id="selected-count" class="field-hint-inline">0 selected</span>
+            <button class="button button-secondary" id="export-selected-btn" type="button">Export Selected to CSV</button>
+          </div>
+        </div>
+        <table class="guest-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="select-all-guests" aria-label="Select all guests" /></th>
+              <th>Name</th>
+              <th>Code</th>
+              <th>Relationship</th>
+              <th>Slots</th>
+              <th>RSVP</th>
+              <th>WhatsApp</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+
+    const scripts = `
+      <script>
+        // Live preview of the code format, mirroring generateInvitationCode()
+        // for the worked example only. The server remains the sole authority
+        // for codes that are actually issued.
+        const GROUP_LETTERS = { Relations: 'R', Colleagues: 'C', Neighbours: 'N', Friends: 'F' };
+        const positionSelect = document.getElementById('code-surname-position');
+        const prefixCheckbox = document.getElementById('code-group-prefix');
+        const previewValue = document.getElementById('code-preview-value');
+
+        function renderCodePreview() {
+          const parts = 'Nimal Silva'.trim().split(' ').filter(Boolean);
+          const surname = (positionSelect.value === 'first' ? parts[0] : parts[parts.length - 1]).toUpperCase();
+          const letter = prefixCheckbox.checked ? GROUP_LETTERS.Relations + '-' : '';
+          previewValue.textContent = letter + surname + '-001';
+
+          const codeInput = document.getElementById('new-guest-code');
+          if (codeInput) codeInput.placeholder = 'Leave blank to generate: ' + previewValue.textContent;
+        }
+
+        positionSelect.addEventListener('change', renderCodePreview);
+        prefixCheckbox.addEventListener('change', renderCodePreview);
+
+        document.getElementById('code-format-form').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const status = event.target.querySelector('[data-status]');
+          const res = await fetch('/api/admin/theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+            body: JSON.stringify({
+              invitationCodeSurnamePosition: positionSelect.value,
+              invitationCodeGroupPrefix: prefixCheckbox.checked,
+            }),
+          });
+          const body = await res.json();
+          if (res.ok && body.success) {
+            status.textContent = 'Saved. New codes will use this format; existing codes are unchanged.';
+            status.className = 'status-msg success';
+          } else {
+            status.textContent = body.message || body.reason || 'Could not save the format.';
+            status.className = 'status-msg error';
+          }
+        });
+
+        document.getElementById('new-guest-form').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const status = event.target.querySelector('[data-status]');
+          const res = await fetch('/api/admin/guests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+            body: JSON.stringify({
+              name: document.getElementById('new-guest-name').value.trim(),
+              code: document.getElementById('new-guest-code').value.trim(),
+              relationship: document.getElementById('new-guest-relationship').value,
+              slotCount: Number(document.getElementById('new-guest-slots').value),
+            }),
+          });
+          const body = await res.json();
+          if (res.ok && body.success) {
+            window.location.reload();
+            return;
+          }
+          status.textContent = (body.errors && body.errors.map((e) => e.field + ': ' + e.reason).join(', ')) || body.message || 'Could not add guest.';
+          status.className = 'status-msg error';
+        });
+
+        const guestRows = Array.from(document.querySelectorAll('.guest-table tbody tr[data-id]'));
+
+        guestRows.forEach((row) => {
+          const id = row.getAttribute('data-id');
+          const editBtn = row.querySelector('[data-action="edit"]');
+          const deleteBtn = row.querySelector('[data-action="delete"]');
+          const detailsBtn = row.querySelector('[data-action="details"]');
+
+          if (editBtn) {
+            editBtn.addEventListener('click', async () => {
+              const name = window.prompt('Guest name', row.getAttribute('data-name'));
+              if (name === null) return;
+              const relationship = window.prompt('Relationship (Relations, Colleagues, Neighbours, Friends)', row.getAttribute('data-relationship'));
+              if (relationship === null) return;
+              const slotCount = window.prompt('Slot count', row.getAttribute('data-slot-count'));
+              if (slotCount === null) return;
+              const res = await fetch('/api/admin/guests/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+                body: JSON.stringify({ name: name.trim(), relationship: relationship.trim(), slotCount: Number(slotCount) }),
+              });
+              if (res.ok) window.location.reload();
+            });
+          }
+
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+              if (!window.confirm('Soft-delete this guest? They will no longer be able to log in.')) return;
+              await fetch('/api/admin/guests/' + id, {
+                method: 'DELETE',
+                headers: { 'x-csrf-token': csrfToken },
+              });
+              window.location.reload();
+            });
+          }
+
+          if (detailsBtn) {
+            detailsBtn.addEventListener('click', () => {
+              const detailRow = document.querySelector('tr.guest-detail-row[data-detail-for="' + id + '"]');
+              if (!detailRow) return;
+              const nowHidden = detailRow.classList.toggle('hidden');
+              detailsBtn.textContent = nowHidden ? 'View Details' : 'Hide Details';
+            });
+          }
+        });
+
+        // --- Real-time search / status / relationship filtering ---------
+        const searchInput = document.getElementById('filter-search');
+        const statusSelect = document.getElementById('filter-rsvp-status');
+        const relationshipSelect = document.getElementById('filter-relationship');
+        const guestListCount = document.getElementById('guest-list-count');
+
+        function applyGuestFilters() {
+          const search = searchInput.value.trim().toLowerCase();
+          const status = statusSelect.value;
+          const relationship = relationshipSelect.value;
+          let visibleCount = 0;
+
+          guestRows.forEach((row) => {
+            const matchesSearch = !search
+              || row.getAttribute('data-name').toLowerCase().includes(search)
+              || row.getAttribute('data-code').toLowerCase().includes(search);
+            const matchesStatus = !status || row.getAttribute('data-rsvp-status') === status;
+            const matchesRelationship = !relationship || row.getAttribute('data-relationship') === relationship;
+            const visible = matchesSearch && matchesStatus && matchesRelationship;
+
+            row.classList.toggle('hidden', !visible);
+            if (visible) visibleCount += 1;
+
+            if (!visible) {
+              const detailRow = document.querySelector('tr.guest-detail-row[data-detail-for="' + row.getAttribute('data-id') + '"]');
+              if (detailRow && !detailRow.classList.contains('hidden')) {
+                detailRow.classList.add('hidden');
+                const detailsBtn = row.querySelector('[data-action="details"]');
+                if (detailsBtn) detailsBtn.textContent = 'View Details';
+              }
+            }
+          });
+
+          if (guestListCount) guestListCount.textContent = String(visibleCount);
+        }
+
+        searchInput.addEventListener('input', applyGuestFilters);
+        statusSelect.addEventListener('change', applyGuestFilters);
+        relationshipSelect.addEventListener('change', applyGuestFilters);
+
+        // --- Bulk selection + CSV export ---------------------------------
+        const selectAllCheckbox = document.getElementById('select-all-guests');
+        const selectedCountEl = document.getElementById('selected-count');
+
+        function updateSelectedCount() {
+          const checked = guestRows.filter((row) => row.querySelector('.row-select').checked).length;
+          selectedCountEl.textContent = checked + ' selected';
+        }
+
+        selectAllCheckbox.addEventListener('change', () => {
+          guestRows
+            .filter((row) => !row.classList.contains('hidden'))
+            .forEach((row) => { row.querySelector('.row-select').checked = selectAllCheckbox.checked; });
+          updateSelectedCount();
+        });
+
+        guestRows.forEach((row) => {
+          row.querySelector('.row-select').addEventListener('change', (event) => {
+            if (!event.target.checked) selectAllCheckbox.checked = false;
+            updateSelectedCount();
+          });
+        });
+
+        function csvEscape(value) {
+          const str = String(value == null ? '' : value);
+          const neutralised = /^[=+\\-@\\t\\r]/.test(str) ? "'" + str : str;
+          return /[",\\n\\r]/.test(neutralised) ? '"' + neutralised.replace(/"/g, '""') + '"' : neutralised;
+        }
+
+        document.getElementById('export-selected-btn').addEventListener('click', () => {
+          const selectedRows = guestRows.filter((row) => row.querySelector('.row-select').checked);
+          if (selectedRows.length === 0) {
+            window.alert('Select at least one guest to export.');
+            return;
+          }
+
+          const header = ['Name', 'Code', 'Relationship', 'Slot Count', 'RSVP Status', 'Participant Names'];
+          const rows = selectedRows.map((row) => {
+            let names = [];
+            try {
+              names = JSON.parse(row.getAttribute('data-participant-names') || '[]');
+            } catch (err) {
+              names = [];
+            }
+            return [
+              row.getAttribute('data-name'),
+              row.getAttribute('data-code'),
+              row.getAttribute('data-relationship'),
+              row.getAttribute('data-slot-count'),
+              row.getAttribute('data-rsvp-status'),
+              names.join(', '),
+            ].map(csvEscape).join(',');
+          });
+
+          const csv = '\\uFEFF' + [header.map(csvEscape).join(','), ...rows].join('\\n') + '\\n';
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          const today = new Date().toISOString().slice(0, 10);
+          link.href = url;
+          link.download = 'guests-selected-' + today + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        });
+
+        applyGuestFilters();
+      </script>
+    `;
+
+    return res.send(adminPageWrapper('Guest Management — Admin', bodyContent, scripts, res.locals.theme));
+  });
+
+  // --- Slice 19: Admin RSVP Dashboard (P0-08) -----------------------------
+
+  /** Loads guests + responses once and aggregates them. */
+  async function loadRsvpData() {
+    const [guests, responses] = await Promise.all([listGuestsForAdmin({}), listAllRsvpResponses()]);
+    return { guests, responses };
+  }
+
+  app.get('/api/admin/dashboard', requireAdminApi, async (req, res) => {
+    const { guests, responses } = await loadRsvpData();
+    return res.json({ success: true, stats: computeRsvpStats(guests, responses) });
+  });
+
+  app.get('/api/admin/dashboard/export', requireAdminApi, async (req, res) => {
+    const { guests, responses } = await loadRsvpData();
+    const today = new Date().toISOString().slice(0, 10);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="rsvp-export-${today}.csv"`);
+    // A BOM so Excel opens the file as UTF-8; without it Sinhala names and
+    // accented characters arrive mojibaked on a default Windows install.
+    return res.send('﻿' + buildGuestCsv(guests, responses));
+  });
+
+  app.get('/admin/rsvp', requireAdminPage, async (req, res) => {
+    const { guests, responses } = await loadRsvpData();
+    const stats = computeRsvpStats(guests, responses);
+
+    const bodyContent = `
+      <h1>RSVP Dashboard</h1>
+      <p>Live response figures for catering and venue planning. Updates on its own — no need to refresh.</p>
+
+      <div class="stat-grid">
+        ${statTile('Total Invited', 'totalInvited', stats.totalInvited, 'guest units')}
+        ${statTile('Accepted', 'acceptedFamilies', stats.acceptedFamilies, 'guest units')}
+        ${statTile('Headcount', 'acceptedHeadcount', stats.acceptedHeadcount, 'people attending')}
+        ${statTile('Declined', 'declinedFamilies', stats.declinedFamilies, 'guest units')}
+        ${statTile('Pending', 'pendingFamilies', stats.pendingFamilies, 'yet to respond')}
+        ${statTile('Responded', 'responseRate', stats.responseRate, 'percent of guests', '%')}
+      </div>
+
+      <div class="field-group">
+        <h2>Response breakdown</h2>
+        ${renderRsvpChart(stats)}
+      </div>
+
+      <div class="field-group">
+        <h2>Export</h2>
+        <p>Downloads every guest with their RSVP status and participant names, including removed guests (flagged), so the file reconciles against the guest list.</p>
+        <a class="save-btn" href="/api/admin/dashboard/export" download>Export CSV</a>
+      </div>
+    `;
+
+    const scripts = `
+      <script>
+        // P0-08 requires the figures to be real-time with no manual refresh.
+        async function refreshStats() {
+          try {
+            const res = await fetch('/api/admin/dashboard');
+            if (!res.ok) return;
+            const body = await res.json();
+            if (!body.success) return;
+
+            const stats = body.stats;
+            document.querySelectorAll('[data-stat]').forEach((el) => {
+              const key = el.getAttribute('data-stat');
+              if (stats[key] !== undefined) el.textContent = stats[key];
+            });
+
+            const max = Math.max(stats.acceptedFamilies, stats.declinedFamilies, stats.pendingFamilies, 1);
+            [['accepted', stats.acceptedFamilies], ['declined', stats.declinedFamilies], ['pending', stats.pendingFamilies]]
+              .forEach(([key, value]) => {
+                const bar = document.querySelector('[data-bar="' + key + '"]');
+                const label = document.querySelector('[data-bar-value="' + key + '"]');
+                if (bar) bar.setAttribute('width', Math.round((value / max) * 260));
+                if (label) {
+                  label.setAttribute('x', 96 + Math.round((value / max) * 260));
+                  label.textContent = value;
+                }
+              });
+          } catch (err) {
+            // A transient network blip should not blank the dashboard; the next
+            // tick simply tries again with the last good numbers still on screen.
+          }
+        }
+
+        setInterval(refreshStats, 15000);
+      </script>
+    `;
+
+    return res.send(adminPageWrapper('RSVP Dashboard — Admin', bodyContent, scripts, res.locals.theme));
+  });
+
+  // --- Table Arrangement Feature -----------------------------------------------
+
+  app.get('/api/admin/table-arrangement', requireAdminApi, async (req, res) => {
+    const tables = await listSeatingTables();
+    const unassigned = await listUnassignedGuests();
+    res.json({ tables, unassignedGuests: unassigned });
+  });
+
+  app.post('/api/admin/table-arrangement', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { tableNumber, tableName, capacity } = req.body;
+
+    if (!tableNumber || tableNumber < 1) {
+      return res.status(400).json({ success: false, message: 'Valid table number required' });
+    }
+
+    if (!capacity || capacity < 1 || capacity > 100) {
+      return res.status(400).json({ success: false, message: 'Capacity must be between 1 and 100' });
+    }
+
+    try {
+      const table = await createSeatingTable({ tableNumber, tableName, capacity });
+      res.json({ success: true, table });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put('/api/admin/table-arrangement/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { tableName } = req.body;
+
+    try {
+      const table = await updateSeatingTable(req.params.id, { tableName });
+      if (!table) {
+        return res.status(404).json({ success: false, message: 'Table not found' });
+      }
+      res.json({ success: true, table });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.delete('/api/admin/table-arrangement/:id', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    try {
+      await deleteSeatingTable(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post('/api/admin/table-arrangement/:tableId/seats/:seatId/assign', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { guestId, dietaryRequirements, specialNotes } = req.body;
+
+    if (!guestId) {
+      return res.status(400).json({ success: false, message: 'Guest ID required' });
+    }
+
+    try {
+      const seat = await assignGuestToSeat(req.params.seatId, guestId, {
+        dietaryRequirements,
+        specialNotes,
+      });
+      res.json({ success: true, seat });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post('/api/admin/table-arrangement/:tableId/seats/:seatId/unassign', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    try {
+      const seat = await unassignGuestFromSeat(req.params.seatId);
+      res.json({ success: true, seat });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get('/api/admin/table-arrangement/export', requireAdminApi, async (req, res) => {
+    const tables = await listSeatingTables();
+    const summary = buildTableArrangementSummary(tables);
+    const arrangements = buildTableArrangementExport(tables);
+
+    // Combine summary and arrangements in export
+    const fullExport = summary + '\n' + arrangements;
+
+    res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="table-arrangements.xlsx"');
+    res.send(fullExport);
+  });
+
+  app.get('/admin/table-arrangement', requireAdminPage, async (req, res) => {
+    const tables = await listSeatingTables();
+    const unassigned = await listUnassignedGuests();
+
+    const tablesHtml = tables
+      .map((table) => {
+        const seats = Array.isArray(table.seats) ? table.seats : [];
+        const filled = seats.filter((s) => s.guestId).length;
+
+        const seatsHtml = seats
+          .map((seat) => `
+            <div class="seat-card" data-seat-id="${escapeHtml(seat.id)}" data-guest-id="${seat.guestId || ''}">
+              <div class="seat-header">
+                <span class="seat-number">Seat ${seat.seatNumber}</span>
+                ${seat.guestId ? `<button class="button-small" data-action="unassign">Remove</button>` : ''}
+              </div>
+              <div class="seat-content">
+                ${seat.guestId ? `
+                  <div class="guest-info">
+                    <strong>${escapeHtml(seat.guestName)}</strong>
+                    ${seat.dietaryRequirements ? `<div class="dietary"><em>${escapeHtml(seat.dietaryRequirements)}</em></div>` : ''}
+                    ${seat.specialNotes ? `<div class="notes"><small>${escapeHtml(seat.specialNotes)}</small></div>` : ''}
+                  </div>
+                ` : `
+                  <div class="seat-empty">
+                    <em>Unassigned</em>
+                    <select class="guest-select" data-action="assign">
+                      <option value="">Select guest...</option>
+                      ${unassigned.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`).join('')}
+                    </select>
+                  </div>
+                `}
+              </div>
+            </div>
+          `)
+          .join('');
+
+        return `
+          <div class="table-card" data-table-id="${escapeHtml(table.id)}">
+            <div class="table-header">
+              <h3>Table ${table.table_number}${table.table_name ? ` - ${escapeHtml(table.table_name)}` : ''}</h3>
+              <div class="table-stats">${filled}/${table.capacity} filled</div>
+              <button class="button-small" data-action="delete-table">Delete</button>
+            </div>
+            <div class="seats-grid">
+              ${seatsHtml}
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    const bodyContent = `
+      <h1>Table Arrangement</h1>
+      <p>Organize guest seating and manage dietary requirements.</p>
+
+      <div class="table-management">
+        <div class="add-table-section">
+          <h2>Add New Table</h2>
+          <form id="add-table-form" class="field-group">
+            <div class="field-row">
+              <label>Table Number
+                <input type="number" name="tableNumber" min="1" required />
+              </label>
+            </div>
+            <div class="field-row">
+              <label>Table Name (optional)
+                <input type="text" name="tableName" placeholder="e.g., Family, Friends, VIP" />
+              </label>
+            </div>
+            <div class="field-row">
+              <label>Capacity
+                <input type="number" name="capacity" min="1" max="100" value="10" required />
+              </label>
+            </div>
+            <button class="save-btn" type="submit">Create Table</button>
+            <div class="status-msg" data-status></div>
+          </form>
+        </div>
+
+        <div class="export-section">
+          <h2>Export</h2>
+          <a class="save-btn" href="/api/admin/table-arrangement/export" download>Download Excel</a>
+        </div>
+      </div>
+
+      <div class="tables-container">
+        ${tablesHtml || '<p>No tables created yet.</p>'}
+      </div>
+    `;
+
+    const scripts = `
+      <script>
+        document.getElementById('add-table-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.capacity = parseInt(data.capacity, 10);
+
+          try {
+            const res = await fetch('/api/admin/table-arrangement', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+              body: JSON.stringify(data),
+            });
+            const result = await res.json();
+            if (result.success) {
+              location.reload();
+            } else {
+              alert('Error: ' + result.message);
+            }
+          } catch (error) {
+            alert('Error: ' + error.message);
+          }
+        });
+
+        document.querySelectorAll('[data-action="delete-table"]').forEach((btn) => {
+          btn.addEventListener('click', async (e) => {
+            if (!confirm('Delete this table and all seat assignments?')) return;
+            const tableId = e.target.closest('[data-table-id]').dataset.tableId;
+            try {
+              const res = await fetch('/api/admin/table-arrangement/' + tableId, {
+                method: 'DELETE',
+                headers: { 'x-csrf-token': csrfToken },
+              });
+              const result = await res.json();
+              if (result.success) {
+                location.reload();
+              } else {
+                alert('Error: ' + result.message);
+              }
+            } catch (error) {
+              alert('Error: ' + error.message);
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-action="assign"]').forEach((select) => {
+          select.addEventListener('change', async (e) => {
+            const guestId = e.target.value;
+            if (!guestId) return;
+
+            const seatCard = e.target.closest('[data-seat-id]');
+            const seatId = seatCard.dataset.seatId;
+            const tableId = seatCard.closest('[data-table-id]').dataset.tableId;
+
+            try {
+              const res = await fetch('/api/admin/table-arrangement/' + tableId + '/seats/' + seatId + '/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+                body: JSON.stringify({ guestId }),
+              });
+              const result = await res.json();
+              if (result.success) {
+                location.reload();
+              } else {
+                alert('Error: ' + result.message);
+              }
+            } catch (error) {
+              alert('Error: ' + error.message);
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-action="unassign"]').forEach((btn) => {
+          btn.addEventListener('click', async (e) => {
+            const seatCard = e.target.closest('[data-seat-id]');
+            const seatId = seatCard.dataset.seatId;
+            const tableId = seatCard.closest('[data-table-id]').dataset.tableId;
+
+            try {
+              const res = await fetch('/api/admin/table-arrangement/' + tableId + '/seats/' + seatId + '/unassign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+              });
+              const result = await res.json();
+              if (result.success) {
+                location.reload();
+              } else {
+                alert('Error: ' + result.message);
+              }
+            } catch (error) {
+              alert('Error: ' + error.message);
+            }
+          });
+        });
+      </script>
+
+      <style>
+        .table-management {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 2rem;
+          margin-bottom: 3rem;
+        }
+
+        .add-table-section, .export-section {
+          background: var(--color-surface);
+          padding: 1.5rem;
+          border-radius: 0.5rem;
+          border: 1px solid var(--color-line);
+        }
+
+        .tables-container {
+          display: grid;
+          gap: 2rem;
+        }
+
+        .table-card {
+          background: var(--color-surface);
+          border: 1px solid var(--color-line);
+          border-radius: 0.5rem;
+          overflow: hidden;
+        }
+
+        .table-header {
+          background: var(--color-soft);
+          padding: 1rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .table-header h3 {
+          margin: 0;
+          font-size: 1.2rem;
+        }
+
+        .table-stats {
+          color: var(--color-muted);
+          font-size: 0.9rem;
+        }
+
+        .seats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1rem;
+          padding: 1.5rem;
+        }
+
+        .seat-card {
+          background: var(--color-soft);
+          border: 1px solid var(--color-line);
+          border-radius: 0.4rem;
+          padding: 1rem;
+        }
+
+        .seat-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+
+        .seat-number {
+          font-weight: 600;
+          font-size: 0.9rem;
+        }
+
+        .guest-info {
+          padding: 0.5rem 0;
+        }
+
+        .guest-info strong {
+          display: block;
+          margin-bottom: 0.3rem;
+        }
+
+        .dietary {
+          color: var(--color-muted);
+          font-size: 0.85rem;
+          margin-top: 0.3rem;
+        }
+
+        .notes {
+          color: var(--color-muted);
+          font-size: 0.8rem;
+          margin-top: 0.3rem;
+        }
+
+        .seat-empty {
+          text-align: center;
+          color: var(--color-muted);
+        }
+
+        .guest-select {
+          width: 100%;
+          margin-top: 0.5rem;
+          padding: 0.4rem;
+          font-size: 0.85rem;
+        }
+
+        .button-small {
+          padding: 0.3rem 0.6rem;
+          font-size: 0.8rem;
+          background: var(--color-accent);
+          color: white;
+          border: none;
+          border-radius: 0.3rem;
+          cursor: pointer;
+        }
+
+        .button-small:hover {
+          opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+          .table-management {
+            grid-template-columns: 1fr;
+          }
+
+          .seats-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          }
+        }
+      </style>
+    `;
+
+    return res.send(adminPageWrapper('Table Arrangement — Admin', bodyContent, scripts, res.locals.theme));
   });
 
   return app;
 }
 
-if (process.argv[2] !== 'test') {
-  const app = createApp();
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
+// This module is a pure app factory; `src/main.js` is the entry point. Running
+// this file directly would skip the .env load, and since the repos read
+// DATABASE_URL at import time the server would come up silently on in-memory
+// stores even with a database configured — quietly discarding every RSVP.
+// Fail loudly rather than start wrong.
+const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isDirectRun) {
+  console.error(
+    'Start the server with `npm start` (src/main.js), which loads .env before the data layer reads DATABASE_URL.'
+  );
+  process.exit(1);
 }

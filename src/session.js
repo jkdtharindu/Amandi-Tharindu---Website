@@ -22,7 +22,14 @@ export function verifySession(signedValue) {
   const [value, signature] = signedValue.split('.');
   if (!value || !signature) return null;
   const expected = crypto.createHmac('sha256', secret).update(value).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'))
-    ? value
-    : null;
+
+  // Buffer.from(x, 'hex') silently truncates at the first non-hex character, so
+  // a forged cookie can yield a short buffer — and timingSafeEqual THROWS on a
+  // length mismatch rather than returning false. Compare lengths first, or a
+  // junk cookie becomes a 500 on every session-checked route.
+  const provided = Buffer.from(signature, 'hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  if (provided.length !== expectedBuffer.length) return null;
+
+  return crypto.timingSafeEqual(provided, expectedBuffer) ? value : null;
 }
