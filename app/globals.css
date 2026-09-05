@@ -63,8 +63,18 @@ img {
   display: block;
 }
 
-a {
-  color: inherit;
+/*
+ * Layered deliberately. An unlayered element rule beats every Tailwind utility
+ * regardless of specificity, so an unlayered `a { color: inherit }` silently
+ * overrode `text-white` on dark links — the active admin nav item and the
+ * Export CSV / Download spreadsheet buttons rendered dark-on-dark, invisible.
+ * Inside @layer base the default still applies to plain links, but a utility
+ * on a specific link now wins, which is the intended precedence.
+ */
+@layer base {
+  a {
+    color: inherit;
+  }
 }
 
 label {

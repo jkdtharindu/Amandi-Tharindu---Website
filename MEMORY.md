@@ -45,6 +45,10 @@ Reason: written by copying the SQL-query pattern from its sibling functions in t
 Correction: added the missing `mapGuestRow(row)` call so its DB path matches the in-memory path's shape. Found while wiring the new "Table Arranged" dashboard stat (P1-16), the first real consumer of this function's `rsvpStatus` field.
 
 
+[2026-09-05] Mistake: `app/globals.css` declared `a { color: inherit }` as a bare, **unlayered** element rule while the project uses Tailwind v4 (`@import "tailwindcss"`). Under CSS cascade layers an unlayered rule beats every layered one regardless of specificity, so it silently overrode `text-white` on every dark link: the active admin nav item on all seven admin pages, and the `Export CSV` and `Download spreadsheet` buttons, rendered their label in the same colour as their own background — invisible, at every screen size, not just on mobile.
+Reason: the rule was ported verbatim from the Express prototype's `baseStyles` (`src/server.js`) during the Next.js migration, where there were no utility classes for it to conflict with. The migration preserved the CSS text faithfully but not its cascade context, and nothing caught it because the affected text is *present and correct in the DOM* — it reads fine to a test, a screen reader, and `textContent`; only a human looking at the pixels, or a computed-style comparison, can see it.
+Correction: moved the rule into `@layer base`, which keeps the intended default (plain links inherit surrounding colour) while letting a utility on a specific link win. Found by comparing each element's computed `color` against its own `backgroundColor` across every page — 9 instances before, 0 after. Public pages were unaffected throughout. Worth reusing that computed-style check whenever prototype CSS meets utility classes.
+
 4) Deprecated patterns (old approaches we've moved away from)
 
 [2026-09-04] Pattern: Allowing unmerged feature branches to drift in parallel (feature/ui-wrapping diverged from feature/nextjs-supabase-migration 5+ days ago, was never merged, yet its database migrations were applied to the live database without code integration).

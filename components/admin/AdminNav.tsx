@@ -33,7 +33,13 @@ export default function AdminNav({ email }: { email: string }) {
           Amandi &amp; Tharindu
         </span>
 
-        <nav className="flex gap-1">
+        {/*
+          Wraps so the seven links can stack on a narrow screen. Without this the
+          nav's intrinsic width (~496px) sets a floor for the whole admin panel,
+          and a phone browser zooms the entire page out to fit it — shrinking
+          every screen's text rather than just this row.
+        */}
+        <nav className="flex flex-wrap gap-1">
           {LINKS.map((link) => {
             const active = pathname === link.href;
             return (
