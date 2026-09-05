@@ -25,16 +25,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let body: { email?: string; password?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { success: false, reason: 'invalid_json', message: 'Invalid request body.' },
-      { status: 400 }
-    );
-  }
-
+  // Checked before the body is read, so a caller cannot dodge the throttle by
+  // sending an unparseable body — same ordering as /api/guest/login.
   const rateLimit = checkAuthRateLimit(request.headers, ENDPOINT, ADMIN_LOGIN_LIMIT);
 
   if (!rateLimit.allowed) {
@@ -45,6 +37,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         message: 'Too many login attempts. Please wait 15 minutes and try again.',
       },
       { status: 429, headers: rateLimit.headers }
+    );
+  }
+
+  let body: { email?: string; password?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, reason: 'invalid_json', message: 'Invalid request body.' },
+      { status: 400 }
     );
   }
 

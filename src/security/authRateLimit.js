@@ -36,7 +36,9 @@ export function checkAuthRateLimit(headers, endpoint, limit) {
 }
 
 export function clearAuthRateLimit(identifier, endpoint) {
-  if (identifier) {
+  // The shared bucket is never refunded: unidentified callers all sit in it, so
+  // one success would hand everyone else in it a fresh budget.
+  if (identifier && identifier !== SHARED_BUCKET) {
     limiter.clear(identifier, endpoint);
   }
 }

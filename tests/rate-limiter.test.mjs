@@ -85,6 +85,52 @@ test('RateLimiter: clear() frees one caller without touching the others', () => 
   assert.strictEqual(limiter.check('2.2.2.2', '/e', 1, 60000).allowed, false);
 });
 
+test('RateLimiter: cleanup keeps a caller blocked while their window is still open', () => {
+  let clock = 1_000_000;
+  const limiter = new RateLimiter({ now: () => clock });
+  const windowMs = 15 * 60 * 1000; // the admin login window
+
+  limiter.check('1.1.1.1', '/e', 1, windowMs);
+  assert.strictEqual(limiter.check('1.1.1.1', '/e', 1, windowMs).allowed, false);
+
+  // Cleanup runs on its own schedule, unrelated to this caller's window.
+  clock += 7 * 60 * 1000;
+  limiter.prune();
+
+  // Seven minutes into a fifteen-minute block, so the block must survive.
+  assert.strictEqual(limiter.check('1.1.1.1', '/e', 1, windowMs).allowed, false);
+});
+
+test('RateLimiter: cleanup releases a caller once their window has passed', () => {
+  let clock = 1_000_000;
+  const limiter = new RateLimiter({ now: () => clock });
+  const windowMs = 15 * 60 * 1000;
+
+  limiter.check('1.1.1.1', '/e', 1, windowMs);
+
+  clock += windowMs + 1;
+  limiter.prune();
+
+  assert.strictEqual(limiter.requests.size, 0, 'expired entries must not leak');
+  assert.strictEqual(limiter.check('1.1.1.1', '/e', 1, windowMs).allowed, true);
+});
+
+test('RateLimiter: cleanup respects each caller own window', () => {
+  let clock = 1_000_000;
+  const limiter = new RateLimiter({ now: () => clock });
+  const shortWindow = 60 * 1000;
+  const longWindow = 15 * 60 * 1000;
+
+  limiter.check('short', '/e', 1, shortWindow);
+  limiter.check('long', '/e', 1, longWindow);
+
+  clock += 5 * 60 * 1000;
+  limiter.prune();
+
+  assert.strictEqual(limiter.check('short', '/e', 1, shortWindow).allowed, true);
+  assert.strictEqual(limiter.check('long', '/e', 1, longWindow).allowed, false);
+});
+
 test('rateLimitHeaders: exposes limit, remaining and reset', () => {
   const limiter = new RateLimiter();
   const result = limiter.check('1.1.1.1', '/e', 5, 60000);

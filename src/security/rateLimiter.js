@@ -10,7 +10,10 @@ const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
  * more than one instance needs a shared store (TASKS.md Next Action 8).
  */
 export class RateLimiter {
-  constructor() {
+  // `now` is injectable so the window/cleanup interaction can be tested without
+  // waiting out real minutes.
+  constructor({ now = () => Date.now() } = {}) {
+    this.now = now;
     this.requests = new Map();
 
     const timer = setInterval(() => this.prune(), CLEANUP_INTERVAL_MS);
@@ -23,17 +26,19 @@ export class RateLimiter {
 
   check(identifier, endpoint, maxRequests, windowMs) {
     const key = `${identifier}:${endpoint}`;
-    const now = Date.now();
+    const now = this.now();
     const windowStart = now - windowMs;
 
-    const previous = this.requests.get(key) ?? [];
-    const timestamps = previous.filter((t) => t > windowStart);
+    const previous = this.requests.get(key);
+    const timestamps = (previous?.timestamps ?? []).filter((t) => t > windowStart);
 
     const allowed = timestamps.length < maxRequests;
     if (allowed) {
       timestamps.push(now);
     }
-    this.requests.set(key, timestamps);
+    // The window is stored alongside the hits so prune() can tell a caller who
+    // is still inside their block from one whose window has actually expired.
+    this.requests.set(key, { timestamps, windowMs });
 
     // Anchored to the oldest surviving hit, so repeated blocked attempts don't
     // keep pushing the reset time further out.
@@ -52,13 +57,13 @@ export class RateLimiter {
   }
 
   prune() {
-    const cutoff = Date.now() - CLEANUP_INTERVAL_MS;
-    for (const [key, timestamps] of this.requests.entries()) {
-      const valid = timestamps.filter((t) => t > cutoff);
+    const now = this.now();
+    for (const [key, entry] of this.requests.entries()) {
+      const valid = entry.timestamps.filter((t) => t > now - entry.windowMs);
       if (valid.length === 0) {
         this.requests.delete(key);
       } else {
-        this.requests.set(key, valid);
+        this.requests.set(key, { timestamps: valid, windowMs: entry.windowMs });
       }
     }
   }

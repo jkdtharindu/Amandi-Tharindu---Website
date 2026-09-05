@@ -78,6 +78,25 @@ test('checkAuthRateLimit: unidentified callers are not limited outside productio
   });
 });
 
+test('clearAuthRateLimit: a successful login does not refund the shared bucket', async () => {
+  await withEnv(
+    { NODE_ENV: 'production', TRUSTED_PROXY_COUNT: '0' },
+    ({ checkAuthRateLimit, clearAuthRateLimit }) => {
+      const headers = new Headers();
+
+      const first = checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT);
+      checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT);
+      assert.strictEqual(checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT).allowed, false);
+
+      // Everyone unidentified shares this bucket, so refunding it on one
+      // success would hand every other caller in it a fresh budget too.
+      clearAuthRateLimit(first.identifier, ENDPOINT);
+
+      assert.strictEqual(checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT).allowed, false);
+    }
+  );
+});
+
 test('clearAuthRateLimit: a successful login frees that caller', async () => {
   await withEnv({ TRUSTED_PROXY_COUNT: '1' }, ({ checkAuthRateLimit, clearAuthRateLimit }) => {
     const headers = new Headers({ 'x-forwarded-for': '203.0.113.7' });
