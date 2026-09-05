@@ -22,6 +22,8 @@ Techniques & Requirements for Secure, Scalable, Production-Ready Development
 - **Data protection**: Encrypt sensitive data at rest and in transit (TLS everywhere). Follow data minimization.
 - **Error handling**: Never leak stack traces, internal paths, or sensitive info in production responses.
 - **Security headers**: HSTS, X-Frame-Options, X-Content-Type-Options, CSP, etc.
+- **Multi-factor authentication (MFA)**: Require it for admin panels, internal tools, and any account with elevated access.
+- **Webhook security**: Verify signatures on inbound webhooks (Stripe, GitHub, etc.) before trusting the payload.
 - **Prompt hygiene**: Never paste production secrets or real PII into AI tools.
 
 ### Verification
@@ -137,6 +139,12 @@ Techniques & Requirements for Secure, Scalable, Production-Ready Development
 - "Vibe" is excellent for scaffolding, UI, boilerplate, tests, and exploration. It is risky for final production security and complex business logic without review.
 - Schedule periodic "trust but verify" sessions on the generated codebase.
 
+### Domain, TLS Certificates & Third-Party Vendor Management
+- Monitor SSL/TLS certificate expiry; use auto-renewal (Let's Encrypt, or a host-managed cert like Vercel/Netlify) rather than manual renewal.
+- Track domain renewal dates; enable auto-renew and registrar lock to prevent accidental expiry or hijack.
+- Keep an inventory of third-party vendors/APIs in use (auth, storage, messaging, analytics) with owner, cost, and how critical each one is.
+- Periodically review dependency licenses for compliance with how the project is distributed.
+
 ### Tooling Recommendations (examples)
 - Secrets: Doppler / Infisical / cloud secret managers
 - Auth: Clerk, Auth.js, Supabase Auth, or battle-tested libraries
@@ -200,6 +208,8 @@ Perform progressive load testing before each major release gate. Use tools such 
 - Keep a "break glass" admin access method that is audited.
 - Practice at least one recovery drill (restore from backup) before public launch.
 - Define RTO (Recovery Time Objective) and RPO (Recovery Point Objective) for critical data.
+- Keep an on-call rotation and clear escalation contacts for P0/P1 incidents, even if it's just one person for a small project.
+- Run a blameless post-incident review after every P0/P1 incident, and track its action items to completion.
 
 ## 8. Data Safety, Backups & Migrations
 
@@ -255,3 +265,36 @@ Perform progressive load testing before each major release gate. Use tools such 
 - Prefer well-known, actively maintained libraries over obscure ones suggested by the model.
 - After large AI-generated changes, run a full test suite + security scan before merging.
 - Periodically ask the AI to "audit this module for security and edge cases" as a separate step.
+
+## 15. Project-Specific Notes — Amandi & Tharindu Wedding Website
+
+This section maps the general checklist above onto what this specific repository actually
+uses today. It's a pointer, not a duplicate — see `TASKS.md`, `MEMORY.md`, and `HITL.md`
+for full detail and history.
+
+- **Guest personal data**: Guest records (name, phone number, RSVP status, invitation code)
+  are personal data. Guests are soft-deleted, never hard-deleted. There is no documented
+  retention/deletion policy yet for guest data after the wedding — needed before public
+  launch (see §8 and §13 above).
+- **Database access control**: Supabase/Postgres via `DATABASE_URL`. Row-Level Security
+  (RLS) is NOT currently enabled. An earlier RLS migration (in an archived, unmerged branch)
+  assumed Supabase Auth, which this project doesn't use, so it wasn't reusable as-is. Access
+  control today relies entirely on the app's admin-auth layer, not database-level policies —
+  a real gap against §1's "least privilege everywhere."
+- **Admin authentication**: Env-credential (`ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH`) + scrypt,
+  not Supabase Auth (a deviation from the original PRD). No MFA yet, no "forgot password"
+  email flow, and login throttling is in-process only — it resets if the app restarts and
+  isn't shared across multiple instances (tracked as TASKS.md Next Action 8).
+- **Messaging**: WhatsApp reminders use a `wa.me` deep-link, permanently (Twilio is
+  confirmed off the stack — see MEMORY.md 2026-09-05). This is a deliberate, accepted
+  limitation, not a gap to "fix": no delivery tracking, no auto-send, and an admin must
+  click through each message by hand.
+- **Rate limiting & security headers**: Tested middleware for both already exists but sits
+  in an archived, unmerged branch — it is NOT yet wired into the live Next.js app. Treat
+  §1's "Rate limiting" and "Security headers" items as **not yet done** for this project
+  until that lands (tracked as TASKS.md Next Action 8).
+- **Human oversight**: `HITL.md` is this project's concrete version of §5's "Human Oversight
+  Rules" — read it before any migration, deploy, or message send to real guests.
+- **Deployment status**: Not yet deployed to production (Vercel deploy is TASKS.md Next
+  Action 10). Treat §3 "Deployment & Environments", §7 "Rollback, Incident Response", and
+  §4.1 "Load & Concurrent User Testing" as **pending**, not done, until that ships.
