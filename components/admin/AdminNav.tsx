@@ -7,6 +7,7 @@ import { useState } from 'react';
 const LINKS = [
   { href: '/admin/dashboard', label: 'Dashboard' },
   { href: '/admin/guests', label: 'Guests' },
+  { href: '/admin/messages', label: 'Messages' },
   { href: '/admin/theme', label: 'Theme' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/sections', label: 'Sections' },

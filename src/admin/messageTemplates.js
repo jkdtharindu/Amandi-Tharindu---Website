@@ -11,16 +11,27 @@ export const DEFAULT_RSVP_REMINDER_TEMPLATE =
   "Hi {name}, we'd love to hear if you can make it! Please RSVP at {link}";
 
 const MIN_PHONE_DIGITS = 8;
-const KNOWN_PLACEHOLDERS = ['name', 'link', 'code'];
+const KNOWN_PLACEHOLDERS = ['name', 'link', 'code', 'date', 'venue'];
 
 /**
- * Replaces {name}, {link}, {code} with values from `data` (missing values
- * become ''). Any other {word} is left untouched, so a typo like {linkk}
- * shows up in the preview instead of silently vanishing.
+ * Replaces placeholders with values from `data` (missing values become '').
+ *
+ * Both syntaxes are supported: `{name}` (used by the 2026-09-03 reminder
+ * slice) and `[Name]` (the PRD spelling, used by the templates seeded in
+ * migration 005). Matching is case-insensitive, and any other {word}/[Word]
+ * is left untouched, so a typo like {linkk} shows up in the preview instead
+ * of silently vanishing.
+ *
+ * Substitution is single-pass so a value that itself contains a placeholder
+ * (a guest literally named "[Name]") is never re-expanded.
  */
 export function renderTemplate(template, data = {}) {
-  return String(template ?? '').replace(/\{(\w+)\}/g, (match, key) =>
-    KNOWN_PLACEHOLDERS.includes(key) ? String(data[key] ?? '') : match
+  return String(template ?? '').replace(
+    /\{(\w+)\}|\[(\w+)\]/g,
+    (match, curlyKey, squareKey) => {
+      const key = String(curlyKey ?? squareKey).toLowerCase();
+      return KNOWN_PLACEHOLDERS.includes(key) ? String(data[key] ?? '') : match;
+    }
   );
 }
 
