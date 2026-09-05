@@ -2,34 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminCredentials } from '@/src/admin/adminAuth.js';
 import { ADMIN_COOKIE_NAME, createAdminSession } from '@/src/admin/adminSession.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
+import {
+  ADMIN_LOGIN_LIMIT,
+  checkAuthRateLimit,
+  clearAuthRateLimit,
+} from '@/src/security/authRateLimit.js';
 
 /**
  * Admin login (PRD P0-09).
  *
- * Throttling note: the attempt counter below is in-process, so it protects a
- * single server instance and resets on redeploy. Move it to a shared store
- * (Redis/Postgres) before this runs behind more than one instance.
+ * Throttling is in-process: it protects a single server instance and resets on
+ * redeploy. Move it to a shared store (Redis/Postgres) before this runs behind
+ * more than one instance — TASKS.md Next Action 8.
  */
-const MAX_ATTEMPTS = 8;
-const WINDOW_MS = 15 * 60 * 1000;
-const attempts = new Map<string, { count: number; resetAt: number }>();
-
-function throttled(key: string): boolean {
-  const now = Date.now();
-  const entry = attempts.get(key);
-
-  if (!entry || entry.resetAt < now) {
-    attempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-
-  entry.count += 1;
-  return entry.count > MAX_ATTEMPTS;
-}
-
-function clearThrottle(key: string): void {
-  attempts.delete(key);
-}
+const ENDPOINT = '/api/admin/login';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!verifyCsrfToken(request)) {
@@ -49,17 +35,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const clientKey =
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'local';
+  const rateLimit = checkAuthRateLimit(request.headers, ENDPOINT, ADMIN_LOGIN_LIMIT);
 
-  if (throttled(clientKey)) {
+  if (!rateLimit.allowed) {
     return NextResponse.json(
       {
         success: false,
         reason: 'too_many_attempts',
         message: 'Too many login attempts. Please wait 15 minutes and try again.',
       },
-      { status: 429 }
+      { status: 429, headers: rateLimit.headers }
     );
   }
 
@@ -84,7 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  clearThrottle(clientKey);
+  clearAuthRateLimit(rateLimit.identifier, ENDPOINT);
 
   const response = NextResponse.json({ success: true });
   response.cookies.set(ADMIN_COOKIE_NAME, token, {
