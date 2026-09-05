@@ -78,6 +78,34 @@ test('checkAuthRateLimit: unidentified callers are not limited outside productio
   });
 });
 
+test('checkAuthRateLimit: logs the moment a caller is blocked, once per block', async () => {
+  await withEnv({ TRUSTED_PROXY_COUNT: '1' }, ({ checkAuthRateLimit }) => {
+    const headers = new Headers({ 'x-forwarded-for': '203.0.113.7' });
+    const warned = [];
+    const originalWarn = console.warn;
+    console.warn = (line) => warned.push(line);
+
+    try {
+      checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT);
+      checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT);
+      assert.strictEqual(warned.length, 0, 'allowed attempts are not security events');
+
+      checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT);
+      checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT);
+      checkAuthRateLimit(headers, ENDPOINT, TIGHT_LIMIT);
+    } finally {
+      console.warn = originalWarn;
+    }
+
+    assert.strictEqual(warned.length, 1, 'hammering while blocked must not flood the logs');
+
+    const entry = JSON.parse(warned[0]);
+    assert.strictEqual(entry.event, 'rate_limited');
+    assert.strictEqual(entry.details.endpoint, ENDPOINT);
+    assert.strictEqual(entry.details.ip, '203.0.*.*', 'the caller is masked');
+  });
+});
+
 test('clearAuthRateLimit: a successful login does not refund the shared bucket', async () => {
   await withEnv(
     { NODE_ENV: 'production', TRUSTED_PROXY_COUNT: '0' },

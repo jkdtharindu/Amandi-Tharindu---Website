@@ -7,6 +7,7 @@ import {
   checkAuthRateLimit,
   clearAuthRateLimit,
 } from '@/src/security/authRateLimit.js';
+import { securityLogger } from '@/src/security/securityLogger.js';
 
 /**
  * Admin login (PRD P0-09).
@@ -52,6 +53,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const result = verifyAdminCredentials(body?.email, body?.password);
   if (!result.success) {
+    securityLogger.loginAttempt({
+      success: false,
+      endpoint: ENDPOINT,
+      ip: rateLimit.identifier,
+      reason: result.reason,
+    });
     return NextResponse.json(result, {
       status: result.reason === 'admin_not_configured' ? 500 : 401,
     });
@@ -72,6 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   clearAuthRateLimit(rateLimit.identifier, ENDPOINT);
+  securityLogger.loginAttempt({ success: true, endpoint: ENDPOINT, ip: rateLimit.identifier });
 
   const response = NextResponse.json({ success: true });
   response.cookies.set(ADMIN_COOKIE_NAME, token, {

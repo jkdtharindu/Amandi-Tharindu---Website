@@ -131,6 +131,34 @@ test('RateLimiter: cleanup respects each caller own window', () => {
   assert.strictEqual(limiter.check('long', '/e', 1, longWindow).allowed, false);
 });
 
+test('RateLimiter: reports the first denial only, so hammering cannot flood the logs', () => {
+  const limiter = new RateLimiter();
+
+  assert.strictEqual(limiter.check('1.1.1.1', '/e', 1, 60000).firstBlock, false);
+
+  const first = limiter.check('1.1.1.1', '/e', 1, 60000);
+  const second = limiter.check('1.1.1.1', '/e', 1, 60000);
+  const third = limiter.check('1.1.1.1', '/e', 1, 60000);
+
+  assert.strictEqual(first.firstBlock, true, 'the denial that starts the block is reported');
+  assert.strictEqual(second.firstBlock, false, 'later denials in the same block are not');
+  assert.strictEqual(third.firstBlock, false);
+});
+
+test('RateLimiter: a caller blocked again after recovering is reported again', () => {
+  let clock = 1_000_000;
+  const limiter = new RateLimiter({ now: () => clock });
+  const windowMs = 60 * 1000;
+
+  limiter.check('1.1.1.1', '/e', 1, windowMs);
+  assert.strictEqual(limiter.check('1.1.1.1', '/e', 1, windowMs).firstBlock, true);
+
+  clock += windowMs + 1;
+  assert.strictEqual(limiter.check('1.1.1.1', '/e', 1, windowMs).allowed, true);
+
+  assert.strictEqual(limiter.check('1.1.1.1', '/e', 1, windowMs).firstBlock, true);
+});
+
 test('rateLimitHeaders: exposes limit, remaining and reset', () => {
   const limiter = new RateLimiter();
   const result = limiter.check('1.1.1.1', '/e', 5, 60000);

@@ -1,5 +1,6 @@
 import { RateLimiter, rateLimitHeaders } from './rateLimiter.js';
 import { resolveClientIp } from './clientIp.js';
+import { securityLogger } from './securityLogger.js';
 
 export const GUEST_LOGIN_LIMIT = { maxRequests: 20, windowMs: 10 * 60 * 1000 };
 export const ADMIN_LOGIN_LIMIT = { maxRequests: 8, windowMs: 15 * 60 * 1000 };
@@ -26,6 +27,12 @@ export function checkAuthRateLimit(headers, endpoint, limit) {
 
   const identifier = ip ?? SHARED_BUCKET;
   const result = limiter.check(identifier, endpoint, limit.maxRequests, limit.windowMs);
+
+  // Someone exhausting a login budget is the signal that they are guessing, so
+  // it is worth a log line — but only the one that starts the block.
+  if (result.firstBlock) {
+    securityLogger.rateLimited({ endpoint, ip });
+  }
 
   return {
     identifier,

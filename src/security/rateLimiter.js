@@ -36,9 +36,14 @@ export class RateLimiter {
     if (allowed) {
       timestamps.push(now);
     }
+
+    // Only the denial that starts a block is worth reporting. A caller who keeps
+    // hammering while blocked would otherwise write one log line per request.
+    const firstBlock = !allowed && !previous?.blockReported;
+
     // The window is stored alongside the hits so prune() can tell a caller who
     // is still inside their block from one whose window has actually expired.
-    this.requests.set(key, { timestamps, windowMs });
+    this.requests.set(key, { timestamps, windowMs, blockReported: !allowed });
 
     // Anchored to the oldest surviving hit, so repeated blocked attempts don't
     // keep pushing the reset time further out.
@@ -46,6 +51,7 @@ export class RateLimiter {
 
     return {
       allowed,
+      firstBlock,
       remaining: Math.max(0, maxRequests - timestamps.length),
       resetTime,
       retryAfter: allowed ? null : Math.max(1, Math.ceil((resetTime - now) / 1000)),
@@ -63,7 +69,7 @@ export class RateLimiter {
       if (valid.length === 0) {
         this.requests.delete(key);
       } else {
-        this.requests.set(key, { timestamps: valid, windowMs: entry.windowMs });
+        this.requests.set(key, { ...entry, timestamps: valid });
       }
     }
   }
