@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loginGuestByCode, loginGuestByName } from '@/src/guest-auth/index.js';
 import { signSession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
+import { GUEST_LOGIN_LIMIT, checkAuthRateLimit } from '@/src/security/authRateLimit.js';
+import { securityLogger } from '@/src/security/securityLogger.js';
+
+const ENDPOINT = '/api/guest/login';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -10,6 +14,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' },
         { status: 403 }
+      );
+    }
+
+    // Invitation codes and guest names are both guessable, so this endpoint is
+    // the brute-force surface for the whole guest list. A successful login
+    // deliberately does not refund the budget: one valid code would otherwise
+    // buy unlimited guesses at every other guest's.
+    const rateLimit = checkAuthRateLimit(request.headers, ENDPOINT, GUEST_LOGIN_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          reason: 'too_many_attempts',
+          message: 'Too many attempts. Please wait a few minutes and try again.',
+        },
+        { status: 429, headers: rateLimit.headers }
       );
     }
 
@@ -31,10 +51,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    const failed = (reason: string) =>
+      securityLogger.loginAttempt({
+        success: false,
+        endpoint: ENDPOINT,
+        ip: rateLimit.identifier,
+        reason,
+      });
+
     let result;
     if (code) {
       result = await loginGuestByCode(code);
       if (!result.success) {
+        failed('invalid_code');
         return NextResponse.json(result, { status: 404 });
       }
     } else {
@@ -43,6 +72,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json(result, { status: 200 });
       }
       if (!result.success) {
+        failed('invalid_name');
         return NextResponse.json(result, { status: 404 });
       }
     }
