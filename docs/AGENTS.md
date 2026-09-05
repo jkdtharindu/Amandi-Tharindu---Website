@@ -15,13 +15,13 @@ Backend: Next.js route handlers under `app/api/` with Supabase; legacy prototype
 > - Turbopack is the default for `dev` and `build`; no `--turbopack` flag.
 > - Tailwind v4 has **no `tailwind.config.ts`** — tokens live in `@theme` in `app/globals.css`.
 Database: Supabase (Postgres). Lightweight adapter expected (direct `pg` or `@supabase/supabase-js`) — no ORM required.
-External services: Twilio (WhatsApp/SMS), Resend (email), Supabase Storage, Vercel (hosting/deploys).
+External services: wa.me (WhatsApp, manual admin send — no Twilio, decided against 2026-09-05), Resend (email), Supabase Storage, Vercel (hosting/deploys).
 
 **High-level architecture (text diagram)**
 
 Frontend (Next.js app) <-- HTTPS --> API route handlers (Next.js) <-- Supabase client --> Postgres (Supabase)
                              |
-                             +-- Messaging service adapters --> Twilio / Resend (HITL gated)
+                             +-- Messaging service adapters --> wa.me (WhatsApp, manual send) / Resend (email, HITL gated)
                              |
                              +-- Storage (Supabase Storage) for images / invitation templates
 
@@ -106,7 +106,7 @@ Any agent (Claude, Copilot, Gemini, etc.) reading this repo MUST NOT perform the
 - Delete files or database records. Present HITL prompt first.
 - Modify environment variables or secrets in any repo, CI, or hosting platform.
 - Push code to `main` or any production branch (no automatic git pushes).
-- Make any external API call that can cost money or send messages (Twilio, Resend). All sends require HITL confirmation.
+- Make any external API call that can cost money or send messages (Resend). All sends require HITL confirmation. (WhatsApp reminders open a `wa.me` link for the admin to send manually — not a programmatic send — see HITL.md.)
 - Create or update live production content that affects guests publicly without explicit approval.
 - Change admin access, authentication flows, or production permission policies.
 - Modify Supabase buckets, policies, or DB permissions without human confirmation.
@@ -126,7 +126,6 @@ If the agent does not receive `yes`, it must abort the action and await explicit
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH` — single-admin login credentials (`src/admin/adminAuth.js`). Hash format is `<16-byte salt hex>:<64-byte scrypt key hex>`; generate with `npm run admin:set-password`. See MEMORY.md 2026-09-03 for why this is env-credential rather than Supabase Auth.
 - `GUEST_CATEGORIES` — optional comma-separated list overriding the default relationship groups (`Relations,Colleagues,Neighbours,Friends`); read by `src/admin/categories.js`, used for admin UI filters and the first 3 letters of generated invitation codes.
 - `NEXT_PUBLIC_SITE_URL` — public origin used to build guest-facing links (invitation URLs in WhatsApp reminder messages; also CSRF/Origin verification). Not yet set in `.env` as of 2026-09-03 — falls back to `http://localhost:3010`.
-- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` — Twilio credentials and sender phone for WhatsApp/SMS (HITL gated sends). Not currently used — the WhatsApp reminder feature (2026-09-03) uses a `wa.me` deep link instead; see HITL.md.
 - `RESEND_API_KEY` — API key for Resend email sends (HITL gated sends).
 - `VERCEL_TOKEN` — CI deploy token (HITL required for production deploys).
 - `SENTRY_DSN` (optional) — error tracking key.
@@ -158,7 +157,7 @@ npm run start
 
 **How to run the full intended stack locally (recommended steps)**
 1. Create a Supabase project and obtain `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
-2. Create a `.env.local` from `.env.example` and set `SUPABASE_*`, `SESSION_SECRET`, and `RESEND_API_KEY` / `TWILIO_*` (for sandbox testing use vendor sandbox credentials where available).
+2. Create a `.env.local` from `.env.example` and set `SUPABASE_*`, `SESSION_SECRET`, and `RESEND_API_KEY` (for sandbox testing use a vendor sandbox credential where available). No Twilio credential is needed — WhatsApp uses `wa.me` links, not an API.
 3. Run migrations against a local Postgres or Supabase DB **only after** a human approves the HITL checkpoint.
 4. Start the Next.js dev server:
 

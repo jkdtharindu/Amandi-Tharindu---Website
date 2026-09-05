@@ -5,7 +5,7 @@
 
 > **FOR AI AGENTS:** This document is self-contained. Read it fully before writing any code.
 > No additional explanation will be provided. All decisions, constraints, and acceptance criteria are defined below.
-> Stack: Next.js 14 (App Router) · Supabase · Vercel · Twilio · Resend
+> Stack: Next.js 14 (App Router) · Supabase · Vercel · Resend
 > Deadline: 35 days from project start. Wedding date: Monday, 14 December 2026.
 
 ---
@@ -64,7 +64,7 @@ The project currently includes a runnable Express-based prototype used for early
 
 - The public pages use a shared `pageWrapper` with a refreshed wedding-themed layout and responsive styles.
 - Guest login by code/name, session cookie creation, CSRF protection, and basic RSVP persistence helpers are present in `src/` for local verification.
-- Admin features, Supabase DB integration, messaging (Twilio/Resend), and production deploys remain in the PRD scope and are P0/P1 items to fully implement.
+- Admin features, Supabase DB integration, messaging (wa.me WhatsApp links / Resend email), and production deploys remain in the PRD scope and are P0/P1 items to fully implement.
 
 Use the prototype for local validation and UI polish; follow `HITL.md` for any actions that could affect production or guest data.
 
@@ -124,9 +124,9 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-03 | The Celebration Page | Event cards for each wedding event (e.g., ceremony, reception). Each card: event name, date+day, time, venue name, venue address, venue image, relevant icons. Clicking location opens Google Maps with directions. All events managed via admin panel. |
 | P1-04 | Gallery Page | Photo gallery of couple photos uploaded by admin. Grid layout. Lightbox on click. Admin can add/delete/reorder photos. |
 | P1-05 | Wishes Page | Guests leave a written wish for the couple. Admin approves/hides wishes before public display. Approved wishes shown in an elegant wall format. |
-| P1-06 | Admin Messaging Center | Admin selects guest group (e.g., "all pending"), picks a message template, previews with placeholders filled, sends via WhatsApp / SMS / Email. Message logs stored. Failed messages show retry button. **Interim slice shipped 2026-09-03:** single-guest (not group) RSVP reminder button on the guest list, wa.me deep link (not Twilio), one default template (not 4), admin sends manually inside WhatsApp (not a server-side send), no MessageLog persisted, no retry. See MEMORY.md 2026-09-03. |
-| P1-07 | Message Templates | 4 pre-built templates: Initial Invite, First Reminder, Final Reminder, Thank You After RSVP. Placeholders: `[Name]`, `[Code]`, `[Link]`, `[Date]`, `[Venue]`. Admin can edit template body. Channel: WhatsApp / SMS / Email selectable. **Interim slice shipped 2026-09-03:** one editable RSVP-reminder template (`{name}`, `{link}`, `{code}` placeholders) in src/admin/messageTemplates.js. The other 3 templates and SMS/Email channels are still unbuilt. |
-| P1-08 | Auto Thank-You Message | On RSVP acceptance, auto-send thank-you message to guest via WhatsApp (if number provided) or email. Uses "Thank You" template. |
+| P1-06 | Admin Messaging Center | Admin selects guest group (e.g., "all pending"), picks a message template, previews with placeholders filled, opens each as a `wa.me` WhatsApp link for the admin to send manually (no SMS/Email channel — no Twilio, decided against 2026-09-05). Message sends logged. **Interim slice shipped 2026-09-03:** single-guest (not group) RSVP reminder button on the guest list, one default template (not 4), no MessageLog persisted yet. Extending to bulk send + MessageLog is scoped as TASKS.md Next Action 4. See MEMORY.md 2026-09-03 and 2026-09-05. |
+| P1-07 | Message Templates | 4 pre-built templates: Initial Invite, First Reminder, Final Reminder, Thank You After RSVP. Placeholders: `[Name]`, `[Code]`, `[Link]`, `[Date]`, `[Venue]`. Admin can edit template body. Channel: WhatsApp only, via `wa.me` link (no SMS/Email — no Twilio, decided against 2026-09-05). **Interim slice shipped 2026-09-03:** one editable RSVP-reminder template (`{name}`, `{link}`, `{code}` placeholders) in src/admin/messageTemplates.js. The other 3 templates are still unbuilt. |
+| P1-08 | Auto Thank-You Message | On RSVP acceptance, auto-send thank-you message to guest via email (Resend). **Note (2026-09-05):** the WhatsApp half of this feature has no path to implementation under the wa.me approach — a `wa.me` link only pre-fills a message for a human to press Send, it cannot fire automatically on an RSVP event. A WhatsApp thank-you, if still wanted, would need to become an admin-visible prompt (e.g. a "send thank-you" button appearing after RSVP) rather than a true auto-send. |
 | P1-09 | Admin Event Manager | Admin adds/edits/deletes celebration events: name, date, time, venue name, venue address (Google Maps URL), venue image upload, icon selection, display order. |
 | P1-10 | Admin Theme Editor | Global site controls: primary/secondary/accent colors, font family, font style, hero image upload, invitation template upload + name overlay position config, layout/frame/pattern selection. Changes reflect site-wide instantly. **Interim slice shipped 2026-09-03, reconciled 2026-09-04:** colors (primary/secondary/accent) and font family/style only, applied site-wide via CSS custom properties. Font family is a curated set (Default, Cormorant Garamond, Playfair Display, Cinzel), self-hosted via `@font-face` (not `next/font/google`, and not free text). The richer `theme_settings` schema (palette/font-choice pickers, hero image, invitation overlay, couple/venue fields) exists in the DB but has no admin UI yet. Hero image, invitation template + overlay config, and layout/frame/pattern selection remain unbuilt — no Supabase Storage usage exists anywhere in this codebase yet. See MEMORY.md 2026-09-03 and 2026-09-04. |
 | P1-11 | Admin Section Manager | Admin can add new custom content sections to any page (title, content, display order, visibility toggle). Enables couple to expand the site post-launch without a developer. |
@@ -144,7 +144,7 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P2-01 | Accommodation Section | Admin-editable section listing nearby hotels for outstation guests (name, distance, booking link). |
 | P2-02 | FAQ Page | Admin-editable FAQ section for common guest questions. |
 | P2-03 | Scheduled Message Campaigns | Admin sets a date/time for a reminder message to auto-send to all pending guests. |
-| P2-04 | Guest WhatsApp Reply Tracking | Track if guests reply to WhatsApp messages sent via Twilio. |
+| P2-04 | ~~Guest WhatsApp Reply Tracking~~ | **Removed 2026-09-05 — not feasible.** Reply tracking needs a WhatsApp Business API (Twilio) webhook; the `wa.me` link approach has no API access to guest replies. No path to implementation as long as Twilio stays off the stack (decided against for cost, 2026-09-05). |
 | P2-05 | Multi-language Support | Support for Sinhala language option for guests. |
 
 ---
@@ -177,8 +177,8 @@ The following are explicitly NOT being built:
 Frontend:      Next.js 14 (App Router, TypeScript)
 Database:      Supabase (Postgres + Auth + Storage)
 Hosting:       Vercel (free tier sufficient for ~350 guests)
-WhatsApp:      Twilio WhatsApp API (Business API template messages)
-SMS:           Twilio SMS
+WhatsApp:      wa.me deep link (admin-initiated, manual send — no API account, no per-message cost)
+SMS:           Not supported (dropped along with Twilio, decided against 2026-09-05)
 Email:         Resend (free tier: 3,000 emails/month)
 File Storage:  Supabase Storage (invitation templates, venue images, gallery photos)
 ```
@@ -190,14 +190,13 @@ File Storage:  Supabase Storage (invitation templates, venue images, gallery pho
 - **Admin count:** Exactly one admin account. No multi-user admin system needed.
 - **Invitation personalization:** Name overlay is DOM/CSS only — no server-side image generation. Admin configures overlay position/font/size via theme editor.
 - **Physical cards:** Couple prints and distributes physical cards manually. Website generates unique codes only.
-- **WhatsApp API:** Twilio WhatsApp requires pre-approved message templates for business-initiated messages. Reminder templates must be submitted for WhatsApp approval before sending.
+- **WhatsApp API:** No Twilio/WhatsApp Business API (decided against 2026-09-05 — costs money). Messaging uses `wa.me` deep links instead: no template pre-approval needed, but every send requires the admin to manually press Send inside WhatsApp — no bulk auto-send is possible.
 - **No family unit grouping:** Each family unit gets exactly one unique code. They RSVP for their whole family under that one code.
 - **Relationship categories:** Set by admin only (not guest-selectable). Options: Relations, Colleagues, Neighbours, Friends.
 - **Guest soft delete:** Deleting a guest in admin performs a soft delete. RSVP data is preserved in the database.
 - **Content updates:** All content (events, story, gallery, theme, sections) is managed via admin panel post-launch. No developer involvement required after handoff.
 
 ### Assumptions
-- Couple has a Twilio account (or will create one) before messaging features are needed
 - Couple has a Resend account (or will create one) for email
 - Invitation template image (JPG/PNG) will be provided by a third-party designer and uploaded by admin
 - Theme colors, fonts, and patterns are not finalized at launch — admin can change them at any time
@@ -468,8 +467,8 @@ ADMIN ROUTES (all protected by Supabase Auth session)
 | Failure | Recovery Strategy |
 |---|---|
 | Supabase service outage | Static pages (Home, Story, Celebration, Gallery) continue to serve via Vercel CDN. RSVP form shows "We'll be right back" message. No data loss. |
-| Twilio API failure on message send | Message status logged as `failed` in `message_logs`. Admin sees failed count in messaging center with per-message retry button. |
-| Resend email API failure | Same as Twilio — logged as failed, retry available in admin. |
+| wa.me link fails to open (e.g. WhatsApp not installed on the admin's device) | Admin sees an inline error; message text stays available to copy and send another way. No server-side retry needed since no server-side send occurs. |
+| Resend email API failure | Message status logged as `failed` in `message_logs`; retry available in admin. |
 | Vercel deployment failure | Vercel automatically preserves last successful deployment. Instant rollback available from Vercel dashboard. |
 | Theme broken by bad CSS/color input | "Reset to defaults" button in `/admin/theme` restores `theme_settings` to defaults. |
 | Admin locked out | Supabase Auth "Forgot password" sends reset email. No secondary admin account needed. |

@@ -91,7 +91,7 @@ Per `HITL.md`, DO NOT run production migrations, deploys, or messaging commands 
 Next steps for developers
 - Replace in-memory demo data with Supabase-backed storage (works today when `DATABASE_URL` is set; in-memory is the local fallback)
 - Theme editor, section manager, table planning, and event manager (P1) are built — see `/admin/theme`, `/admin/sections`, `/admin/table-arrangement`, `/admin/events`
-- Full messaging center (P1-06/P1-07) — only a single-guest WhatsApp reminder exists today (wa.me deep link, no Twilio, no message log)
+- Full messaging center (P1-06/P1-07) — only a single-guest WhatsApp reminder exists today (wa.me deep link, no bulk send, no message log yet)
 
 Contact
 - Project PRD: `amandi-tharindu-wedding-PRD.md`
