@@ -1,6 +1,76 @@
 # Vibe Coding Production Checklist
 Techniques & Requirements for Secure, Scalable, Production-Ready Development
 
+## How to Use This Checklist — read this before anything else
+
+This is a checklist for a **commercial production application**. Applying all of it to a
+small project is itself a mistake: it spends real time on defences that protect nothing,
+and that time comes out of the things that actually decide whether the project succeeds.
+
+Right-size it first:
+
+| Your project | Apply |
+|---|---|
+| **Small / personal** — a wedding site, a portfolio, an internal tool. Under ~1,000 users, no payments, one server. | **Tier 1 only** |
+| **A real product** — paying users, a team, money moving through it. | **Tier 1 + Tier 2** |
+| **Scale or regulated** — many thousands of users, sensitive data, compliance obligations. | **Everything** |
+
+### Tier 1 — always, whatever the size
+Each of these is cheap, and each one prevents a concrete bad outcome for a real person.
+
+- Never commit secrets; use environment variables and a secret manager (§1)
+- Validate and sanitize all input; parameterized queries only, never string-concatenated SQL (§1)
+- Use an established auth library — never hand-roll authentication (§1)
+- **Rate limit every public login and expensive endpoint (§1).** For a small site this is
+  the single highest-value item in the whole document: without it, a guessable ID or code
+  lets anyone enumerate your entire user list at their leisure.
+- HTTPS everywhere, plus security headers (§1) — config-level, effectively free
+- Never leak stack traces or internal paths in production responses (§1)
+- Never write personal data into logs (§1, §11)
+- **Backups you have actually restored at least once (§8).** For a small project this is
+  more likely to save you than any security control on this list.
+- A way to delete a person's data when they ask (§8, §13)
+- Meaningful commits, a protected main branch, and reading your own diffs (§5)
+
+### Tier 2 — once you have real users, teammates, or money
+- Error monitoring and alerting (§3)
+- A staging environment; smoke tests after each deploy (§3)
+- CI running tests, type checking, and dependency scanning (§1, §3)
+- MFA on admin panels and internal tools (§1)
+- Feature flags (§9)
+- Runbooks, severity levels, on-call, blameless postmortems (§7)
+- Budget alerts for infrastructure and AI API spend (§6)
+- Accessibility checks and performance budgets (§12)
+- Load testing sized to your *real* expected traffic (§4.1)
+
+### Tier 3 — scale or compliance only
+Skip these entirely unless you genuinely have the problem they solve.
+- Shared-store rate limiting, read replicas, connection pooling (§4, §8)
+- Distributed tracing, session replay (§3, §11)
+- Multi-tenancy isolation (§4)
+- The full 100 → 500 → 2,000-user load-testing ladder (§4.1)
+- Circuit breakers, auto-scaling, blue-green/canary deploys (§3, §4)
+- Formal RTO/RPO targets and disaster-recovery drills (§7)
+- PCI / GDPR programmes beyond basic data deletion (§13)
+
+### The failure mode this section exists to prevent
+
+Over-applying a checklist *feels* responsible and *looks* like progress, so it is easy to
+keep going long past the point of value. For each item ask: **what specifically goes wrong
+for a real person if I skip this, and how likely is that?** If you cannot answer
+concretely, treat it as Tier 3 for your project.
+
+**Worked example — the project this file was first written for** (a wedding site for a few
+hundred guests, one server, no payments): rate limiting the guest login was plainly worth
+it, because invitation codes followed a guessable pattern and without a limit anyone could
+have harvested every guest's name and phone number. Security headers were free. But a
+structured security-event logger got built that nobody was ever going to read — no
+monitoring, no alerts, no on-call — and "shared-store rate limiting" and a 500-user load
+test sat on the backlog for a site that would serve a few hundred people from one server.
+Meanwhile the site still was not deployed and nobody had verified that the guest-list
+backups could be restored. **The defences ran ahead of the basics.** That is the mistake
+this section is here to stop you repeating.
+
 ## 1. Security (Non-Negotiable)
 
 ### Core Principles
@@ -86,6 +156,8 @@ Techniques & Requirements for Secure, Scalable, Production-Ready Development
 - Distributed tracing for complex flows.
 
 ## 4. High-User / Scalability Model
+> **Mostly Tier 3.** Skip this whole section for a small project. One server handling a few
+> hundred people needs none of it, and building it early buys nothing you can point at.
 
 ### Design for Scale from Early Stages (when realistic)
 - Stateless application servers (session state in Redis or JWT).
@@ -171,6 +243,10 @@ Techniques & Requirements for Secure, Scalable, Production-Ready Development
 **Remember**: Vibe coding accelerates building dramatically. Production reliability, security, and scalability still require engineering discipline. Use AI as a powerful junior that never gets tired — but you remain the senior engineer who owns the outcome.
 
 ## 4.1 Load & Concurrent User Testing (Required Stages)
+> **"Required" means required *for a product expecting that traffic*.** Size the stages to
+> the traffic you actually expect, not to this table. For a few hundred users the smoke
+> stage alone is the honest answer, and the 500/1,000/2,000-user rows are Tier 3 — running
+> them proves nothing about a load you will never see.
 
 Perform progressive load testing before each major release gate. Use tools such as k6, Locust, Artillery, or Gatling.
 
@@ -212,6 +288,9 @@ Perform progressive load testing before each major release gate. Use tools such 
 - Run a blameless post-incident review after every P0/P1 incident, and track its action items to completion.
 
 ## 8. Data Safety, Backups & Migrations
+> **Tier 1, and the most under-rated section here.** Losing your data is far more likely
+> than being attacked. If you do only one thing from this document beyond rate limiting a
+> login, make it: take backups, and restore one to prove they work.
 
 - Automated daily (or more frequent) backups with point-in-time recovery where possible.
 - Regularly test that backups can actually be restored.
@@ -236,6 +315,8 @@ Perform progressive load testing before each major release gate. Use tools such 
 - Keep a short Architecture Decision Record (ADR) log for major choices.
 
 ## 11. Observability Beyond Basic Monitoring
+> **Tier 2/3.** Logs and metrics nobody reads protect nothing. Build these only once
+> someone is actually going to look at them, or an alert will put them in front of someone.
 
 - Business-level metrics (sign-ups, activation rate, payment success rate, core action completion).
 - AI-specific metrics if your product uses LLMs (token usage, latency, error/hallucination rate, cost per request).
@@ -268,9 +349,19 @@ Perform progressive load testing before each major release gate. Use tools such 
 
 ## 15. Project-Specific Notes — Amandi & Tharindu Wedding Website
 
+> **Reusing this file on another project? Replace this whole section.** Sections 1–14 and
+> the "How to Use" guide at the top are generic and travel unchanged; everything below this
+> line is specific to one repository. Write your own §15 the same way: name your tier from
+> the table at the top, then list what is genuinely done, what is deliberately skipped and
+> why, and what is still an open gap. The "deliberately skipped and why" entries matter
+> most — they stop the next person (or the next AI session) re-litigating a settled call.
+
 This section maps the general checklist above onto what this specific repository actually
 uses today. It's a pointer, not a duplicate — see `TASKS.md`, `MEMORY.md`, and `HITL.md`
 for full detail and history.
+
+**Tier for this project: Tier 1** (a few hundred guests, one server, no payments). Tier 2
+items are optional here; Tier 3 items are explicitly out of scope and should not be built.
 
 - **Guest personal data**: Guest records (name, phone number, RSVP status, invitation code)
   are personal data. Guests are soft-deleted, never hard-deleted. There is no documented
@@ -298,3 +389,26 @@ for full detail and history.
 - **Deployment status**: Not yet deployed to production (Vercel deploy is TASKS.md Next
   Action 10). Treat §3 "Deployment & Environments", §7 "Rollback, Incident Response", and
   §4.1 "Load & Concurrent User Testing" as **pending**, not done, until that ships.
+
+### Security work is closed for this project (owner decision, 2026-09-05)
+
+The owner reviewed the security work done on 2026-09-05 and **called a stop**. Do not open
+new security work here without being asked to. What shipped is enough — arguably slightly
+past enough — for a Tier 1 project.
+
+**Shipped and keeping:** security headers on every response; rate limiting on both the
+guest and admin login endpoints (the item that genuinely mattered — invitation codes are
+guessable, so without it the whole guest list was harvestable); a fix for a rate-limit
+bypass via a spoofable header; and a logger that keeps guest names and codes out of the
+logs.
+
+**Judged over-engineered for this project, in hindsight:** the security-event logger writes
+records nobody is set up to read — there is no monitoring, no alerting and no on-call here.
+It is built and harmless, so it stays, but it should not be extended.
+
+**Dropped, deliberately — do not build:** shared-store rate limiting (one server, a few
+hundred guests); the 100/500-user load-testing stages; anything else in Tier 3 above.
+
+**What replaced it as the priority:** getting the site actually deployed, and verifying the
+guest-list backups can be restored. Those protect the wedding far more than any further
+hardening would. See TASKS.md Next Actions 8 and 10.
