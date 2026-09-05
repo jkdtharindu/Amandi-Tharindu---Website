@@ -1,17 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listSeatingTables, createSeatingTable, listUnassignedGuests } from '@/src/table-arrangement/tableArrangementRepo.js';
+import {
+  listSeatingTables,
+  createSeatingTable,
+  listUnassignedGuests,
+  listUnassignedProbableAttendees,
+  getProbableAttendanceSummary,
+} from '@/src/table-arrangement/tableArrangementRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
-/** Every seating table with its seats, plus accepted guests not yet seated (P1-14). */
+/**
+ * Every seating table with its seats, accepted guests not yet seated (P1-14),
+ * and the ProbableAttendee buffer state (P1-16) — one read endpoint so the
+ * client's existing post-action refresh picks up buffer changes for free.
+ */
 export async function GET(): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
 
-  const [tables, unassignedGuests] = await Promise.all([
+  const [tables, unassignedGuests, unassignedProbableAttendees, probableAttendanceSummary] = await Promise.all([
     listSeatingTables(),
     listUnassignedGuests(),
+    listUnassignedProbableAttendees(),
+    getProbableAttendanceSummary(),
   ]);
-  return NextResponse.json({ success: true, tables, unassignedGuests });
+  return NextResponse.json({
+    success: true,
+    tables,
+    unassignedGuests,
+    unassignedProbableAttendees,
+    probableAttendanceSummary,
+  });
 }
 
 /** Creates a seating table with `capacity` empty seats (P1-14). */

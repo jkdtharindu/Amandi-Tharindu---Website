@@ -1,16 +1,36 @@
 import AdminNav from '@/components/admin/AdminNav';
 import TableArrangement from '@/components/admin/TableArrangement';
 import { requireAdminPage } from '@/lib/adminGuard';
-import { listSeatingTables, listUnassignedGuests } from '@/src/table-arrangement/tableArrangementRepo.js';
+import {
+  listSeatingTables,
+  listUnassignedGuests,
+  listAssignedGuests,
+  listUnassignedProbableAttendees,
+  getProbableAttendanceSummary,
+} from '@/src/table-arrangement/tableArrangementRepo.js';
+import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
+import { computeRsvpStats } from '@/src/admin/guestQueries.js';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminTableArrangementPage() {
   const session = await requireAdminPage();
-  const [tables, unassignedGuests] = await Promise.all([
-    listSeatingTables(),
-    listUnassignedGuests(),
-  ]);
+  const [tables, unassignedGuests, assignedGuests, unassignedProbableAttendees, probableAttendanceSummary, guests, responses] =
+    await Promise.all([
+      listSeatingTables(),
+      listUnassignedGuests(),
+      listAssignedGuests(),
+      listUnassignedProbableAttendees(),
+      getProbableAttendanceSummary(),
+      listAllGuests(),
+      listAllRsvpResponses(),
+    ]);
+
+  const rsvpStats = computeRsvpStats(guests, responses);
+  // "Table Arranged" only counts Guests who are both seated AND still
+  // RSVP-accepted — a seated Guest who later changes their answer to
+  // declined stops counting here without needing to be auto-unseated.
+  const tableArrangedCount = assignedGuests.filter((guest: { rsvpStatus: string }) => guest.rsvpStatus === 'accepted').length;
 
   return (
     <>
@@ -33,7 +53,19 @@ export default async function AdminTableArrangementPage() {
         <p className="text-sm text-slate-500 mb-6">
           Organize guest seating and manage dietary requirements.
         </p>
-        <TableArrangement initialTables={tables} initialUnassignedGuests={unassignedGuests} />
+        <TableArrangement
+          initialTables={tables}
+          initialUnassignedGuests={unassignedGuests}
+          initialUnassignedProbableAttendees={unassignedProbableAttendees}
+          initialProbableAttendanceSummary={probableAttendanceSummary}
+          dashboardStats={{
+            accepted: rsvpStats.accepted,
+            tableArranged: tableArrangedCount,
+            balanceToArrange: unassignedGuests.length,
+            declined: rsvpStats.declined,
+            pending: rsvpStats.pending,
+          }}
+        />
       </main>
     </>
   );

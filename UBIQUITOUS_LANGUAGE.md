@@ -153,6 +153,20 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Example: A SeatAssignment places Nimal Silva at seat 3 of Table 4.
 - Note: Planned for P2-06. The user-facing word may be "chair", but the code term is `SeatAssignment`.
 
+### ProbableAttendee
+- Canonical name: `ProbableAttendee`
+- Definition: An anonymous placeholder seat-holder, created by the Admin as a buffer count against the Declined or Pending RSVPStatus bucket, representing one additional person who might attend despite that RSVPStatus. Carries no name and is never linked to any Guest record.
+- Do not call it: `guest`, `walk-in`, `standby guest`, `waitlist guest`, `probable guest`
+- Example: The Admin sets the Pending bucket's estimate to 3 on the Table Arrangement dashboard, creating three ProbableAttendee placeholders that can be assigned to open seats.
+- Note: Proposed 2026-09-05 (Grill Me session) — not yet built. See PRD §16. Does not change `rsvp_status` on any Guest; it is a separate, aggregate-only construct for capacity planning.
+
+### BalanceToArrange
+- Canonical name: `BalanceToArrange`
+- Definition: The count of RSVP-accepted Guests who have not yet been assigned a seat on a SeatingTable — Accepted count minus Table Arranged count.
+- Do not call it: `unassigned count`, `remaining guests`, `unseated total`
+- Example: The Table Arrangement dashboard's BalanceToArrange stat drops by one each time the Admin seats another accepted Guest.
+- Note: Proposed 2026-09-05 (Grill Me session) — not yet built. See PRD §16. Counts confirmed Accepted Guests only; ProbableAttendee placeholders are tracked separately.
+
 ### RSVPCutoff
 - Canonical name: `RSVPCutoff`
 - Definition: The date after which Guests can no longer submit or change an RSVP, freezing the headcount for catering and seating.
@@ -183,6 +197,7 @@ The following generic terms are not acceptable in this project context. Replace 
 - `table` → `SeatingTable` (reserve the bare word for database tables)
 - `chair` / `seat` → `SeatAssignment`
 - `deadline` / `lock date` → `RSVPCutoff`
+- `walk-in` / `standby guest` / `waitlist guest` → `ProbableAttendee`
 
 ---
 

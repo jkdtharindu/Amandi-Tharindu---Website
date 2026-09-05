@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { assignGuestToSeat } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { assignGuestToSeat, assignProbableAttendeeToSeat } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ tableId: string; seatId: string }> };
 
-/** Assigns a guest to a seat; rejects if that guest already holds another seat (P1-14). */
+/**
+ * Assigns a seat to either a real Guest or a ProbableAttendee placeholder
+ * (P1-14 / P1-16) — exactly one of guestId/probableAttendeeId is required.
+ * Rejects if that occupant already holds another seat.
+ */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
 
@@ -28,18 +32,24 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     );
   }
 
-  const { guestId, dietaryRequirements, specialNotes } = body as {
+  const { guestId, probableAttendeeId, dietaryRequirements, specialNotes } = body as {
     guestId?: string;
+    probableAttendeeId?: string;
     dietaryRequirements?: string;
     specialNotes?: string;
   };
 
-  if (!guestId) {
-    return NextResponse.json({ success: false, message: 'Guest ID required.' }, { status: 400 });
+  if (!guestId && !probableAttendeeId) {
+    return NextResponse.json({ success: false, message: 'Guest ID or probable attendee ID required.' }, { status: 400 });
+  }
+  if (guestId && probableAttendeeId) {
+    return NextResponse.json({ success: false, message: 'Provide only one of guestId or probableAttendeeId.' }, { status: 400 });
   }
 
   try {
-    const seat = await assignGuestToSeat(seatId, guestId, { dietaryRequirements, specialNotes });
+    const seat = probableAttendeeId
+      ? await assignProbableAttendeeToSeat(seatId, probableAttendeeId, { dietaryRequirements, specialNotes })
+      : await assignGuestToSeat(seatId, guestId, { dietaryRequirements, specialNotes });
     return NextResponse.json({ success: true, seat });
   } catch (error) {
     return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });

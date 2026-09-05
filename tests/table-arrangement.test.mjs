@@ -11,10 +11,17 @@ import {
   assignGuestToSeat,
   unassignGuestFromSeat,
   listUnassignedGuests,
+  listAssignedGuests,
   getGuestWithTableAssignment,
+  getProbableAttendanceSummary,
+  setProbableAttendeeBuffer,
+  listUnassignedProbableAttendees,
+  assignProbableAttendeeToSeat,
+  unassignProbableAttendeeFromSeat,
 } from '../src/table-arrangement/tableArrangementRepo.js';
 import { seatingTables } from '../src/data/tableArrangementStore.js';
 import { guestStore } from '../src/data/guestStore.js';
+import { probableAttendees } from '../src/data/probableAttendeesStore.js';
 
 // Table Arrangement (P2).
 //
@@ -35,6 +42,7 @@ function resetStores() {
   seatingTables.length = 0;
   guestStore.length = 0;
   guestStore.push(...SEEDED_GUESTS.map((guest) => ({ ...guest })));
+  probableAttendees.length = 0;
 }
 
 // --- Export -----------------------------------------------------------------
@@ -163,6 +171,39 @@ test('dietary requirements and special notes only appear when there are some', (
   assert.match(withSome, /vegetarian/);
   assert.match(withSome, /SPECIAL NOTES/);
   assert.match(withSome, /wheelchair access/);
+});
+
+test('a ProbableAttendee-occupied seat exports its placeholder label, not a real name (P1-16)', () => {
+  const tsv = buildTableArrangementExport([
+    {
+      table_number: 1,
+      table_name: '',
+      seats: [
+        { seatNumber: 1, guestId: null, guestName: null, probableAttendeeId: 'p1', probableAttendeeLabel: 'Probable (Declined) #1' },
+      ],
+    },
+  ]);
+  const rows = tsv.trimEnd().split('\n');
+
+  assert.match(rows[1], /Probable \(Declined\) #1/);
+  assert.doesNotMatch(rows[1], /\(Unassigned\)/);
+});
+
+test('the summary counts a ProbableAttendee-occupied seat as assigned (P1-16)', () => {
+  const summary = buildTableArrangementSummary([
+    {
+      table_number: 1,
+      capacity: 2,
+      seats: [
+        { seatNumber: 1, guestId: null, probableAttendeeId: 'p1', probableAttendeeLabel: 'Probable (Pending) #1', dietaryRequirements: 'vegetarian' },
+        { seatNumber: 2, guestId: null, probableAttendeeId: null },
+      ],
+    },
+  ]);
+
+  assert.match(summary, /Assigned Guests\t1/);
+  assert.match(summary, /Unassigned Seats\t1/);
+  assert.match(summary, /Probable \(Pending\) #1/, 'the placeholder label is used for the dietary requirements row');
 });
 
 test('a requirement on an unassigned seat is not counted', () => {
@@ -338,4 +379,164 @@ test('a guest reports where they are seated', async (t) => {
   const unseated = await getGuestWithTableAssignment('g1');
   assert.equal(unseated.table_number, null);
   assert.equal(unseated.seat_number, null);
+});
+
+// --- ProbableAttendee buffer (P1-16) -----------------------------------------
+
+test('both buckets are always reported, even at zero', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const summary = await getProbableAttendanceSummary();
+  assert.deepEqual(summary, [
+    { bucket: 'declined', bufferCount: 0, seatedCount: 0, unseatedCount: 0 },
+    { bucket: 'pending', bufferCount: 0, seatedCount: 0, unseatedCount: 0 },
+  ]);
+});
+
+test('raising a bucket estimate creates that many unseated placeholders', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await setProbableAttendeeBuffer('declined', 3);
+
+  const unassigned = await listUnassignedProbableAttendees();
+  assert.deepEqual(
+    unassigned.map((p) => p.label),
+    ['Probable (Declined) #1', 'Probable (Declined) #2', 'Probable (Declined) #3']
+  );
+
+  const [declined, pending] = await getProbableAttendanceSummary();
+  assert.deepEqual(declined, { bucket: 'declined', bufferCount: 3, seatedCount: 0, unseatedCount: 3 });
+  assert.equal(pending.bufferCount, 0);
+});
+
+test('lowering a bucket estimate removes only unseated placeholders', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await setProbableAttendeeBuffer('pending', 3);
+  const [slot1, , slot3] = await listUnassignedProbableAttendees();
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+  await assignProbableAttendeeToSeat(table.seats[0].id, slot1.id);
+
+  await setProbableAttendeeBuffer('pending', 1);
+
+  const remaining = await listUnassignedProbableAttendees();
+  assert.deepEqual(remaining, [], 'the two unseated slots were removed, leaving none unseated');
+  const [, pending] = await getProbableAttendanceSummary();
+  assert.equal(pending.bufferCount, 1, 'the seated slot survives the reduction');
+  assert.equal(pending.seatedCount, 1);
+  assert.ok(slot3, 'sanity: three slots existed before the reduction');
+});
+
+test('a bucket estimate cannot drop below the number already seated', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await setProbableAttendeeBuffer('declined', 2);
+  const [slot1] = await listUnassignedProbableAttendees();
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+  await assignProbableAttendeeToSeat(table.seats[0].id, slot1.id);
+
+  await assert.rejects(
+    () => setProbableAttendeeBuffer('declined', 0),
+    /already seated/
+  );
+
+  const [declined] = await getProbableAttendanceSummary();
+  assert.equal(declined.bufferCount, 2, 'the rejected resize left the buffer untouched');
+});
+
+test('rejects an unknown bucket or a negative/non-integer count', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await assert.rejects(() => setProbableAttendeeBuffer('maybe', 1), /Unknown RSVP bucket/);
+  await assert.rejects(() => setProbableAttendeeBuffer('declined', -1), /non-negative/);
+  await assert.rejects(() => setProbableAttendeeBuffer('declined', 1.5), /non-negative/);
+});
+
+test('a ProbableAttendee can be assigned to a seat and shows its label, never a real name', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await setProbableAttendeeBuffer('declined', 1);
+  const [slot] = await listUnassignedProbableAttendees();
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 1 });
+  await assignProbableAttendeeToSeat(table.seats[0].id, slot.id, { dietaryRequirements: 'none' });
+
+  const [refreshed] = await listSeatingTables();
+  assert.equal(refreshed.seats[0].probableAttendeeId, slot.id);
+  assert.equal(refreshed.seats[0].probableAttendeeLabel, 'Probable (Declined) #1');
+  assert.equal(refreshed.seats[0].guestId, null);
+  assert.equal(refreshed.seats[0].guestName, null);
+});
+
+test('one ProbableAttendee cannot occupy two seats', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await setProbableAttendeeBuffer('pending', 1);
+  const [slot] = await listUnassignedProbableAttendees();
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+  await assignProbableAttendeeToSeat(table.seats[0].id, slot.id);
+
+  await assert.rejects(
+    () => assignProbableAttendeeToSeat(table.seats[1].id, slot.id),
+    /already assigned/
+  );
+});
+
+test('assigning a real guest to a seat evicts any ProbableAttendee already there, and vice versa', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await setProbableAttendeeBuffer('declined', 1);
+  const [slot] = await listUnassignedProbableAttendees();
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 1 });
+
+  await assignProbableAttendeeToSeat(table.seats[0].id, slot.id);
+  await assignGuestToSeat(table.seats[0].id, 'g1');
+
+  const [afterGuest] = await listSeatingTables();
+  assert.equal(afterGuest.seats[0].guestId, 'g1');
+  assert.equal(afterGuest.seats[0].probableAttendeeId, null, 'the seat can only hold one occupant');
+
+  await assignProbableAttendeeToSeat(table.seats[0].id, slot.id);
+  const [afterProbable] = await listSeatingTables();
+  assert.equal(afterProbable.seats[0].guestId, null);
+  assert.equal(afterProbable.seats[0].probableAttendeeId, slot.id);
+});
+
+test('unassigning a ProbableAttendee frees it to be seated elsewhere', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await setProbableAttendeeBuffer('pending', 1);
+  const [slot] = await listUnassignedProbableAttendees();
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+
+  await assignProbableAttendeeToSeat(table.seats[0].id, slot.id);
+  await unassignProbableAttendeeFromSeat(table.seats[0].id);
+
+  assert.deepEqual((await listUnassignedProbableAttendees()).map((p) => p.id), [slot.id]);
+
+  await assignProbableAttendeeToSeat(table.seats[1].id, slot.id);
+  const [refreshed] = await listSeatingTables();
+  assert.equal(refreshed.seats[1].probableAttendeeId, slot.id);
+});
+
+test('"Table Arranged" candidates (accepted, seated guests) exclude declined/pending guests even if seated', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+  await assignGuestToSeat(table.seats[0].id, 'g1'); // accepted
+  await assignGuestToSeat(table.seats[1].id, 'g3'); // declined, seated anyway (edge case)
+
+  const assigned = await listAssignedGuests();
+  const acceptedSeated = assigned.filter((guest) => guest.rsvpStatus === 'accepted');
+  assert.deepEqual(acceptedSeated.map((g) => g.id), ['g1']);
+  assert.equal(assigned.length, 2, 'both seats show up in the raw list — the accepted-only filter happens in the page, not the repo');
 });

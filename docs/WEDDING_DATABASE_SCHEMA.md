@@ -10,6 +10,12 @@ Migrations 001–003 have been written but **never applied to any database** as 
 
 ---
 
+> **Drift note (2026-09-05):** This file was last fully updated 2026-08-29 and predates several
+> shipped features. In particular, the "Out of Scope" section below still lists `seating_tables`
+> as not-yet-built — it was built and merged 2026-09-04 (P1-14) and is documented properly further
+> down. Treat table/column lists below as best-effort, not guaranteed current; cross-check against
+> `migrations/*.sql` for anything schema-critical.
+
 ## Schema Delta vs. Original PRD (changes from Grill Me session, 2026-08-29)
 
 The following are **new or changed** relative to PRD §7. All other tables are unchanged.
@@ -268,6 +274,58 @@ Custom content blocks per public page. Admin-managed via `/admin/sections`.
 
 ---
 
+## `seating_tables`
+
+A physical table at the reception (see `SeatingTable` in `UBIQUITOUS_LANGUAGE.md`). Built and
+applied live 2026-09-04 (P1-14, migration 007) — **not present in this doc until 2026-09-05**,
+added retroactively to close the drift noted at the top of this file.
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | uuid | PK DEFAULT gen_random_uuid() | |
+| `table_number` | integer | NOT NULL UNIQUE | |
+| `table_name` | text | nullable | e.g. `"Family"`, `"VIP"` |
+| `capacity` | integer | NOT NULL DEFAULT 10 | Number of seats — currently means Guest *parties*, not headcount (see `SeatingTable` note in `UBIQUITOUS_LANGUAGE.md`) |
+| `created_at` | timestamptz | DEFAULT now() | |
+| `updated_at` | timestamptz | DEFAULT now() | |
+
+## `table_seats`
+
+One row per seat at a SeatingTable. A seat holds at most one Guest (see `SeatAssignment`, though
+the shipped version links a whole Guest, not a Participant — planned refinement is P2-06).
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | uuid | PK DEFAULT gen_random_uuid() | |
+| `seating_table_id` | uuid | NOT NULL REFERENCES seating_tables(id) ON DELETE CASCADE | |
+| `seat_number` | integer | NOT NULL, UNIQUE with `seating_table_id` | |
+| `guest_id` | uuid | nullable REFERENCES guests(id) ON DELETE SET NULL | A Guest occupies at most one seat — enforced by a partial unique index, not app logic |
+| `dietary_requirements` | text | nullable | |
+| `special_notes` | text | nullable | |
+| `created_at` | timestamptz | DEFAULT now() | |
+| `updated_at` | timestamptz | DEFAULT now() | |
+
+> **Proposed addition (2026-09-05, not yet built — PRD §16):** a nullable `probable_attendee_id`
+> column, mutually exclusive with `guest_id` via a CHECK constraint, so a seat can alternatively
+> hold a `ProbableAttendee` placeholder. See `probable_attendees` below and PRD §16 for the full
+> migration (010).
+
+## `probable_attendees` (Proposed 2026-09-05 — not yet built, PRD §16)
+
+Anonymous seat-holder placeholders representing the Admin's buffer estimate of Guests who might
+attend despite a Declined or Pending RSVPStatus. See `ProbableAttendee` in
+`UBIQUITOUS_LANGUAGE.md`. Never linked to a real `guests` row and never changes `rsvp_status`.
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | uuid | PK DEFAULT gen_random_uuid() | |
+| `rsvp_bucket` | text | NOT NULL CHECK IN ('declined', 'pending') | Which RSVP bucket this buffer slot belongs to |
+| `slot_index` | integer | NOT NULL, UNIQUE with `rsvp_bucket` | Display ordering — "Probable (Declined) #1", "#2", ... |
+| `created_at` | timestamptz | DEFAULT now() | |
+
+> HITL required before applying migration 010 to any database, per standing project policy —
+> this table and the `table_seats.probable_attendee_id` column are additive-only.
+
 ## Relationships
 
 ```
@@ -296,7 +354,12 @@ all `rsvp_responses` where `attending = true`. Not stored — computed in the da
 
 Confirmed P2 / Chapter 2 — no tables, columns, or migrations for these during Chapter 1:
 
-- `seating_tables` / `seat_assignments` — P2 seating plan
+- ~~`seating_tables` / `seat_assignments` — P2 seating plan~~ — **built and live 2026-09-04** as
+  `seating_tables`/`table_seats` (whole-Guest, not per-Participant — see documentation above).
+  Struck through rather than removed so this doesn't silently look like it was never planned.
+- Per-Participant seating (`participants` table, `AgeCategory`/`RelationshipType` filtering) — the
+  original P1-14 vision in PRD §14, scoped down to whole-Guest seating for the shipped version.
+  Still P2 if per-Participant seating is wanted later (tracked as `SeatAssignment`, P2-06).
 - `qr_boarding_passes` — P2 digital boarding pass
 - `tenants` / `couple_accounts` — Chapter 2 multi-tenancy
 
@@ -311,10 +374,14 @@ Confirmed P2 / Chapter 2 — no tables, columns, or migrations for these during 
 | `003_create_admin_theme_sections.sql` | Written, never applied | `admin_users`, `theme_settings`, `site_sections` |
 | `004_create_messaging.sql` | Not yet written | `message_templates`, `message_logs` |
 | `005_guest_model_update.sql` | Not yet written | Add `display_name`, `invitation_type`, `invited_by`, `sub_group`; rename `relationship` → `relationship_category`; add `role` to `admin_users`; add `palette_name`, `font_choice`, `groom_whatsapp`, `bride_whatsapp` to `theme_settings` |
+| `007_create_table_arrangements.sql` | Written and applied live (2026-09-04) | `seating_tables`, `table_seats` — see documentation above. Note: this doc's original 001–005 plan above never actually shipped as written; the live `migrations/` directory took its own numbering (001 `guests`, 002 `rsvp_responses`, 003 `admin_theme_sections`, 004 `theme_palette_font_choice`, 005 `messaging`, 006 `invitation_code_format`, 007 `table_arrangements`, 008 `fix_couple_name_order`, 009 `celebration_events`). Cross-check `migrations/*.sql` directly rather than this table for exact history. |
+| `010_create_probable_attendees.sql` | Proposed 2026-09-05, not yet written | `probable_attendees` table, `table_seats.probable_attendee_id` column — see documentation above and PRD §16 |
 
 > Migration 005 must be written and reviewed before Slice 10 (Guest Management) begins.
 > It touches the `guests` table directly — HITL approval required before applying to any
 > database. See `HITL_NOTES_WEDDING.md`.
+> Migration 010 (ProbableAttendee, PRD §16) is additive-only but still requires HITL approval
+> before applying to any database, per standing project policy.
 
 ---
 

@@ -55,7 +55,7 @@ export function buildTableArrangementExport(tables = []) {
           table.table_number || '',
           table.table_name || '',
           seat.seatNumber || '',
-          seat.guestName || '(Unassigned)',
+          seat.guestName || seat.probableAttendeeLabel || '(Unassigned)',
           seat.guestName ? '' : '',
           seat.dietaryRequirements || '',
           seat.specialNotes || '',
@@ -85,19 +85,19 @@ export function buildTableArrangementSummary(tables = []) {
     totalCapacity += (table.capacity || seats.length);
 
     seats.forEach((seat) => {
-      if (seat.guestId) {
+      if (seat.guestId || seat.probableAttendeeId) {
         totalAssigned += 1;
         if (seat.dietaryRequirements) {
           dietaryRequirements.push({
             table: table.table_number,
-            guest: seat.guestName,
+            guest: seat.guestName || seat.probableAttendeeLabel,
             requirement: seat.dietaryRequirements,
           });
         }
         if (seat.specialNotes) {
           specialNotes.push({
             table: table.table_number,
-            guest: seat.guestName,
+            guest: seat.guestName || seat.probableAttendeeLabel,
             note: seat.specialNotes,
           });
         }

@@ -645,6 +645,113 @@ Guests currently browse the full public site before ever entering their invitati
 
 ---
 
+## 16. Table Arrangement Dashboard & Probable Attendance (Owner-confirmed 2026-09-05 — Not Yet Built)
+
+> Status: Scoped via a "Grill Me" session on 2026-09-05. Builds additively on the whole-Guest
+> SeatingTable model actually shipped for P1-14 (see `SeatingTable`'s note in
+> `UBIQUITOUS_LANGUAGE.md` — assigns whole Guests to seats, not individual Participants; the
+> per-Participant/AgeCategory vision in §14 above is still unbuilt and unaffected by this).
+> See `TASKS.md` (P1-16) for the recommended Claude model.
+
+### Problem
+`/admin/table-arrangement` today only shows per-table seat-fill counts ("7/10 filled"). It has
+no RSVP-funnel view, so the Admin cannot see at a glance how many Guests still need a seat. Worse,
+`listUnassignedGuests()` only returns Guests with `rsvp_status = 'accepted'` — a Guest who
+declined or never responded cannot be selected in the seat-assignment dropdown at all, even
+though weddings routinely have declined-RSVP or no-response Guests show up anyway, and the Admin
+needs some way to plan table capacity for that possibility ahead of time.
+
+### Requirement
+1. **Headline dashboard** at the top of `/admin/table-arrangement`, computed from confirmed data
+   only (mirrors the existing RSVP dashboard's `computeRsvpStats` pattern at `/admin/dashboard`,
+   but scoped to seating rather than headcount):
+   - **RSVP Accepted** — count of active (`is_deleted = false`) Guests with `rsvp_status = 'accepted'`.
+   - **Table Arranged** — count of those Accepted Guests currently occupying a seat.
+   - **BalanceToArrange** — Accepted minus Table Arranged (already computed today as
+     `listUnassignedGuests()`'s length; this just surfaces it as a labeled stat).
+   - **RSVP Not Accepted** — count of active Guests with `rsvp_status` in `declined` or `pending`,
+     shown as one headline number with the two sub-counts underneath.
+2. **Probable attendance buffer**, nested under the RSVP Not Accepted card, one row per bucket
+   (Declined, Pending):
+   - Shows the real Guest count in that bucket.
+   - An Admin-editable number field — "Estimate likely to attend anyway" — defaulting to 0.
+   - Saving a new value resizes that bucket's pool of `ProbableAttendee` placeholders to match.
+     A ProbableAttendee is anonymous — no name, no link to any real Guest record — because these
+     represent people the Admin cannot yet identify, only expects in aggregate ("just a buffer",
+     confirmed 2026-09-05).
+   - Shows how many of that bucket's ProbableAttendees are already seated vs. still unseated.
+3. **Seat assignment** on an open seat offers two option groups in the picker: real unseated
+   Accepted Guests (as today) and unseated ProbableAttendee placeholders, grouped and labeled by
+   bucket (e.g. "Probable (Declined) #1").
+4. **Shrinking a bucket's estimate** below its currently-seated ProbableAttendee count is
+   rejected with a clear error — the Admin must unassign seats first, mirroring the existing
+   `GUEST_ALREADY_SEATED`-style error handling in `tableArrangementRepo.js`.
+5. **Export** (`buildTableArrangementExport`) includes ProbableAttendee-occupied seats using the
+   same anonymous placeholder label in the Guest Name column — the Admin's printed entrance list
+   is produced manually from this download; no separate printed-list feature is needed.
+6. **`rsvp_status` is never overwritten by this feature.** A Guest's true Declined/Pending answer
+   stays intact forever — ProbableAttendee is a wholly separate, anonymous construct layered on
+   top for capacity planning, not a reclassification of any real Guest.
+
+### Proposed Schema Changes
+```sql
+-- New migration (010), additive only.
+CREATE TABLE IF NOT EXISTS probable_attendees (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  rsvp_bucket text NOT NULL CHECK (rsvp_bucket IN ('declined', 'pending')),
+  slot_index integer NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(rsvp_bucket, slot_index)
+);
+
+ALTER TABLE table_seats
+  ADD COLUMN IF NOT EXISTS probable_attendee_id uuid
+    REFERENCES probable_attendees(id) ON DELETE SET NULL;
+
+-- A seat holds at most one occupant, real or placeholder.
+ALTER TABLE table_seats
+  ADD CONSTRAINT chk_seat_single_occupant
+  CHECK (NOT (guest_id IS NOT NULL AND probable_attendee_id IS NOT NULL));
+
+-- Mirrors idx_table_seats_unique_guest: a ProbableAttendee occupies at most one seat.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_table_seats_unique_probable_attendee
+  ON table_seats(probable_attendee_id)
+  WHERE probable_attendee_id IS NOT NULL;
+```
+Resizing a bucket's estimate is application logic, not a schema feature: raising it inserts new
+`probable_attendees` rows (next `slot_index`); lowering it deletes rows for that bucket starting
+with unseated ones, and is rejected outright if the reduction would require deleting a seated row.
+
+### Acceptance Criteria (draft — refine before implementation)
+- [ ] `/admin/table-arrangement` shows the four headline stats plus the Declined/Pending
+      probable-buffer sub-panel described above.
+- [ ] Admin can set/change a bucket's estimate; shrinking below its seated count is rejected with
+      a clear message, not a silent no-op or a crash.
+- [ ] The seat-assignment picker offers both real unseated Accepted Guests and unseated
+      ProbableAttendee placeholders, clearly grouped and labeled.
+- [ ] A ProbableAttendee can be assigned/unassigned/reassigned exactly like a real Guest, using
+      the same concurrency-safe partial-unique-index pattern already proven for `guest_id`.
+- [ ] Export includes ProbableAttendee-occupied seats with their placeholder label, never a real
+      Guest's name.
+- [ ] `rsvp_status` on every Guest is provably untouched by this feature (existing RSVP tests
+      still pass unmodified).
+- [ ] Migration 010 is additive-only (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`) —
+      HITL approval required before applying to any database, per standing project policy.
+
+### Open Questions (resolve before implementation)
+- Exact placeholder label wording shown in the UI and export (e.g. "Probable (Declined) #1" vs.
+  some other phrasing) — cosmetic, but should be decided once rather than churned during coding.
+- Should ProbableAttendee resizing be available to both `GroomAdmin` and `BrideAdmin`, or
+  `GroomAdmin` (super admin) only? ProbableAttendees aren't partitioned by `invited_by` the way
+  Guests are, since they aren't linked to any Guest record — the existing GuestPartition RLS
+  model doesn't naturally apply to them.
+- Confirm the headline "Table Arranged"/"BalanceToArrange" pair stays strictly Accepted-Guest-only
+  (current scope) rather than folding in seated ProbableAttendees — this matches the 2026-09-05
+  session's explicit instruction to keep the probable/buffer numbers inside the "RSVP Not
+  Accepted" area rather than mixed into the confirmed-Guest stats.
+
+---
+
 *Document version: 1.0 | Created: August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*

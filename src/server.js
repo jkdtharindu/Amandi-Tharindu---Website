@@ -47,7 +47,11 @@ import {
   deleteSeatingTable,
   assignGuestToSeat,
   unassignGuestFromSeat,
+  assignProbableAttendeeToSeat,
   listUnassignedGuests,
+  listUnassignedProbableAttendees,
+  getProbableAttendanceSummary,
+  setProbableAttendeeBuffer,
 } from './table-arrangement/tableArrangementRepo.js';
 import { buildTableArrangementExport, buildTableArrangementSummary } from './table-arrangement/tableArrangementExport.js';
 import {
@@ -2078,9 +2082,32 @@ export function createApp() {
   // --- Table Arrangement Feature -----------------------------------------------
 
   app.get('/api/admin/table-arrangement', requireAdminApi, async (req, res) => {
-    const tables = await listSeatingTables();
-    const unassigned = await listUnassignedGuests();
-    res.json({ tables, unassignedGuests: unassigned });
+    const [tables, unassigned, unassignedProbableAttendees, probableAttendanceSummary] = await Promise.all([
+      listSeatingTables(),
+      listUnassignedGuests(),
+      listUnassignedProbableAttendees(),
+      getProbableAttendanceSummary(),
+    ]);
+    res.json({ tables, unassignedGuests: unassigned, unassignedProbableAttendees, probableAttendanceSummary });
+  });
+
+  app.put('/api/admin/table-arrangement/probable-attendees', requireAdminApi, async (req, res) => {
+    if (!verifyCsrfToken(req)) {
+      return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    const { bucket, count } = req.body;
+
+    if (bucket !== 'declined' && bucket !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Bucket must be "declined" or "pending".' });
+    }
+
+    try {
+      const summary = await setProbableAttendeeBuffer(bucket, count);
+      res.json({ success: true, summary });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
   });
 
   app.post('/api/admin/table-arrangement', requireAdminApi, async (req, res) => {
@@ -2142,17 +2169,19 @@ export function createApp() {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
     }
 
-    const { guestId, dietaryRequirements, specialNotes } = req.body;
+    const { guestId, probableAttendeeId, dietaryRequirements, specialNotes } = req.body;
 
-    if (!guestId) {
-      return res.status(400).json({ success: false, message: 'Guest ID required' });
+    if (!guestId && !probableAttendeeId) {
+      return res.status(400).json({ success: false, message: 'Guest ID or probable attendee ID required' });
+    }
+    if (guestId && probableAttendeeId) {
+      return res.status(400).json({ success: false, message: 'Provide only one of guestId or probableAttendeeId.' });
     }
 
     try {
-      const seat = await assignGuestToSeat(req.params.seatId, guestId, {
-        dietaryRequirements,
-        specialNotes,
-      });
+      const seat = probableAttendeeId
+        ? await assignProbableAttendeeToSeat(req.params.seatId, probableAttendeeId, { dietaryRequirements, specialNotes })
+        : await assignGuestToSeat(req.params.seatId, guestId, { dietaryRequirements, specialNotes });
       res.json({ success: true, seat });
     } catch (error) {
       res.status(400).json({ success: false, message: error.message });

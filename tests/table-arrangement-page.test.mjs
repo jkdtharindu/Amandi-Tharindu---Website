@@ -4,6 +4,7 @@ import http from 'http';
 import { createApp } from '../src/server.js';
 import { guestStore } from '../src/data/guestStore.js';
 import { seatingTables } from '../src/data/tableArrangementStore.js';
+import { probableAttendees } from '../src/data/probableAttendeesStore.js';
 import { TEST_ADMIN, seedTestAdmin } from './helpers/adminFixture.mjs';
 
 // Table Arrangement (P2) — route level.
@@ -48,12 +49,14 @@ beforeEach(() => {
   seatingTables.length = 0;
   guestStore.length = 0;
   guestStore.push(...structuredClone(ORIGINAL_GUESTS), ...structuredClone(ACCEPTED_GUESTS));
+  probableAttendees.length = 0;
 });
 
 afterEach(() => {
   seatingTables.length = 0;
   guestStore.length = 0;
   guestStore.push(...structuredClone(ORIGINAL_GUESTS));
+  probableAttendees.length = 0;
 });
 
 function request(port, { path, method = 'GET', headers = {}, body }) {
@@ -256,5 +259,181 @@ test('the export downloads the seating plan for the events team', async () => {
     assert.match(res.text, /Anula Gunasekara/);
     assert.match(res.text, /vegetarian/);
     assert.match(res.text, /Total Tables\t1/);
+  });
+});
+
+// --- Probable attendance buffer (P1-16) --------------------------------------
+
+test('the seating data includes the probable attendance buffer, both buckets at zero by default', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    const res = await request(port, { path: '/api/admin/table-arrangement', headers: { Cookie: cookie } });
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.unassignedProbableAttendees, []);
+    assert.deepEqual(res.body.probableAttendanceSummary, [
+      { bucket: 'declined', bufferCount: 0, seatedCount: 0, unseatedCount: 0 },
+      { bucket: 'pending', bufferCount: 0, seatedCount: 0, unseatedCount: 0 },
+    ]);
+  });
+});
+
+test('the buffer endpoint is admin-only and CSRF-gated', async () => {
+  await withServer(async (port) => {
+    const anon = await request(port, {
+      path: '/api/admin/table-arrangement/probable-attendees',
+      method: 'PUT',
+      body: { bucket: 'declined', count: 2 },
+    });
+    assert.equal(anon.statusCode, 401);
+
+    const cookie = await loginAdmin(port);
+    const noCsrf = await request(port, {
+      path: '/api/admin/table-arrangement/probable-attendees',
+      method: 'PUT',
+      headers: { Cookie: cookie },
+      body: { bucket: 'declined', count: 2 },
+    });
+    assert.equal(noCsrf.statusCode, 403);
+    assert.equal(noCsrf.body.reason, 'csrf_invalid');
+  });
+});
+
+test('a buffer resize round-trips through the list endpoint', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+
+    const resize = await request(port, {
+      path: '/api/admin/table-arrangement/probable-attendees',
+      method: 'PUT',
+      headers: { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) },
+      body: { bucket: 'declined', count: 2 },
+    });
+    assert.equal(resize.statusCode, 200);
+    assert.equal(resize.body.success, true);
+
+    const list = await request(port, { path: '/api/admin/table-arrangement', headers: { Cookie: cookie } });
+    assert.deepEqual(
+      list.body.unassignedProbableAttendees.map((p) => p.label),
+      ['Probable (Declined) #1', 'Probable (Declined) #2']
+    );
+  });
+});
+
+test('an invalid bucket is rejected with a message, not a stack trace', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    const res = await request(port, {
+      path: '/api/admin/table-arrangement/probable-attendees',
+      method: 'PUT',
+      headers: { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) },
+      body: { bucket: 'maybe', count: 1 },
+    });
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.success, false);
+  });
+});
+
+test('a ProbableAttendee can be seated via the assign endpoint, and the buffer refuses to shrink below it', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    const headers = { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) };
+
+    await request(port, {
+      path: '/api/admin/table-arrangement/probable-attendees',
+      method: 'PUT',
+      headers,
+      body: { bucket: 'pending', count: 1 },
+    });
+    const { unassignedProbableAttendees } = (
+      await request(port, { path: '/api/admin/table-arrangement', headers: { Cookie: cookie } })
+    ).body;
+    const [slot] = unassignedProbableAttendees;
+
+    const created = await request(port, {
+      path: '/api/admin/table-arrangement',
+      method: 'POST',
+      headers,
+      body: { tableNumber: 1, capacity: 1 },
+    });
+    const { id: tableId, seats } = created.body.table;
+
+    const assign = await request(port, {
+      path: `/api/admin/table-arrangement/${tableId}/seats/${seats[0].id}/assign`,
+      method: 'POST',
+      headers,
+      body: { probableAttendeeId: slot.id },
+    });
+    assert.equal(assign.statusCode, 200);
+    assert.equal(assign.body.seat.probable_attendee_id, slot.id);
+
+    const shrink = await request(port, {
+      path: '/api/admin/table-arrangement/probable-attendees',
+      method: 'PUT',
+      headers,
+      body: { bucket: 'pending', count: 0 },
+    });
+    assert.equal(shrink.statusCode, 400);
+    assert.match(shrink.body.message, /already seated/);
+  });
+});
+
+test('providing both guestId and probableAttendeeId to assign is rejected', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    const headers = { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) };
+
+    const created = await request(port, {
+      path: '/api/admin/table-arrangement',
+      method: 'POST',
+      headers,
+      body: { tableNumber: 1, capacity: 1 },
+    });
+    const { id: tableId, seats } = created.body.table;
+
+    const res = await request(port, {
+      path: `/api/admin/table-arrangement/${tableId}/seats/${seats[0].id}/assign`,
+      method: 'POST',
+      headers,
+      body: { guestId: 'g-seat-1', probableAttendeeId: 'whatever' },
+    });
+    assert.equal(res.statusCode, 400);
+  });
+});
+
+test('the export includes a ProbableAttendee-occupied seat with its placeholder label, no real name', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    const headers = { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) };
+
+    await request(port, {
+      path: '/api/admin/table-arrangement/probable-attendees',
+      method: 'PUT',
+      headers,
+      body: { bucket: 'declined', count: 1 },
+    });
+    const { unassignedProbableAttendees } = (
+      await request(port, { path: '/api/admin/table-arrangement', headers: { Cookie: cookie } })
+    ).body;
+    const [slot] = unassignedProbableAttendees;
+
+    const created = await request(port, {
+      path: '/api/admin/table-arrangement',
+      method: 'POST',
+      headers,
+      body: { tableNumber: 1, capacity: 1 },
+    });
+    const { id: tableId, seats } = created.body.table;
+
+    await request(port, {
+      path: `/api/admin/table-arrangement/${tableId}/seats/${seats[0].id}/assign`,
+      method: 'POST',
+      headers,
+      body: { probableAttendeeId: slot.id },
+    });
+
+    const res = await request(port, { path: '/api/admin/table-arrangement/export', headers: { Cookie: cookie } });
+    assert.equal(res.statusCode, 200);
+    assert.match(res.text, /Probable \(Declined\) #1/);
   });
 });

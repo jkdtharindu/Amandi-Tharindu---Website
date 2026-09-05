@@ -1,29 +1,12 @@
 import AdminNav from '@/components/admin/AdminNav';
 import RsvpChart from '@/components/admin/RsvpChart';
+import StatCard from '@/components/admin/StatCard';
 import { requireAdminPage } from '@/lib/adminGuard';
 import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
 import { computeRsvpStats } from '@/src/admin/guestQueries.js';
 
 // Always read live numbers; the dashboard must not be cached (PRD P0-08).
 export const dynamic = 'force-dynamic';
-
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: number;
-  hint?: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-3xl font-bold tabular-nums">{value}</p>
-      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
-    </div>
-  );
-}
 
 export default async function AdminDashboardPage() {
   const session = await requireAdminPage();
