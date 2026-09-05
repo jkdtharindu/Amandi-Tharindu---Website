@@ -10,6 +10,10 @@ Start date: 2026-08-09
 Reason: 
 Alternative considered: 
 
+[2026-09-05] Decision: ProbableAttendee (Table Arrangement Dashboard, P1-16) is an anonymous placeholder — never linked to a `guests` row, never changes `rsvp_status` — rather than a per-guest "probable" flag on Declined/Pending Guests.
+Reason: owner confirmed in a Grill Me session that the admin's estimate of "how many might still attend" is a pure aggregate capacity buffer with no specific identity attached ("just a buffer... no showing any name in the table, admin assigns only probable to come person 1, person 2 like that") — a real walk-in is handled by editing the actual Guest's data if/when they're identified, not by pre-flagging speculative names.
+Alternative considered: flagging specific Guest records as "probable" (rejected — the owner explicitly wanted anonymous counts, not named speculation) and mixing probable/buffer numbers into the headline Accepted/BalanceToArrange stats (rejected — those stay strictly confirmed-Guest-only; the probable numbers live in their own "RSVP Not Accepted" panel).
+
 
 2) Technology choices and why alternatives were rejected
 
@@ -35,6 +39,10 @@ Correction: downgraded both to `[~]` in TASKS.md with the gap spelled out; added
 [2026-09-04] Mistake: `main` and `feature/nextjs-supabase-migration` each independently built a full Theme Editor (P1-10) — different files, different `theme_settings` schemas, and both numbered their migration `003` — with neither branch aware of the other's work. Discovered only when PR #4 hit a merge conflict.
 Reason: same root cause as the feature/ui-wrapping divergence above — no branch coordination, so two sessions built the same PRD item from scratch in parallel.
 Correction: kept this branch's schema/migrations (003 + 004) as canonical — it was already applied to the live database — and ported `main`'s working `/admin/theme` page, `ThemeEditor` component, and API route onto it. Dropped `main`'s competing `migrations/003_create_theme_settings.sql`, `src/admin/themeRepo.js`, and `src/admin/themeValidation.js`; added `src/theme/basicThemeValidation.js` (curated color/font validation for the simple form) and rewired `app/layout.tsx` to read theme settings from `src/theme/themeRepo.js` and render fonts via the self-hosted `src/theme/fontFaces.js` (`buildFontFaceCss()`) instead of `next/font/google`, since the self-hosted `public/fonts/` pipeline already existed on this branch unused. The curated font list changed from `Default/Cormorant Garamond/Playfair Display/EB Garamond` to `Default/Cormorant Garamond/Playfair Display/Cinzel` to match what's actually self-hosted.
+
+[2026-09-05] Mistake: `listAssignedGuests()` in `tableArrangementRepo.js` (built for P1-14, 2026-09-04) returned unmapped raw Postgres rows on its DB path — `rsvp_status`, not `rsvpStatus` like every other guest-reading function in the codebase (`mapGuestRow` in `guest-auth/guestRepo.js`). It went uncaught because it was exported but never actually called by anything until this session.
+Reason: written by copying the SQL-query pattern from its sibling functions in the same file without also copying their row-mapping step; no test exercised its DB path (only the in-memory path, which already returns camelCase from the guest store fixture).
+Correction: added the missing `mapGuestRow(row)` call so its DB path matches the in-memory path's shape. Found while wiring the new "Table Arranged" dashboard stat (P1-16), the first real consumer of this function's `rsvpStatus` field.
 
 
 4) Deprecated patterns (old approaches we've moved away from)
