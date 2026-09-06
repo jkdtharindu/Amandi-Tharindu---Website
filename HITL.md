@@ -12,6 +12,7 @@ Whenever one of the following actions is about to happen, stop and present the c
 
 - Any deployment or publish command
 - Database migrations (up or down)
+- Restoring a database from a backup, or any other bulk overwrite of live data (see `docs/BACKUP_RECOVERY.md`) — a restore silently discards everything written since the backup was taken, so it is destructive even when it succeeds
 - Deleting files or records
 - Touching environment variables or secrets
 - git push to main or production branches
