@@ -61,12 +61,16 @@ git ls-remote --heads origin
 - Check for open PRs waiting on a merge/close decision (`gh pr list` if available).
 - Whether the live database schema matches the migrations on this branch — **read-only check only, never run migrations to find out**; if there's no live DB connection available in this session, say so explicitly rather than assuming it matches.
 
-STEP 4 — Determine next task and model.
+STEP 4 — **[PRIORITIZED] Determine claude model for this session.**
+- Check for a documented `Model:` tag in TASKS.md on the next item (Model Assignment Convention, TASKS.md).
+- If no model is specified, **propose one now** — **Opus 5** for architecture/security/schema-design decisions or anything touching HITL enforcement, **Sonnet 5** for well-scoped feature/CRUD/config work, **Haiku 4.5** for small mechanical fixes.
+- **Confirm the model choice with the user before proceeding.** Do not assume the default model is correct for this task.
+
+STEP 5 — Determine next task.
 - What TASKS.md says is next (check "Current focus" and the first unstarted `Next Action`).
-- Check for a documented `Model:` tag on that item (Model Assignment Convention, TASKS.md). If none exists, propose one — **Opus 5** for architecture/security/schema-design decisions or anything touching HITL enforcement, **Sonnet 5** for well-scoped feature/CRUD/config work, **Haiku 4.5** for small mechanical fixes — and confirm with the user before writing code.
 - If the next item has open product questions blocking it (check TASKS.md/MEMORY.md for "not started, needs user decision" notes), surface those questions instead of guessing an answer.
 
-STEP 5 — Report back, then wait.
-- Summarize Steps 0–4 concisely: doc-trust caveats found, git/branch/worktree state, any schema drift, proposed starting point + model + reasoning.
+STEP 6 — Report back, then wait.
+- Summarize Steps 0–5 concisely: doc-trust caveats found, git/branch/worktree state, any schema drift, proposed starting point + model + reasoning.
 - Explicitly surface anything left open from the previous session first (uncommitted work, unmerged/undeleted branches, stale docs discovered) — before proposing new work.
 - Wait for explicit go-ahead before writing any code, unless the user's message already specifies exactly what to build.
