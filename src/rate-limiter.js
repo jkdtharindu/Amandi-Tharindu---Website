@@ -60,22 +60,23 @@ export class RateLimiter {
 }
 
 /**
- * Create a Next.js route handler middleware that enforces rate limiting.
- * Usage in a route.ts POST handler:
+ * The counter key for a request, accepting both an Express `req` and a Next.js
+ * `NextRequest` (same dual-shape handling as `verifyCsrfToken` in src/csrf.js).
  *
- *   const limiter = createGuestLoginLimiter();
- *   export async function POST(request: NextRequest) {
- *     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'local';
- *     const result = limiter.check(clientIp);
- *     if (!result.allowed) {
- *       return NextResponse.json(
- *         { success: false, reason: 'too_many_attempts', message: 'Too many login attempts. Try again in 10 minutes.' },
- *         { status: 429, headers: { 'Retry-After': String(Math.ceil((result.resetAt.getTime() - Date.now()) / 1000)) } }
- *       );
- *     }
- *     // ... rest of handler
- *   }
+ * Behind a proxy every request carries the proxy's own IP, so the client is the
+ * first entry of `x-forwarded-for`. That header is client-settable when nothing
+ * trustworthy sets it, which is why this is a speed bump for guessing codes and
+ * not an access control.
  */
+export function clientKey(req) {
+  const forwarded =
+    typeof req?.headers?.get === 'function'
+      ? req.headers.get('x-forwarded-for')
+      : req?.headers?.['x-forwarded-for'];
+
+  return forwarded?.split(',')[0].trim() || req?.ip || 'local';
+}
+
 export function createGuestLoginLimiter(maxAttempts = 10, windowMs = 10 * 60 * 1000) {
   return new RateLimiter(maxAttempts, windowMs);
 }

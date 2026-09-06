@@ -21,3 +21,7 @@ supabase/.temp
 
 # legacy prototype build output
 dist/
+
+# database backups — these hold every guest's name, phone number and email.
+# Never commit one; keep them off the repo and out of shared folders.
+backups/

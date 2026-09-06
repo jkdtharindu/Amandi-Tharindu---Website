@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loginGuestByCode, loginGuestByName } from '@/src/guest-auth/index.js';
 import { signSession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
-import { createGuestLoginLimiter } from '@/src/rate-limiter.js';
+import { clientKey, createGuestLoginLimiter } from '@/src/rate-limiter.js';
 
-const guestLoginLimiter = createGuestLoginLimiter(10, 10 * 60 * 1000); // 10 attempts per 10 min
+const guestLoginLimiter = createGuestLoginLimiter();
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -16,9 +16,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Rate limiting: prevent brute force on invitation code guessing
-    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'local';
-    const rateLimit = guestLoginLimiter.check(clientIp);
+    // InvitationCodes are guessable by design (they are printed on a card and
+    // read aloud), so the only thing standing between an outsider and the guest
+    // list is this counter.
+    const rateLimit = guestLoginLimiter.check(clientKey(request));
     if (!rateLimit.allowed) {
       const retryAfter = Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000);
       return NextResponse.json(

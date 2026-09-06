@@ -107,7 +107,10 @@ export default function LoginPage() {
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
         <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10">
           <div className="text-center mb-8">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sky-100 text-sky-700 text-sm font-semibold mb-6">
+            <span
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-6"
+              style={{ background: 'var(--color-canvas)', color: 'var(--color-brand)' }}
+            >
               🎟️ Guest login
             </span>
             <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
@@ -139,7 +142,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-6 rounded-full bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="button button-primary w-full text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
@@ -180,7 +183,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => handleSelectCandidate(candidate.code)}
                       disabled={loading}
-                      className="py-2 px-4 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="button button-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Select
                     </button>

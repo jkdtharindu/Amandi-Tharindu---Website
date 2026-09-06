@@ -3,15 +3,6 @@
  * Prevents attacks where a malicious file is renamed with an image extension.
  */
 
-const MAGIC_BYTES = {
-  // JPEG: FF D8 FF
-  'image/jpeg': [0xff, 0xd8, 0xff],
-  // PNG: 89 50 4E 47
-  'image/png': [0x89, 0x50, 0x4e, 0x47],
-  // WebP: RIFF ... WEBP
-  'image/webp': null, // Variable signature, needs substring matching
-};
-
 /**
  * Validate image buffer against expected MIME type using magic bytes.
  * Returns { valid: boolean, reason?: string }

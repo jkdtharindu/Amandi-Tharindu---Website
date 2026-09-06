@@ -61,6 +61,8 @@ import {
   ALLOWED_MIME_TYPES,
   ALLOWED_FOLDERS,
 } from './storage/supabaseStorage.js';
+import { clientKey, createGuestLoginLimiter } from './rate-limiter.js';
+import { validateImageBuffer } from './image-validator.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
 const GUEST_SESSION_COOKIE = 'guest_session';
@@ -541,6 +543,9 @@ function pageWrapper(title, bodyContent, scripts = '', theme = null) {
 
 export function createApp() {
   const app = express();
+  // Per-app instance, not module-scoped: each createApp() gets its own counter so
+  // one test's exhausted limit cannot bleed into the next.
+  const guestLoginLimiter = createGuestLoginLimiter();
   // Self-hosted webfonts (PRD §4.1 item 4) — served from our own origin so
   // the site never depends on a third-party CDN being reachable.
   app.use('/fonts', express.static(path.join(projectRoot, 'public', 'fonts'), { immutable: true, maxAge: '30d' }));
@@ -833,6 +838,22 @@ export function createApp() {
   app.post('/api/guest/login', async (req, res) => {
     if (!verifyCsrfToken(req)) {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
+    }
+
+    // InvitationCodes are guessable by design (they are printed on a card and
+    // read aloud), so the only thing standing between an outsider and the guest
+    // list is this counter.
+    const rateLimit = guestLoginLimiter.check(clientKey(req));
+    if (!rateLimit.allowed) {
+      const retryAfter = Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000);
+      return res
+        .status(429)
+        .set('Retry-After', String(retryAfter))
+        .json({
+          success: false,
+          reason: 'too_many_attempts',
+          message: 'Too many login attempts. Please wait and try again.',
+        });
     }
 
     const { code, name } = req.body || {};
@@ -1369,6 +1390,18 @@ export function createApp() {
   }, async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, reason: 'no_file', message: 'No file was uploaded.' });
+    }
+
+    // multer's fileFilter can only see the Content-Type the client chose to send,
+    // so anything at all can reach this point claiming to be a PNG. The bytes are
+    // the only trustworthy statement about what the file actually is.
+    const contentCheck = validateImageBuffer(req.file.buffer, req.file.mimetype);
+    if (!contentCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        reason: 'invalid_file_content',
+        message: 'That file is not a real JPEG, PNG, or WebP image.',
+      });
     }
 
     const folder = ALLOWED_FOLDERS.includes(req.body.folder) ? req.body.folder : null;
