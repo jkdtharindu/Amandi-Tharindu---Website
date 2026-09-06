@@ -45,6 +45,39 @@ every backup. A file you have never opened is a guess, not a backup.
 guest's name, phone number and email address.** Do not commit one, do not paste
 one into a chat, and think before putting one in a synced folder.
 
+## Getting a backup off this machine
+
+A backup that only exists on the machine that might fail is half a backup. The
+decision (2026-09-06) is to **encrypt the file, then store it anywhere private** —
+which separates the storage choice from the PII risk, so a normal cloud folder
+becomes an acceptable home.
+
+```bash
+npm run backup:encrypt      # newest backup -> backup-<stamp>.json.enc
+npm run backup:decrypt      # .enc -> .json, when you actually need it
+```
+
+AES-256-GCM with a key derived from `BACKUP_PASSPHRASE` via scrypt. Encryption
+uses Node's own crypto rather than `age` or `gpg`, for the same reason the backup
+avoids `pg_dump`: neither is installed here, and a backup you cannot decrypt on
+the machine in front of you is worse than none.
+
+`backup:encrypt` decrypts its own output and compares it byte-for-byte before
+reporting success, so a file that would not have opened is caught immediately
+rather than the day you need it. Only after that will `--remove-plaintext` delete
+the original.
+
+Two rules that matter more than the storage choice:
+
+- **The passphrase must live somewhere other than the backups.** A password
+  manager is ideal. A passphrase stored beside the ciphertext protects nothing.
+- **Losing the passphrase means losing the backup.** There is no recovery path,
+  by design. This is the trade you accept in exchange for being able to put the
+  guest list in ordinary cloud storage.
+
+The `.enc` file is safe to sync, email to yourself, or keep on a USB stick. The
+passphrase is not.
+
 ### When to run it
 
 - Before every migration (this is already the riskiest routine operation)
@@ -141,9 +174,13 @@ These need a browser and an account login, so they could not be done from here:
       because it needed a scratch database. That was not the real blocker — there
       was no restore code at all, so the rehearsal was impossible for anyone. There
       is now (`scripts/restore-db.js`); what genuinely needs you is the Neon branch.
-- [ ] **Decide where backups live off this laptop.** A backup that only exists on
-      the machine that might fail is half a backup. Given the PII, pick somewhere
-      private rather than a shared drive.
+- [x] **Decide where backups live off this laptop.** Decided 2026-09-06: encrypt
+      with `npm run backup:encrypt`, then store the `.enc` anywhere private. See
+      "Getting a backup off this machine" above. Still to do, and quick:
+      - [ ] Set `BACKUP_PASSPHRASE` in `.env` and record the passphrase in a
+            password manager — **not** in the backups folder.
+      - [ ] Run `npm run backup:encrypt` and put the `.enc` file in its chosen
+            home, so at least one backup exists somewhere other than this laptop.
 
 ### What is proven, and what is not
 
@@ -155,6 +192,7 @@ weaker evidence than it deserved:
 | Backups are taken and readable | `npm run backup` run against the live database; `npm run backup:verify` reads it back |
 | Restore ordering, sequence resets, backup validation | 16 unit tests (`tests/restore-plan.test.mjs`) |
 | A restore cannot reach the live database by accident | Observed refusing, twice, against the real `DATABASE_URL` — not asserted |
+| Encryption round-trips, and detects a wrong passphrase or an edited file | 11 unit tests (`tests/backup-crypto.test.mjs`) plus an end-to-end CLI encrypt/decrypt on synthetic data, confirmed byte-identical by checksum |
 | **Rows actually come back into a real database** | **Not proven.** No Postgres is installed on this machine and no scratch branch exists yet, so no restore has ever been executed against a real server. This is what the rehearsal above is for. |
 
 Until that last row is filled in, the restore path is well-tested code that has
@@ -163,9 +201,12 @@ replaced, and still short of a fact.
 
 Record the answers here once known:
 
-- Neon retention window: _unknown_
+- Neon retention window: _unknown — read it off the Neon console_
 - Last restore rehearsal: _never_
-- Off-machine backup location: _none_
+- Off-machine backup policy: encrypted `.enc` via `npm run backup:encrypt`,
+  stored in a private cloud folder (decided 2026-09-06)
+- Specific storage location: _to be chosen by the owner_
+- Passphrase stored in: _to be chosen — must not be the backups folder_
 
 ## Known gaps
 
