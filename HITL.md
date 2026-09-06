@@ -45,3 +45,24 @@ Note: UI polish and local prototype changes (code edits, styling, docs) do not b
 ## Clarification: WhatsApp reminder button (added 2026-09-03)
 
 The admin guest list has a "send RSVP reminder" button on pending guests with a WhatsApp number. It builds a `wa.me` deep link from an admin-editable message and opens it — nothing is sent programmatically. The admin still presses Send inside WhatsApp under their own account. This does NOT call an external paid API and does NOT by itself constitute "sending WhatsApp... messages to guests" in the automated sense the rule above is guarding against, so it does not require its own HITL checkpoint. If this is later replaced with a programmatic send (e.g. a paid WhatsApp/SMS API called directly from server code), that change brings back the full HITL requirement above. (Twilio specifically was considered and decided against for cost — see MEMORY.md 2026-09-05 — so this is a hypothetical guard, not a planned change.)
+
+## Clarification: backups, restores and the dry run (added 2026-09-06)
+
+"Restoring a database from a backup" is listed above as requiring a checkpoint. Now that
+`npm run restore` exists (`scripts/restore-db.js`), the boundaries are specific:
+
+- **`npm run restore:dry-run` is NOT a HITL action.** It connects, plans, and issues only
+  `SELECT`s, returning before the transaction opens. It cannot write. Requiring a checkpoint
+  for a read-only inspection would only devalue the checkpoints that matter.
+- **Restoring into a disposable scratch database is NOT a HITL action.** No live data is
+  involved — that is the entire point of rehearsing there. The restore target is named by
+  `RESTORE_TARGET_URL`, which deliberately never falls back to `DATABASE_URL`.
+- **Restoring into the application's own database IS a full HITL action**, and requires the
+  exact checkpoint message above. The script refuses this by default and only proceeds with
+  `--overwrite-app-database`. That flag is not a substitute for the human confirmation; it is
+  what you type *after* getting it. A restore silently discards everything written since the
+  backup was taken, so it is destructive even when it succeeds.
+- **`npm run backup` is not a HITL action** (it only reads), and neither is
+  `npm run backup:encrypt`. But `--remove-plaintext` deletes a file, so it falls under
+  "Deleting files or records" — the script verifies the encrypted copy decrypts byte-for-byte
+  before it will delete anything, which mitigates but does not remove the need for care.
