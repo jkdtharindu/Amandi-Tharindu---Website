@@ -18,7 +18,9 @@
     "backup:verify": "node scripts/backup-db.js verify",
     "hitl:migrate": "node scripts/hitl-preflight.js migrate",
     "seed:db": "node scripts/seed-local-db.js",
-    "admin:set-password": "node scripts/set-admin-password.js"
+    "admin:set-password": "node scripts/set-admin-password.js",
+    "restore": "node scripts/restore-db.js",
+    "restore:dry-run": "node scripts/restore-db.js --dry-run"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
