@@ -14,9 +14,15 @@
     "check-docs": "node scripts/ci-check-docs.js",
     "append-memory": "node bin/append-memory.js",
     "migrate": "node scripts/run-migrations.js",
+    "backup": "node scripts/backup-db.js",
+    "backup:verify": "node scripts/backup-db.js verify",
     "hitl:migrate": "node scripts/hitl-preflight.js migrate",
     "seed:db": "node scripts/seed-local-db.js",
-    "admin:set-password": "node scripts/set-admin-password.js"
+    "admin:set-password": "node scripts/set-admin-password.js",
+    "restore": "node scripts/restore-db.js",
+    "restore:dry-run": "node scripts/restore-db.js --dry-run",
+    "backup:encrypt": "node scripts/backup-crypto.js",
+    "backup:decrypt": "node scripts/backup-crypto.js decrypt"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

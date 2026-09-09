@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loginGuestByCode, loginGuestByName } from '@/src/guest-auth/index.js';
 import { signSession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
+import { clientKey, createGuestLoginLimiter } from '@/src/rate-limiter.js';
+
+const guestLoginLimiter = createGuestLoginLimiter();
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -10,6 +13,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' },
         { status: 403 }
+      );
+    }
+
+    // InvitationCodes are guessable by design (they are printed on a card and
+    // read aloud), so the only thing standing between an outsider and the guest
+    // list is this counter.
+    const rateLimit = guestLoginLimiter.check(clientKey(request));
+    if (!rateLimit.allowed) {
+      const retryAfter = Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000);
+      return NextResponse.json(
+        { success: false, reason: 'too_many_attempts', message: 'Too many login attempts. Please wait and try again.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
       );
     }
 

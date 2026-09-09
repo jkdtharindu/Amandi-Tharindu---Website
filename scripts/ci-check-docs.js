@@ -32,17 +32,22 @@ function main() {
   const sensitivePaths = ['migrations/', 'src/messaging', 'src/twilio', 'src/sms', 'src/email'];
   const touchedSensitive = files.some((f) => sensitivePaths.some((p) => f.startsWith(p)));
 
-  // MEMORY.md lives at docs/MEMORY.md since the docs consolidation in 8c5e665.
-  const hitlTouched = files.some((f) => f === 'HITL.md' || f.startsWith('.github/') || f === 'docs/MEMORY.md');
-  const memoryTouched = files.some((f) => f === 'docs/MEMORY.md');
+  // The 8c5e665 consolidation that moved MEMORY.md under docs/ was abandoned in
+  // practice: root MEMORY.md is canonical and docs/MEMORY.md is a stale duplicate
+  // nobody may edit (MEMORY.md 2026-09-04). Checking docs/MEMORY.md made this gate
+  // unsatisfiable — the only way to pass was to edit the forbidden copy.
+  const memoryTouched = files.some((f) => f === 'MEMORY.md');
+  const hitlTouched = files.some((f) => f === 'HITL.md' || f.startsWith('.github/')) || memoryTouched;
 
   if (touchedSensitive && !hitlTouched) {
     console.error('\nERROR: Sensitive files changed (migrations/messaging). You must update HITL.md and add a MEMORY.md entry describing the change.');
     process.exit(2);
   }
 
-  // If DB schema changed, ensure migrations/ changes include migration files
-  const dbTouched = files.some((f) => f.startsWith('migrations/') || f.includes('schema') || f.includes('db'));
+  // Schema changes live in migrations/. The previous substring match on 'db' and
+  // 'schema' fired on any path containing them anywhere — scripts/backup-db.js
+  // tripped it while changing no schema at all.
+  const dbTouched = files.some((f) => f.startsWith('migrations/'));
   if (dbTouched && !memoryTouched) {
     console.error('\nERROR: Database schema changes detected. Please add an entry to MEMORY.md describing the migration and reason.');
     process.exit(3);

@@ -46,18 +46,20 @@ environment.
 |---|---|---|---|
 | `SESSION_SECRET` | **Yes** | Signs guest and admin session cookies. The app *refuses to start* in production without it (`src/session.js`). | Generate a long random string: `openssl rand -hex 32` |
 | `NEXT_PUBLIC_SITE_URL` | **Yes** | The public address used to build guest invitation links. See §1. | Your real domain, no trailing slash |
-| `DATABASE_URL` | **Yes** | Postgres connection string for the Supabase database. Without it the app runs on throwaway in-memory data and every guest edit vanishes on restart. | Supabase → Project Settings → Database → Connection string |
+| `DATABASE_URL` | **Yes** | Postgres connection string for the live database. Without it the app runs on throwaway in-memory data and every guest edit vanishes on restart. | **Neon** console → your project → Connection string. (Neon is the production database; Supabase below is only the local storage stack — see `docs/BACKUP_RECOVERY.md`.) |
 | `ADMIN_EMAIL` | **Yes** | The admin login email. | Your choice |
 | `ADMIN_PASSWORD_HASH` | **Yes** | Hash of the admin password. The raw password is never stored. | `echo "your-password" \| node scripts/set-admin-password.js` — it prints the hash and nothing else |
 | `GUEST_CATEGORIES` | No | Comma-separated categories used in generated invitation codes. | Defaults are built in; set only to change them |
 | `SUPABASE_URL` | Only for uploads | Supabase project URL, used by the storage adapter. | Supabase → Project Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | Only for uploads | Service key for storage uploads. **Secret — never commit it or paste it anywhere public.** | Supabase → Project Settings → API |
-| `TRUSTED_PROXY_COUNT` | No | How many proxies sit in front of the app, used to identify callers for login rate limiting. Defaults to 1 in production, which is correct for Vercel. | Leave unset unless you add another proxy or CDN in front |
-
-`TRUSTED_PROXY_COUNT` only exists once PR #7 is merged. If that PR is still open, ignore
-that row.
+| `BACKUP_PASSPHRASE` | Not for the deploy | Encrypts backups so they can be stored off this machine (`npm run backup:encrypt`). Set it locally, not in Vercel — backups are taken from a developer machine, not by the deployed app. | Your choice; store it somewhere retrievable that is **not** the backups folder |
 
 **Do not** set `NODE_ENV` yourself — Vercel sets it. `PORT` is likewise handled for you.
+
+There is no `TRUSTED_PROXY_COUNT`. An earlier draft of this file listed one, from a
+security branch (PR #7) that was closed unmerged on 2026-09-09. The rate limiter that
+actually shipped (`src/rate-limiter.js`) reads the first `X-Forwarded-For` entry and
+takes no such variable.
 
 ---
 
@@ -148,8 +150,15 @@ Recorded so nobody wonders whether these were forgotten:
 
 ## 8. Still open before launch
 
-- [ ] **Verify the guest-list backups can actually be restored.** Supabase takes backups,
-      but a backup nobody has restored is only a hope. Losing the guest list close to the
-      wedding is a far more realistic disaster than any attack. Do this before launch.
+- [ ] **Rehearse one restore before launch.** Backup and restore tooling now exists
+      (`npm run backup`, `npm run restore:dry-run`, encryption via `npm run backup:encrypt`),
+      built 2026-09-06 — but **no restore has ever run against a real Postgres server**, so
+      "we have backups" is still a claim rather than a fact. It needs a scratch Neon branch;
+      exact commands are in `docs/BACKUP_RECOVERY.md`. Losing the guest list close to the
+      wedding is a far more realistic disaster than any attack, which is why this outranks
+      the deploy itself. See `TASKS.md` Next Action 14.
+- [ ] Set `BACKUP_PASSPHRASE` and get one encrypted backup off this laptop
+      (`docs/BACKUP_RECOVERY.md`).
 - [ ] Decide how long guest personal data (names, phone numbers) is kept after the
-      wedding, and how it gets deleted. See `TASKS.md` Next Action 8.
+      wedding, and how it gets deleted — the one remaining Tier 1 item on `TASKS.md`
+      Next Action 8.

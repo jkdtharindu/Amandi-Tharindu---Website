@@ -198,6 +198,48 @@ test('a request with no file is rejected', async () => {
   });
 });
 
+// The Content-Type on a multipart part is whatever the client typed, so these two
+// cover the case multer's fileFilter structurally cannot: a file that says PNG and
+// is not one.
+test('a file whose bytes are not an image is rejected even when it claims to be one', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    const windowsExecutable = Buffer.concat([Buffer.from('4d5a', 'hex'), Buffer.alloc(64)]);
+
+    const res = await request(port, {
+      path: '/api/admin/upload',
+      method: 'POST',
+      headers: { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) },
+      multipart: {
+        fields: { folder: 'gallery' },
+        file: { filename: 'holiday.png', mimeType: 'image/png', buffer: windowsExecutable },
+      },
+    });
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.reason, 'invalid_file_content');
+  });
+});
+
+test('a real image of one type cannot be passed off as another', async () => {
+  await withServer(async (port) => {
+    const cookie = await loginAdmin(port);
+    const res = await request(port, {
+      path: '/api/admin/upload',
+      method: 'POST',
+      headers: { Cookie: cookie, 'x-csrf-token': csrfFrom(cookie) },
+      multipart: {
+        fields: { folder: 'gallery' },
+        // Genuine PNG bytes, declared (and so stored, and so served) as JPEG.
+        file: { filename: 'a.jpg', mimeType: 'image/jpeg', buffer: TINY_PNG },
+      },
+    });
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.reason, 'invalid_file_content');
+  });
+});
+
 test('a valid upload fails clearly when storage is not configured', async () => {
   await withServer(async (port) => {
     const cookie = await loginAdmin(port);

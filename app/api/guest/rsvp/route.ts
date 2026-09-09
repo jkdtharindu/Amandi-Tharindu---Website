@@ -42,12 +42,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Both calls together: if one fails, the guest's RSVP is inconsistent.
+    // Currently they're separate DB calls (not in a transaction). For now, catch
+    // failures from both and treat the RSVP response as the source of truth, so at
+    // least that part never silently fails.
     const result = await upsertRsvpResponse(
       guest.id,
       attending,
       attending ? participantNames || [] : []
     );
-    await updateGuestRsvpStatus(guest.id, attending ? 'accepted' : 'declined');
+    try {
+      await updateGuestRsvpStatus(guest.id, attending ? 'accepted' : 'declined');
+    } catch (statusError) {
+      console.error('RSVP status update failed after response was saved:', statusError);
+      // Response is saved, status update failed. Log it but don't fail the request,
+      // since the guest's attendance/participants are already recorded.
+    }
 
     return NextResponse.json({ success: true, rsvp: result });
   } catch (error) {
