@@ -16,7 +16,7 @@ STEP 0 — Doc map: know what's canonical before reading anything.
 - **Docs-only (no root duplicate) but not guaranteed current — spot-check before trusting:** `docs/WEDDING_UI_UX_SPEC.md`, `docs/WEDDING_API_DOCUMENTATION.md`, `docs/WEDDING_MODEL_SELECTION.md`, `docs/AGENTS.md`.
 - **`docs/WEDDING_DATABASE_SCHEMA.md` is unreliable, but no longer uniformly stale as of 2026-09-05** — most of it is a pre-migration aspirational doc dated 2026-08-29 ("migrations never applied") describing a schema that does not match what was actually built (different table names, `SURNAME-NNN` code format, Supabase-Auth admin model, etc.). `seating_tables`/`table_seats`/`probable_attendees` sections were retroactively added 2026-09-05 and should be accurate. **Still confirm any schema fact against `migrations/*.sql` directly rather than trusting this file's age as a signal** — a doc can be edited on the same day for one section and stale everywhere else.
 - **Real schema source of truth: `migrations/*.sql`, read directly.** Never infer schema from prose. Run `ls migrations` to get the current file list — do not assume the count below is still accurate:
-  - 001 guests · 002 rsvp_responses · 003 admin/theme/sections · 004 theme palette+font · 005 messaging · 006 invitation code format · 007 table arrangements · 008 couple-name-order fix · 009 celebration_events.
+  - 001 guests · 002 rsvp_responses · 003 admin/theme/sections · 004 theme palette+font · 005 messaging · 006 invitation code format · 007 table arrangements · 008 couple-name-order fix · 009 celebration_events · 010 probable_attendees (all ten confirmed applied to the live database on 2026-09-10 — `schema_migrations` matched the file list exactly, no drift).
 - If any task touches a specific table/column, open the relevant migration file(s) — don't quote a markdown schema doc as fact.
 
 STEP 0.5 — Check for a live dev server before assuming a clean environment.
@@ -56,6 +56,7 @@ git worktree list
 git ls-remote --heads origin
 ```
 - This repo uses Claude Code worktrees under `.claude/worktrees/<branch>` — a `+` prefix in `git branch -a` output means "checked out in another worktree," **not** "unmerged." Check `git worktree list` before flagging a branch as abandoned.
+- **A worktree whose branch is merged is not necessarily safe to delete.** Run `git status --porcelain` *inside* the worktree as well — the branch and its working tree are separate questions, and a worktree is exactly where uncommitted work sits. On 2026-09-10 a worktree was reported as "fully merged" and approved for deletion while holding the only copy of an uncommitted `Countdown.tsx` fix; `git worktree remove` would have needed `--force`, which is the moment such work disappears quietly. See MEMORY.md 2026-09-10.
 - Don't trust `git branch --merged` formatting alone on a long list — confirm per-branch with:
   `git merge-base --is-ancestor <branch> main && echo merged || echo "NOT merged"`
 - `git ls-remote --heads origin` can surface a remote branch that local cleanup missed (a branch fully merged but never `git push origin --delete`d) — treat that as harmless housekeeping, not drift, once you've confirmed it's merged.

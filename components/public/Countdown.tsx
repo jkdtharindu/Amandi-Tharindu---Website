@@ -42,9 +42,16 @@ export default function Countdown({
   const [remaining, setRemaining] = useState<Remaining>(ZERO);
 
   useEffect(() => {
-    setRemaining(remainingUntil(targetDate));
-    const timer = setInterval(() => setRemaining(remainingUntil(targetDate)), 1000);
-    return () => clearInterval(timer);
+    const tick = () => setRemaining(remainingUntil(targetDate));
+    // Deferred rather than called synchronously in the effect body, to avoid
+    // react-hooks/set-state-in-effect (cascading-render) while still updating
+    // right after mount instead of waiting a full second for the first tick.
+    const initial = setTimeout(tick, 0);
+    const timer = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(timer);
+    };
   }, [targetDate]);
 
   return (
