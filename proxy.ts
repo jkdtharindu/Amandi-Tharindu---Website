@@ -1,12 +1,32 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { verifySession } from '@/src/session.js';
+import { GATE_ROUTE, isGatedPath } from '@/src/site-gate.js';
 
 /**
- * Security headers for every request (Next.js 16 `proxy` convention — this file
- * was `middleware.ts` until that name was deprecated).
+ * Runs before every matched request (Next.js 16 `proxy` convention — this file
+ * was `middleware.ts` until that name was deprecated). Two jobs:
+ *
+ * 1. The pre-login site gate (PRD §15): a signed-out visitor to any
+ *    guest-facing path is rewritten to GATE_ROUTE. A rewrite rather than a
+ *    redirect, so the address bar keeps the link the guest opened. This has to
+ *    happen here, not in `app/(public)/layout.tsx`: a layout does not stop its
+ *    page from rendering into the RSC payload (see "Layouts and auth checks" in
+ *    node_modules/next/dist/docs/01-app/02-guides/authentication.md).
+ * 2. Security headers on every response.
  */
-export function proxy() {
-  const response = NextResponse.next();
+export function proxy(request: NextRequest) {
+  const signedIn = Boolean(verifySession(request.cookies.get('guest_session')?.value));
 
+  const response =
+    !signedIn && isGatedPath(request.nextUrl.pathname)
+      ? NextResponse.rewrite(new URL(GATE_ROUTE, request.url))
+      : NextResponse.next();
+
+  applySecurityHeaders(response);
+  return response;
+}
+
+function applySecurityHeaders(response: NextResponse) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Referrer-Policy', 'no-referrer');
@@ -42,8 +62,6 @@ export function proxy() {
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
-
-  return response;
 }
 
 export const config = {

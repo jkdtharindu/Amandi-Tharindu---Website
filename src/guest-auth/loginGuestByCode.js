@@ -18,5 +18,8 @@ export async function loginGuestByCode(code, guestStore) {
     guestId: guest.id,
     sessionId: guest.id,
     code: guest.code,
+    // Shown on the envelope-reveal card (PRD §15), which plays before the
+    // invitation page loads.
+    name: guest.name,
   };
 }

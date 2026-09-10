@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loginGuestByCode, loginGuestByName } from '@/src/guest-auth/index.js';
-import { signSession } from '@/src/session.js';
+import { loginGuestByCode } from '@/src/guest-auth/index.js';
+import { normalizeInvitationCode } from '@/src/guest-auth/normalizeInvitationCode.js';
+import { guestSessionMaxAgeSeconds, signSession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { clientKey, createGuestLoginLimiter } from '@/src/rate-limiter.js';
 
@@ -37,29 +38,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 }
       );
     }
-    const { code, name } = body || {};
 
-    if (!code && !name) {
+    // Code only. Name login was removed with the site gate (PRD §15, owner
+    // decision 2026-09-10): anyone who knew a guest's name could sign in as them.
+    const code = normalizeInvitationCode(body?.code);
+    if (!code) {
       return NextResponse.json(
-        { success: false, reason: 'missing_identifier' },
+        { success: false, reason: 'code_required' },
         { status: 400 }
       );
     }
 
-    let result;
-    if (code) {
-      result = await loginGuestByCode(code);
-      if (!result.success) {
-        return NextResponse.json(result, { status: 404 });
-      }
-    } else {
-      result = await loginGuestByName(name);
-      if (result.type === 'candidates') {
-        return NextResponse.json(result, { status: 200 });
-      }
-      if (!result.success) {
-        return NextResponse.json(result, { status: 404 });
-      }
+    const result = await loginGuestByCode(code);
+    if (!result.success) {
+      return NextResponse.json(result, { status: 404 });
     }
 
     const signed = signSession(result.sessionId);
@@ -69,6 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
+      maxAge: guestSessionMaxAgeSeconds(),
     });
 
     return response;

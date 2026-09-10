@@ -161,10 +161,16 @@ These need a browser and an account login, so they could not be done from here:
       below. Do not assume the default is long enough.
 - [x] **Rehearse one restore** into a scratch Neon branch. Completed 2026-09-10:
       - Created scratch branch `ep-crimson-lab-azp38wls` in Neon
-      - Ran migrations: all 10 applied ✓
+      - `npm run migrate`: reported already up to date — the branch was created
+        from the live database, so it inherited the schema (and a copy of the data)
       - Dry-run: verified restore order and row count ✓
-      - Full restore: 36 rows across 12 tables, every table matches backup ✓
-      - **Result: "we have backups" is now a fact, not a claim.**
+      - Full restore with `--replace` (cleared the copied rows first): 36 rows
+        across 12 tables, every table matches backup ✓
+      - **Result: rows provably come back into a real Postgres.** Still not
+        rehearsed: a restore onto an *empty* database whose schema was built by
+        `npm run migrate` alone. Worth doing once, on a branch created empty.
+      - **Delete the scratch branch now** — it holds a full copy of the guest
+        list (TASKS.md Action 18).
 - [x] **Decide where backups live off this laptop.** Decided 2026-09-06: encrypt
       with `npm run backup:encrypt`, then store the `.enc` anywhere private. See
       "Getting a backup off this machine" above. Completed 2026-09-10:
@@ -183,7 +189,7 @@ weaker evidence than it deserved:
 | Restore ordering, sequence resets, backup validation | 16 unit tests (`tests/restore-plan.test.mjs`) |
 | A restore cannot reach the live database by accident | Observed refusing, twice, against the real `DATABASE_URL` — not asserted |
 | Encryption round-trips, and detects a wrong passphrase or an edited file | 11 unit tests (`tests/backup-crypto.test.mjs`) plus an end-to-end CLI encrypt/decrypt on synthetic data, confirmed byte-identical by checksum |
-| **Rows actually come back into a real database** | **✓ Proven 2026-09-10.** Restore rehearsal: 36 rows across 12 tables restored to a scratch Neon branch; every table matches the backup. |
+| **Rows actually come back into a real database** | **✓ Proven 2026-09-10.** Restore rehearsal: 36 rows across 12 tables restored to a scratch Neon branch; every table matches the backup. The branch was a copy of the live database, so its schema was inherited, not rebuilt from `migrations/`. |
 
 The restore path is now proven to work in anger, not just in tests.
 

@@ -12,6 +12,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["next", "dev", "-p", "3011"],
       "port": 3011
+    },
+    {
+      "name": "wedding-inmemory",
+      "runtimeExecutable": "C:\\Program Files\\Git\\bin\\bash.exe",
+      "runtimeArgs": ["-c", "DATABASE_URL= SESSION_SECRET=local-inmemory-only npx next dev -p 3020"],
+      "port": 3020
     }
   ]
 }

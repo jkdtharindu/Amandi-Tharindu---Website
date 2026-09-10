@@ -612,7 +612,7 @@ seating_tables (
 
 ---
 
-## 15. Pre-Login Site Gate & Invitation Reveal (Owner-confirmed 2026-08-29 — Not Yet Built)
+## 15. Pre-Login Site Gate & Invitation Reveal (Owner-confirmed 2026-08-29; open questions resolved 2026-09-10 — see Grill Me session below)
 
 > Status: Owner-confirmed during a UI/UX "Grill Me" session on 2026-08-29, documented at the
 > time in `docs/WEDDING_UI_UX_SPEC.md` §4 ("Site States") and §6 ("Envelope Animation"), and
@@ -636,12 +636,32 @@ Guests currently browse the full public site before ever entering their invitati
 - **Code-only vs. name login:** the 2026-08-29 spec's other confirmed decisions (not built either) describe removing name-based login entirely in favor of QR-code-only entry. Today's actual login flow supports both code and name, including ambiguous-name recovery (Phase 2, Slices 2–3, still in active use). Decide whether this gate coexists with name login or requires removing it — a real behavior change for existing guests, not just a visual one.
 - **Mechanism:** gate via a `middleware.ts`/`proxy.ts`-level redirect keyed on the guest session cookie, applied across the existing `app/(public)/` route group, vs. per-page checks — an architecture decision affecting every public route, not purely a UI change.
 
-### Acceptance Criteria (draft — refine before implementation)
-- [ ] An unauthenticated visit to any currently-public route renders only the gate screen described above — no nav, no content, no countdown.
-- [ ] Valid code submission transitions into the envelope-reveal animation, then the invitation page.
-- [ ] Invalid code shows the inline error without a page reload.
-- [ ] Once logged in, all existing public pages and the sticky RSVP bar behave exactly as they do today — no regression from the ungated version.
-- [ ] Both open questions above are resolved with the user (not assumed) before coding begins.
+### Grill Me session — 2026-09-10 (owner answers; these supersede the open questions above)
+| Question | Owner's answer |
+|---|---|
+| Lock the whole public site behind the code? | **Yes — show only the couple's names; everything else is locked.** "Locked" is to look like moving, faded, blurred content in the selected theme's colours, not a blank page. |
+| Blurred real pages, or look-alike shapes? | **Look-alike shapes.** Blurred, slowly drifting shapes that resemble page sections (photo blocks, text lines, cards). Nothing real is sent to the browser, so nothing can be read out of the page source. (Blurred *real* pages were offered and declined: CSS blur hides nothing from browser developer tools.) |
+| Name-based login? | **Remove it.** Code only. Name login let anyone who knows a guest's name — or a common surname — in, which would make the gate cosmetic. A guest who has lost their code asks the couple, who resend it from the admin panel. |
+| What does the WhatsApp invitation link (`/invitation/CODE`) do? | **Opens the gate; the guest types the code themselves.** No auto-login from the link, no pre-filled field. |
+| Envelope reveal after a correct code? | **Yes**, as specified in requirement 3. |
+| Mechanism (engineering call, not an owner question) | A `proxy.ts` check on the signed `guest_session` cookie, rewriting every gated path to one gate route. A check in `app/(public)/layout.tsx` was rejected: per `node_modules/next/dist/docs/01-app/02-guides/authentication.md` ("Layouts and auth checks"), a layout does not stop a page's content from being rendered into the RSC payload. |
+
+Consequences recorded so they are not rediscovered later:
+- `/login` stops being a page. Old links to it land on the gate (signed out) or the guest's own invitation (signed in).
+- The WhatsApp `reminder_2` template contains `[Link]` but not `[Code]` (see `migrations/005_create_messaging.sql`). Since the link no longer signs anyone in, a guest without their printed card who receives only that message cannot get past the gate. **Add `[Code]` to that template before sending it.**
+- The legacy Express prototype (`src/server.js`) keeps its name login; it is not production and is only used by the test suite.
+
+### Acceptance Criteria (updated 2026-09-10)
+- [ ] A signed-out visit to any guest-facing route (`/`, `/our-story`, `/the-celebration`, `/gallery`, `/wishes`, `/invitation/*`, `/login`) renders only the gate: the couple's names, a gold divider, one code field, and a blurred look-alike background drifting in the theme's colours — no nav, no footer, no countdown, no page content anywhere in the HTML.
+- [ ] `/admin/*`, `/api/*`, fonts and Next.js assets are not gated.
+- [ ] Codes are matched case-insensitively (guests may type `silva-001`).
+- [ ] A wrong code shows an inline error without a page reload; the existing 10-attempts-per-10-minutes limit applies, with its own message.
+- [ ] Name login is rejected by `/api/guest/login`.
+- [ ] A correct code plays the ~2s envelope reveal, then opens that guest's invitation page. The card uses the Theme Editor's invitation template image with the guest's name placed where the theme says, or a styled card in the theme colours if no template is set. With reduced motion switched on in the device settings, the animation is skipped.
+- [ ] The sign-in lasts `GUEST_SESSION_TTL_DAYS` (default 30) instead of ending when the browser closes.
+- [ ] Once signed in, every public page and the sticky RSVP bar behave as before.
+- [ ] A signed-in guest who opens another guest's `/invitation/CODE` is sent to their own invitation instead.
+- [ ] `/api/guest/rsvp` only accepts an RSVP for the signed-in guest. (Found 2026-09-10: it previously accepted any code from anyone, and had no attempt limit, so it could be used both to overwrite RSVPs and to test codes — a way around the gate and the login limit.)
 
 ---
 

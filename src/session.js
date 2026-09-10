@@ -6,6 +6,20 @@ if (!useSignature && process.env.NODE_ENV === 'production') {
   throw new Error('SESSION_SECRET is required in production');
 }
 
+const DEFAULT_GUEST_SESSION_DAYS = 30;
+
+/**
+ * How long the guest sign-in cookie lasts. Without a max age it is a browser
+ * session cookie and vanishes when the browser closes — tolerable before the
+ * site gate existed, but with the gate it would make guests retype their code
+ * on nearly every visit.
+ */
+export function guestSessionMaxAgeSeconds(days = process.env.GUEST_SESSION_TTL_DAYS) {
+  const parsed = Number(days);
+  const valid = Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_GUEST_SESSION_DAYS;
+  return Math.round(valid * 24 * 60 * 60);
+}
+
 export function signSession(value) {
   if (!useSignature) {
     return value;
