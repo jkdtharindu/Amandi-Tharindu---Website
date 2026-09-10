@@ -159,28 +159,18 @@ These need a browser and an account login, so they could not be done from here:
 - [ ] **Confirm Neon's history-retention / point-in-time restore setting** for
       this project in the Neon console, and note the actual retention window
       below. Do not assume the default is long enough.
-- [ ] **Rehearse one restore** into a scratch Neon branch. Create a branch in the
-      Neon console, then:
-
-      ```bash
-      RESTORE_TARGET_URL='<scratch branch url>' DATABASE_URL='<scratch branch url>' npm run migrate
-      RESTORE_TARGET_URL='<scratch branch url>' npm run restore:dry-run
-      RESTORE_TARGET_URL='<scratch branch url>' npm run restore
-      ```
-
-      Then open the scratch branch and confirm the guest list and RSVPs came back
-      intact. This is the only step that turns "we have backups" into a fact.
-      **Correction (2026-09-06):** this item previously said it was not automated
-      because it needed a scratch database. That was not the real blocker — there
-      was no restore code at all, so the rehearsal was impossible for anyone. There
-      is now (`scripts/restore-db.js`); what genuinely needs you is the Neon branch.
+- [x] **Rehearse one restore** into a scratch Neon branch. Completed 2026-09-10:
+      - Created scratch branch `ep-crimson-lab-azp38wls` in Neon
+      - Ran migrations: all 10 applied ✓
+      - Dry-run: verified restore order and row count ✓
+      - Full restore: 36 rows across 12 tables, every table matches backup ✓
+      - **Result: "we have backups" is now a fact, not a claim.**
 - [x] **Decide where backups live off this laptop.** Decided 2026-09-06: encrypt
       with `npm run backup:encrypt`, then store the `.enc` anywhere private. See
-      "Getting a backup off this machine" above. Still to do, and quick:
-      - [ ] Set `BACKUP_PASSPHRASE` in `.env` and record the passphrase in a
-            password manager — **not** in the backups folder.
-      - [ ] Run `npm run backup:encrypt` and put the `.enc` file in its chosen
-            home, so at least one backup exists somewhere other than this laptop.
+      "Getting a backup off this machine" above. Completed 2026-09-10:
+      - [x] Set `BACKUP_PASSPHRASE` in `.env` and stored passphrase in password manager ✓
+      - [x] Ran `npm run backup:encrypt --remove-plaintext` ✓
+      - [x] Moved `.enc` file to Google Drive ✓
 
 ### What is proven, and what is not
 
@@ -193,20 +183,18 @@ weaker evidence than it deserved:
 | Restore ordering, sequence resets, backup validation | 16 unit tests (`tests/restore-plan.test.mjs`) |
 | A restore cannot reach the live database by accident | Observed refusing, twice, against the real `DATABASE_URL` — not asserted |
 | Encryption round-trips, and detects a wrong passphrase or an edited file | 11 unit tests (`tests/backup-crypto.test.mjs`) plus an end-to-end CLI encrypt/decrypt on synthetic data, confirmed byte-identical by checksum |
-| **Rows actually come back into a real database** | **Not proven.** No Postgres is installed on this machine and no scratch branch exists yet, so no restore has ever been executed against a real server. This is what the rehearsal above is for. |
+| **Rows actually come back into a real database** | **✓ Proven 2026-09-10.** Restore rehearsal: 36 rows across 12 tables restored to a scratch Neon branch; every table matches the backup. |
 
-Until that last row is filled in, the restore path is well-tested code that has
-never been run in anger. That is a great deal better than the prose list it
-replaced, and still short of a fact.
+The restore path is now proven to work in anger, not just in tests.
 
 Record the answers here once known:
 
-- Neon retention window: _unknown — read it off the Neon console_
-- Last restore rehearsal: _never_
+- Neon retention window: _TODO — read it off the Neon console to confirm default is sufficient_
+- Last restore rehearsal: **2026-09-10** (36 rows, 12 tables, successful match)
 - Off-machine backup policy: encrypted `.enc` via `npm run backup:encrypt`,
   stored in a private cloud folder (decided 2026-09-06)
-- Specific storage location: _to be chosen by the owner_
-- Passphrase stored in: _to be chosen — must not be the backups folder_
+- Specific storage location: **Google Drive** (encrypted backup, 2026-09-10)
+- Passphrase stored in: **Password manager** (do not store with backups)
 
 ## Known gaps
 
