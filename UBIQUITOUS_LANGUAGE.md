@@ -174,6 +174,20 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Example: After the RSVPCutoff passes, the Invitation page shows the final response instead of a change option.
 - Note: Planned for P2-07, pending the clarification recorded in the PRD.
 
+### SiteGate
+- Canonical name: `SiteGate`
+- Definition: The full-screen, code-only entry screen shown to a signed-out visitor on every guest-facing route, in place of that route's real content — the couple's names, an InvitationCode field, and a blurred, drifting look-alike background. Implemented as `app/gate` plus `src/site-gate.js`'s path rules, applied by `proxy.ts`.
+- Do not call it: `login page`, `landing page`, `splash screen`, `paywall`
+- Example: A signed-out visit to `/our-story` is rewritten by proxy.ts to the SiteGate instead of rendering the real page.
+- Note: Built 2026-09-10 (P1-15). Replaces the earlier `/login` form, which now redirects.
+
+### EnvelopeReveal
+- Canonical name: `EnvelopeReveal`
+- Definition: The ~2.5s animated sequence played after a correct InvitationCode is entered at the SiteGate — a sealed envelope opens and the InvitationTemplate card slides out — before the Guest's InvitationPage loads.
+- Do not call it: `login animation`, `transition`, `intro animation`
+- Example: `components/public/EnvelopeReveal.tsx` renders the reveal using the ThemeSettings' InvitationTemplate, or a styled fallback card if none is set.
+- Note: Built 2026-09-10 (P1-15). Skipped for visitors with reduced-motion enabled.
+
 ---
 
 ## Forbidden Terms
