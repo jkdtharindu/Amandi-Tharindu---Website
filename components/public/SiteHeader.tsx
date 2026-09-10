@@ -8,6 +8,9 @@ import Link from "next/link";
  *   /home  -> /            /story  -> /our-story
  *   /celebration -> /the-celebration
  *   /login -> /invitation
+ *
+ * Only ever rendered for a signed-in guest — signed-out visitors see the site
+ * gate (PRD §15) — so "Invitation" goes straight to the guest's own card.
  */
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -15,7 +18,7 @@ const NAV_LINKS = [
   { href: "/the-celebration", label: "Celebration" },
   { href: "/gallery", label: "Gallery" },
   { href: "/wishes", label: "Wishes" },
-  { href: "/login", label: "Invitation" },
+  { href: "/invitation", label: "Invitation" },
 ];
 
 const DEFAULT_COUPLE_NAMES = "Amandi & Tharindu";

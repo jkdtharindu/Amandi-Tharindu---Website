@@ -52,8 +52,8 @@ export default async function HomePage() {
           invitation.
         </p>
         <div className="button-group">
-          <Link className="button button-primary" href="/login">
-            Find Your Invitation
+          <Link className="button button-primary" href="/invitation">
+            View Your Invitation
           </Link>
           <Link className="button button-secondary" href="/our-story">
             Our Story

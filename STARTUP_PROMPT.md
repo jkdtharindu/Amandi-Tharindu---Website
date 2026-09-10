@@ -30,6 +30,10 @@ STEP 0.5 — Check for a live dev server before assuming a clean environment.
   a throwaway instance with `DATABASE_URL=` (forces in-memory mode) and overridden
   `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` on a free port is a safe way to click-test without
   touching the real database or the other session's login state.
+  `.claude/launch.json` has this ready as `wedding-inmemory` (port 3020). After `preview_stop`,
+  check port 3020 — the `next dev` process it started can survive; stop it by PID once you have
+  confirmed its command line is `next dev -p 3020`. Since the site gate (PRD §15), every
+  guest page shows the gate until you sign in; the in-memory guest is code `SILVA-001`.
 
 STEP 0.6 — Know the "Grill Me session" convention before scoping anything new.
 - `docs/amandi-tharindu-wedding-PRD.md` records ambiguous or newly-proposed features as a

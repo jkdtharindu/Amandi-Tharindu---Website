@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  findGuestByCode,
+  findGuestById,
   updateGuestRsvpStatus,
   upsertRsvpResponse,
 } from '@/src/guest-auth/guestRepo.js';
+import { authorizeRsvp } from '@/src/guest-auth/authorizeRsvp.js';
+import { verifySession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -27,20 +29,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     const { code, attending, participantNames } = body || {};
 
-    if (!code || typeof attending !== 'boolean') {
+    if (typeof attending !== 'boolean') {
       return NextResponse.json(
         { success: false, reason: 'missing_rsvp_data' },
         { status: 400 }
       );
     }
 
-    const guest = await findGuestByCode(code);
-    if (!guest) {
+    // The guest comes from the signed session, not the body — see
+    // authorizeRsvp() for what trusting the body's code used to allow.
+    const sessionGuestId = verifySession(request.cookies.get('guest_session')?.value);
+    const sessionGuest = sessionGuestId ? await findGuestById(sessionGuestId) : null;
+    const auth = authorizeRsvp(sessionGuest, code);
+    if (!auth.allowed) {
       return NextResponse.json(
-        { success: false, reason: 'guest_not_found' },
-        { status: 404 }
+        { success: false, reason: auth.reason },
+        { status: auth.status }
       );
     }
+    const guest = auth.guest;
 
     // Both calls together: if one fails, the guest's RSVP is inconsistent.
     // Currently they're separate DB calls (not in a transaction). For now, catch

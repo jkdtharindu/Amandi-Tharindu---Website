@@ -337,3 +337,474 @@ button {
     padding: 1.75rem;
   }
 }
+
+/*
+ * Pre-login site gate + envelope reveal (PRD §15). Every colour is a theme
+ * variable (--color-brand / --color-canvas / --color-accent, set from the
+ * Theme Editor in app/layout.tsx), so the gate follows the chosen palette.
+ */
+@layer components {
+  .site-gate {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 1.5rem;
+    overflow: hidden;
+    background: var(--color-canvas);
+  }
+
+  /* A soft pool of canvas colour behind the names, so they stay readable over
+     the moving shapes. */
+  .site-gate::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--color-canvas) 82%, transparent) 0%,
+      color-mix(in srgb, var(--color-canvas) 40%, transparent) 65%,
+      transparent 100%
+    );
+  }
+
+  /* Decoration only: blurred shapes that look like a page (hero, photos,
+     cards, lines of text) drifting behind frosted glass. No real content. */
+  .gate-backdrop {
+    position: absolute;
+    inset: -8%;
+    z-index: -2;
+    filter: blur(22px);
+  }
+
+  .gate-ghost {
+    position: absolute;
+    border-radius: 28px;
+    animation: gate-drift 22s ease-in-out infinite alternate;
+  }
+
+  .gate-ghost-hero {
+    top: 6%;
+    left: 10%;
+    width: 80%;
+    height: 24%;
+    border-radius: 40px;
+    background: linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--color-brand) 26%, transparent),
+      color-mix(in srgb, var(--color-accent) 30%, transparent)
+    );
+  }
+
+  .gate-ghost-photo {
+    top: 38%;
+    width: 22%;
+    height: 22%;
+    background: color-mix(in srgb, var(--color-accent) 34%, transparent);
+  }
+
+  .gate-ghost-photo-1 { left: 9%; animation-duration: 26s; }
+  .gate-ghost-photo-2 {
+    left: 39%;
+    background: color-mix(in srgb, var(--color-brand) 22%, transparent);
+    animation-name: gate-drift-reverse;
+    animation-duration: 19s;
+  }
+  .gate-ghost-photo-3 { left: 69%; animation-duration: 24s; animation-delay: -6s; }
+
+  .gate-ghost-card {
+    top: 67%;
+    width: 36%;
+    height: 20%;
+    background: color-mix(in srgb, var(--color-brand) 16%, transparent);
+    border: 6px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+
+  .gate-ghost-card-1 { left: 9%; animation-name: gate-drift-reverse; animation-duration: 21s; }
+  .gate-ghost-card-2 { left: 55%; animation-duration: 28s; animation-delay: -9s; }
+
+  /* Stripes that read as lines of text once blurred. */
+  .gate-ghost-lines {
+    height: 9%;
+    border-radius: 6px;
+    background: repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-brand) 30%, transparent) 0 9px,
+      transparent 9px 22px
+    );
+  }
+
+  .gate-ghost-lines-1 { top: 31%; left: 14%; width: 44%; animation-duration: 17s; }
+  .gate-ghost-lines-2 {
+    top: 89%;
+    left: 30%;
+    width: 40%;
+    animation-name: gate-drift-reverse;
+    animation-duration: 23s;
+  }
+
+  .gate-ghost-glow {
+    width: 38%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-accent) 40%, transparent),
+      transparent 70%
+    );
+  }
+
+  .gate-ghost-glow-1 { top: -6%; left: -8%; animation-duration: 30s; }
+  .gate-ghost-glow-2 {
+    top: 58%;
+    left: 70%;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-brand) 30%, transparent),
+      transparent 70%
+    );
+    animation-name: gate-drift-reverse;
+    animation-duration: 27s;
+  }
+
+  .gate-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 36rem;
+    text-align: center;
+  }
+
+  .gate-names {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0 0.3em;
+    margin: 0;
+    font-size: clamp(2.6rem, 9vw, 4.75rem);
+    font-weight: 500;
+    line-height: 1.1;
+    color: var(--color-brand);
+  }
+
+  .gate-names-part,
+  .gate-names-amp {
+    opacity: 0;
+    animation: gate-fade-up 1.1s ease forwards;
+  }
+
+  .gate-names-amp {
+    font-style: italic;
+    color: var(--color-accent);
+  }
+
+  .gate-divider {
+    display: block;
+    width: 0;
+    height: 1px;
+    margin: 1.4rem auto 2.2rem;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+    animation: gate-draw 1.2s ease 1.6s forwards;
+  }
+
+  .gate-form {
+    display: grid;
+    gap: 0.75rem;
+    width: min(100%, 22rem);
+    opacity: 0;
+    animation: gate-fade-up 0.9s ease 2.2s forwards;
+  }
+
+  .gate-input {
+    width: 100%;
+    padding: 0.9rem 1.25rem;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    color: var(--color-ink);
+    font: inherit;
+    font-size: 1.05rem;
+    font-style: normal;
+    text-align: center;
+    letter-spacing: 0.06em;
+  }
+
+  .gate-input:not(:placeholder-shown) {
+    text-transform: uppercase;
+  }
+
+  .gate-input:focus-visible,
+  .gate-button:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .gate-button {
+    padding: 0.85rem 1.25rem;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--color-brand);
+    color: var(--color-canvas);
+    font: inherit;
+    font-size: 0.9rem;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .gate-button:hover:not(:disabled) {
+    filter: brightness(1.12);
+  }
+
+  .gate-button:disabled,
+  .gate-input:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+
+  .gate-error {
+    min-height: 1.5em;
+    margin: 0;
+    color: #b42318;
+    font-size: 0.95rem;
+    font-style: normal;
+  }
+
+  /*
+   * Envelope reveal, ~2.5s — SiteGate's REVEAL_MS must match the end of this:
+   *   0.00s  sealed envelope fades in (0.35s) and holds, so the seal is seen
+   *   0.45s  seal lifts away (0.3s)
+   *   0.55s  flap opens (0.7s), dropping behind the card halfway through
+   *   1.10s  card slides up out of the envelope (0.55s)
+   *   1.60s  envelope fades (0.4s)
+   *   1.85s  card settles to the centre and grows to fill the screen (0.6s)
+   */
+  .envelope-stage {
+    display: grid;
+    place-items: center;
+    width: 100%;
+  }
+
+  .envelope {
+    position: relative;
+    width: min(80vw, 34rem);
+    aspect-ratio: 3 / 2;
+    perspective: 1200px;
+    animation: envelope-enter 0.35s ease-out both;
+  }
+
+  .envelope-back,
+  .envelope-front,
+  .envelope-flap {
+    position: absolute;
+    animation: envelope-fade 0.4s ease 1.6s forwards;
+  }
+
+  .envelope-back {
+    inset: 0;
+    z-index: 1;
+    border: 2px solid var(--color-accent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-canvas) 86%, var(--color-accent));
+    box-shadow: 0 30px 60px -30px color-mix(in srgb, var(--color-brand) 50%, transparent);
+  }
+
+  .envelope-card {
+    position: absolute;
+    top: 6%;
+    left: 7%;
+    right: 7%;
+    height: 88%;
+    z-index: 2;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
+    border-radius: 8px;
+    background: var(--color-surface);
+    box-shadow: 0 18px 40px -24px color-mix(in srgb, var(--color-brand) 55%, transparent);
+    animation:
+      envelope-card-slide 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 1.1s forwards,
+      envelope-card-grow 0.6s ease-in-out 1.85s forwards;
+  }
+
+  /* The pocket: covers the lower card, with the classic V cut into its top. */
+  .envelope-front {
+    inset: 0;
+    z-index: 3;
+    border-radius: 10px;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-canvas) 90%, var(--color-accent)),
+      color-mix(in srgb, var(--color-canvas) 80%, var(--color-accent))
+    );
+    clip-path: polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%);
+  }
+
+  .envelope-flap {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56%;
+    z-index: 4;
+    background: color-mix(in srgb, var(--color-canvas) 76%, var(--color-accent));
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: top center;
+    animation:
+      envelope-flap-open 0.7s ease-in-out 0.55s forwards,
+      envelope-fade 0.4s ease 1.6s forwards;
+  }
+
+  .envelope-seal {
+    position: absolute;
+    top: 56%;
+    left: 50%;
+    z-index: 5;
+    width: 13%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(
+      circle at 35% 30%,
+      color-mix(in srgb, var(--color-brand) 60%, white),
+      var(--color-brand) 62%
+    );
+    box-shadow: 0 4px 10px -2px color-mix(in srgb, var(--color-brand) 60%, transparent);
+    animation: envelope-seal-lift 0.3s ease 0.45s forwards;
+  }
+
+  .envelope-card-template {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .envelope-card-template img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .envelope-card-name {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+  }
+
+  .envelope-card-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 92%;
+    margin: 4%;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .envelope-card-fallback p {
+    margin: 0;
+  }
+
+  .envelope-card-eyebrow {
+    font-size: 0.7rem;
+    font-style: normal;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  .envelope-card-couple {
+    font-size: clamp(1.3rem, 4.5vw, 2.1rem);
+    color: var(--color-brand);
+  }
+
+  .envelope-card-rule {
+    width: 30%;
+    height: 1px;
+    background: var(--color-accent);
+  }
+
+  .envelope-card-guest {
+    font-size: clamp(1rem, 3vw, 1.35rem);
+    color: var(--color-ink);
+  }
+}
+
+@keyframes gate-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(4%, -5%, 0) scale(1.06); }
+}
+
+@keyframes gate-drift-reverse {
+  from { transform: translate3d(0, 0, 0) scale(1.04); }
+  to { transform: translate3d(-5%, 4%, 0) scale(0.97); }
+}
+
+@keyframes gate-fade-up {
+  from { opacity: 0; transform: translateY(0.6rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gate-draw {
+  to { width: min(11rem, 60%); }
+}
+
+@keyframes envelope-enter {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes envelope-seal-lift {
+  to { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
+}
+
+@keyframes envelope-flap-open {
+  0% { transform: rotateX(0deg); z-index: 4; }
+  49% { z-index: 4; }
+  50% { z-index: 1; }
+  100% { transform: rotateX(180deg); z-index: 1; }
+}
+
+@keyframes envelope-card-slide {
+  to { transform: translateY(-58%); }
+}
+
+@keyframes envelope-card-grow {
+  from { transform: translateY(-58%) scale(1); }
+  to { transform: translateY(0) scale(1.4); }
+}
+
+@keyframes envelope-fade {
+  to { opacity: 0; }
+}
+
+/* Honour the device's reduced-motion setting: everything appears at once, and
+   SiteGate skips the envelope and opens the invitation straight away. */
+@media (prefers-reduced-motion: reduce) {
+  .gate-ghost,
+  .gate-names-part,
+  .gate-names-amp,
+  .gate-form,
+  .envelope,
+  .envelope-back,
+  .envelope-front,
+  .envelope-flap,
+  .envelope-seal,
+  .envelope-card {
+    animation: none;
+    opacity: 1;
+  }
+
+  .gate-divider {
+    animation: none;
+    width: min(11rem, 60%);
+  }
+}

@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
-import { findGuestByCode, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
+import { redirect } from 'next/navigation';
+import { findGuestById, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
 import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
@@ -21,30 +22,15 @@ export default async function InvitationPage({
   const signedSession = cookieStore.get('guest_session')?.value;
   const sessionId = verifySession(signedSession);
 
-  // Fetch guest data
-  const guest = await findGuestByCode(code);
+  // A guest only ever sees their own invitation. Signed-out visitors are shown
+  // the gate by proxy.ts before reaching here; a signed-in guest who opens
+  // someone else's link (or a mistyped one) is sent to their own instead of
+  // seeing another guest's name and party size.
+  const guest = sessionId ? await findGuestById(sessionId) : null;
+  if (!guest) redirect('/');
+  if (guest.code !== code) redirect(`/invitation/${encodeURIComponent(guest.code)}`);
 
-  if (!guest) {
-    return (
-      <div>
-        <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-            <h1 className="text-2xl font-bold text-red-800 mb-2">Invitation not found</h1>
-            <p className="text-red-700 mb-6">
-              We couldn&apos;t find an invitation with code <strong>{code}</strong>.
-            </p>
-            <a href="/login" className="inline-block py-2 px-6 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-700">
-              Back to login
-            </a>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Check if user is logged in and fetch RSVP status
-  const loggedIn = sessionId === guest.id;
-  const rsvp = loggedIn ? await findRsvpResponseByGuestId(guest.id) : null;
+  const rsvp = await findRsvpResponseByGuestId(guest.id);
   const hasResponded = Boolean(rsvp);
   const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
 
