@@ -189,7 +189,7 @@ The restore path is now proven to work in anger, not just in tests.
 
 Record the answers here once known:
 
-- Neon retention window: _TODO — read it off the Neon console to confirm default is sufficient_
+- Neon retention window: **7 days** (confirmed 2026-09-10; default is sufficient for weekly backups)
 - Last restore rehearsal: **2026-09-10** (36 rows, 12 tables, successful match)
 - Off-machine backup policy: encrypted `.enc` via `npm run backup:encrypt`,
   stored in a private cloud folder (decided 2026-09-06)
