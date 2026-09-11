@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateSection, deleteSection } from '@/src/sections/sectionsRepo.js';
+import { revalidateAllPublicPages } from '@/src/revalidatePublicPages.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -35,6 +36,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
   }
 
   const result = await updateSection(id, body);
+  if (result.success) revalidateAllPublicPages();
   return result.success ? NextResponse.json(result) : notFound();
 }
 
@@ -51,5 +53,6 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
 
   const { id } = await context.params;
   const result = await deleteSection(id);
+  if (result.success) revalidateAllPublicPages();
   return result.success ? NextResponse.json(result) : notFound();
 }

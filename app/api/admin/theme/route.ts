@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getThemeSettings, updateThemeSettings } from '@/src/theme/themeRepo.js';
+import { revalidateAllPublicPages } from '@/src/revalidatePublicPages.js';
 import { validateThemeInput } from '@/src/theme/basicThemeValidation.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
@@ -66,6 +67,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         { status: 400 }
       );
     }
+    revalidateAllPublicPages();
     return NextResponse.json({ success: true, settings: result.settings });
   } catch (error) {
     console.error('updateThemeSettings failed:', error);
