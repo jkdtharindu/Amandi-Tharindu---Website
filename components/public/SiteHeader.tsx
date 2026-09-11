@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LogoutButton from "@/components/guest/LogoutButton";
 
 /**
  * Ports the prototype's `siteNav` string plus the surrounding `.site-header`
@@ -37,6 +38,7 @@ export default function SiteHeader({
             {link.label}
           </Link>
         ))}
+        <LogoutButton />
       </nav>
     </header>
   );
