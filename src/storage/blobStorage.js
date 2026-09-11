@@ -40,7 +40,7 @@ function hasValidMagicBytes(buffer, mimeType) {
 }
 
 export function isStorageConfigured() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.IMAGE_BLOB_READ_WRITE_TOKEN);
 }
 
 /** Pure validation, no I/O -- unit-testable without a real Blob token. */
@@ -77,7 +77,7 @@ export async function uploadImage({ buffer, mimeType, filename }) {
     access: 'public',
     addRandomSuffix: true,
     contentType: mimeType,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
+    token: process.env.IMAGE_BLOB_READ_WRITE_TOKEN,
   });
 
   return { url: blob.url };

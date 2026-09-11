@@ -59,17 +59,17 @@ test('validateImageFile rejects an empty file', () => {
   assert.equal(result.reason, 'empty_file');
 });
 
-test('isStorageConfigured reflects BLOB_READ_WRITE_TOKEN', () => {
-  const original = process.env.BLOB_READ_WRITE_TOKEN;
+test('isStorageConfigured reflects IMAGE_BLOB_READ_WRITE_TOKEN', () => {
+  const original = process.env.IMAGE_BLOB_READ_WRITE_TOKEN;
   try {
-    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.IMAGE_BLOB_READ_WRITE_TOKEN;
     assert.equal(isStorageConfigured(), false);
 
-    process.env.BLOB_READ_WRITE_TOKEN = 'test-token';
+    process.env.IMAGE_BLOB_READ_WRITE_TOKEN = 'test-token';
     assert.equal(isStorageConfigured(), true);
   } finally {
-    if (original === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
-    else process.env.BLOB_READ_WRITE_TOKEN = original;
+    if (original === undefined) delete process.env.IMAGE_BLOB_READ_WRITE_TOKEN;
+    else process.env.IMAGE_BLOB_READ_WRITE_TOKEN = original;
   }
 });
 
