@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "@vercel/blob": "^2.8.0",
     "body-parser": "^2.3.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.0",

@@ -13,6 +13,7 @@ function mapRow(row) {
     sectionType: row.section_type,
     title: row.title || '',
     content: row.content || '',
+    imageUrl: row.image_url || '',
     displayOrder: row.display_order,
     isVisible: row.is_visible,
   };
@@ -43,9 +44,17 @@ export async function createSection(input) {
   }
 
   const { rows } = await query(
-    `INSERT INTO site_sections (page, section_type, title, content, display_order, is_visible)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [section.page, section.sectionType, section.title, section.content, section.displayOrder, section.isVisible]
+    `INSERT INTO site_sections (page, section_type, title, content, image_url, display_order, is_visible)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [
+      section.page,
+      section.sectionType,
+      section.title,
+      section.content,
+      section.imageUrl,
+      section.displayOrder,
+      section.isVisible,
+    ]
   );
   return { success: true, section: mapRow(rows[0]) };
 }
@@ -57,6 +66,7 @@ export async function updateSection(id, patch) {
 
     if (patch.title !== undefined) existing.title = String(patch.title).trim();
     if (patch.content !== undefined) existing.content = String(patch.content).trim();
+    if (patch.imageUrl !== undefined) existing.imageUrl = String(patch.imageUrl).trim();
     if (patch.displayOrder !== undefined) existing.displayOrder = Number(patch.displayOrder) || 0;
     if (patch.isVisible !== undefined) existing.isVisible = Boolean(patch.isVisible);
 
@@ -70,13 +80,14 @@ export async function updateSection(id, patch) {
   const next = {
     title: patch.title !== undefined ? String(patch.title).trim() : current.title,
     content: patch.content !== undefined ? String(patch.content).trim() : current.content,
+    imageUrl: patch.imageUrl !== undefined ? String(patch.imageUrl).trim() : current.imageUrl,
     displayOrder: patch.displayOrder !== undefined ? Number(patch.displayOrder) || 0 : current.displayOrder,
     isVisible: patch.isVisible !== undefined ? Boolean(patch.isVisible) : current.isVisible,
   };
 
   const { rows } = await query(
-    `UPDATE site_sections SET title = $1, content = $2, display_order = $3, is_visible = $4 WHERE id = $5 RETURNING *`,
-    [next.title, next.content, next.displayOrder, next.isVisible, id]
+    `UPDATE site_sections SET title = $1, content = $2, image_url = $3, display_order = $4, is_visible = $5 WHERE id = $6 RETURNING *`,
+    [next.title, next.content, next.imageUrl, next.displayOrder, next.isVisible, id]
   );
   return { success: true, section: mapRow(rows[0]) };
 }

@@ -92,6 +92,32 @@ test('updateEvent returns event_not_found for an unknown id', async () => {
   assert.equal(result.reason, 'event_not_found');
 });
 
+test('createEvent stores and returns an imageUrl', async () => {
+  const created = await createEvent({
+    name: 'Afterparty',
+    eventDate: '2026-12-14',
+    eventTime: '9:00 PM',
+    venueName: 'Rooftop Lounge',
+    imageUrl: 'https://example.public.blob.vercel-storage.com/venue.jpg',
+  });
+  assert.equal(created.success, true);
+  assert.equal(created.event.imageUrl, 'https://example.public.blob.vercel-storage.com/venue.jpg');
+});
+
+test('updateEvent can set and clear an imageUrl', async () => {
+  const events = await listEvents();
+  const ceremony = events.find((e) => e.name === 'Ceremony');
+  assert.equal(ceremony.imageUrl, '');
+
+  const withImage = await updateEvent(ceremony.id, { imageUrl: 'https://example.com/venue.png' });
+  assert.equal(withImage.success, true);
+  assert.equal(withImage.event.imageUrl, 'https://example.com/venue.png');
+
+  const cleared = await updateEvent(ceremony.id, { imageUrl: '' });
+  assert.equal(cleared.success, true);
+  assert.equal(cleared.event.imageUrl, '');
+});
+
 test('deleteEvent removes the event', async () => {
   const events = await listEvents();
   const reception = events.find((e) => e.name === 'Reception');

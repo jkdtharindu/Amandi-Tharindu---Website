@@ -14,6 +14,7 @@ export const celebrationEvents = [
     eventTime: '3:00 PM',
     venueName: 'Sunrise Garden Hall',
     venueAddress: '',
+    imageUrl: '',
     displayOrder: 0,
   },
   {
@@ -23,6 +24,7 @@ export const celebrationEvents = [
     eventTime: '6:00 PM',
     venueName: 'Moonlight Banquet Hall',
     venueAddress: '',
+    imageUrl: '',
     displayOrder: 1,
   },
 ];

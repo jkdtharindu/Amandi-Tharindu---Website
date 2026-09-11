@@ -52,6 +52,10 @@ export default async function CelebrationPage() {
       <section className="section-grid">
         {events.map((event) => (
           <div className="event-card" key={event.id}>
+            {event.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
+              <img src={event.imageUrl} alt={event.venueName} className="event-image" />
+            )}
             <h2>{event.name}</h2>
             <p>
               <strong>Date:</strong> {formatWeddingDate(event.eventDate)}

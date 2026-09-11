@@ -15,6 +15,7 @@ function mapRow(row) {
     eventTime: row.event_time,
     venueName: row.venue_name,
     venueAddress: row.venue_address || '',
+    imageUrl: row.image_url || '',
     displayOrder: row.display_order,
   };
 }
@@ -40,9 +41,17 @@ export async function createEvent(input) {
   }
 
   const { rows } = await query(
-    `INSERT INTO celebration_events (name, event_date, event_time, venue_name, venue_address, display_order)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [event.name, event.eventDate, event.eventTime, event.venueName, event.venueAddress, event.displayOrder]
+    `INSERT INTO celebration_events (name, event_date, event_time, venue_name, venue_address, image_url, display_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [
+      event.name,
+      event.eventDate,
+      event.eventTime,
+      event.venueName,
+      event.venueAddress,
+      event.imageUrl,
+      event.displayOrder,
+    ]
   );
   return { success: true, event: mapRow(rows[0]) };
 }
@@ -57,6 +66,7 @@ export async function updateEvent(id, patch) {
     if (patch.eventTime !== undefined) existing.eventTime = String(patch.eventTime).trim();
     if (patch.venueName !== undefined) existing.venueName = String(patch.venueName).trim();
     if (patch.venueAddress !== undefined) existing.venueAddress = String(patch.venueAddress).trim();
+    if (patch.imageUrl !== undefined) existing.imageUrl = String(patch.imageUrl).trim();
     if (patch.displayOrder !== undefined) existing.displayOrder = Number(patch.displayOrder) || 0;
 
     return { success: true, event: existing };
@@ -72,13 +82,23 @@ export async function updateEvent(id, patch) {
     eventTime: patch.eventTime !== undefined ? String(patch.eventTime).trim() : current.eventTime,
     venueName: patch.venueName !== undefined ? String(patch.venueName).trim() : current.venueName,
     venueAddress: patch.venueAddress !== undefined ? String(patch.venueAddress).trim() : current.venueAddress,
+    imageUrl: patch.imageUrl !== undefined ? String(patch.imageUrl).trim() : current.imageUrl,
     displayOrder: patch.displayOrder !== undefined ? Number(patch.displayOrder) || 0 : current.displayOrder,
   };
 
   const { rows } = await query(
-    `UPDATE celebration_events SET name = $1, event_date = $2, event_time = $3, venue_name = $4, venue_address = $5, display_order = $6
-     WHERE id = $7 RETURNING *`,
-    [next.name, next.eventDate, next.eventTime, next.venueName, next.venueAddress, next.displayOrder, id]
+    `UPDATE celebration_events SET name = $1, event_date = $2, event_time = $3, venue_name = $4, venue_address = $5, image_url = $6, display_order = $7
+     WHERE id = $8 RETURNING *`,
+    [
+      next.name,
+      next.eventDate,
+      next.eventTime,
+      next.venueName,
+      next.venueAddress,
+      next.imageUrl,
+      next.displayOrder,
+      id,
+    ]
   );
   return { success: true, event: mapRow(rows[0]) };
 }

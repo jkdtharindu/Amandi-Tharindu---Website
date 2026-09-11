@@ -27,6 +27,7 @@ export function validateSectionInput(input) {
       sectionType,
       title,
       content,
+      imageUrl: String(input?.imageUrl || '').trim(),
       displayOrder: Number.isFinite(Number(input?.displayOrder)) ? Number(input.displayOrder) : 0,
       isVisible: input?.isVisible !== false,
     },

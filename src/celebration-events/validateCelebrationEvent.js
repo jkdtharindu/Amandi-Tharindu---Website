@@ -36,6 +36,7 @@ export function validateCelebrationEventInput(input) {
       eventTime,
       venueName,
       venueAddress,
+      imageUrl: String(input?.imageUrl || '').trim(),
       displayOrder: Number.isFinite(Number(input?.displayOrder)) ? Number(input.displayOrder) : 0,
     },
   };

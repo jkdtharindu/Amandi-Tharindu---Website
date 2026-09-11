@@ -53,6 +53,29 @@ test('updateSection returns not_found for an unknown id', async () => {
   assert.equal(result.reason, 'section_not_found');
 });
 
+test('createSection stores and returns an imageUrl', async () => {
+  const created = await createSection({
+    page: 'home',
+    sectionType: 'image',
+    imageUrl: 'https://example.public.blob.vercel-storage.com/photo.jpg',
+  });
+  assert.equal(created.success, true);
+  assert.equal(created.section.imageUrl, 'https://example.public.blob.vercel-storage.com/photo.jpg');
+});
+
+test('updateSection can set and clear an imageUrl', async () => {
+  const created = await createSection({ page: 'home', sectionType: 'image' });
+  assert.equal(created.section.imageUrl, '');
+
+  const withImage = await updateSection(created.section.id, { imageUrl: 'https://example.com/a.png' });
+  assert.equal(withImage.success, true);
+  assert.equal(withImage.section.imageUrl, 'https://example.com/a.png');
+
+  const cleared = await updateSection(created.section.id, { imageUrl: '' });
+  assert.equal(cleared.success, true);
+  assert.equal(cleared.section.imageUrl, '');
+});
+
 test('deleteSection removes the section', async () => {
   const created = await createSection({ page: 'wishes', sectionType: 'text', title: 'Note' });
   const deleted = await deleteSection(created.section.id);

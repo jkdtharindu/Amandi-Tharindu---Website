@@ -13,6 +13,10 @@ export default function CustomSections({ sections }: { sections: Section[] }) {
     <section className="custom-sections">
       {visible.map((section) => (
         <article className="story-card" key={section.id}>
+          {section.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
+            <img src={section.imageUrl} alt={section.title || ''} className="section-image" />
+          )}
           {section.title && <h3>{section.title}</h3>}
           {section.content && <p>{section.content}</p>}
         </article>

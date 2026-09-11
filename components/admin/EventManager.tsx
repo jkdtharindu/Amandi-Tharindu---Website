@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import ImageUploadField from './ImageUploadField';
 
 export type CelebrationEvent = {
   id: string;
@@ -9,6 +10,7 @@ export type CelebrationEvent = {
   eventTime: string;
   venueName: string;
   venueAddress: string;
+  imageUrl: string;
   displayOrder: number;
 };
 
@@ -18,6 +20,7 @@ type FormState = {
   eventTime: string;
   venueName: string;
   venueAddress: string;
+  imageUrl: string;
   displayOrder: string;
 };
 
@@ -27,6 +30,7 @@ const EMPTY_FORM: FormState = {
   eventTime: '',
   venueName: '',
   venueAddress: '',
+  imageUrl: '',
   displayOrder: '0',
 };
 
@@ -226,6 +230,15 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
             />
           </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <ImageUploadField
+              label="Venue photo"
+              imageUrl={form.imageUrl}
+              onChange={(imageUrl) => setForm({ ...form, imageUrl })}
+              csrfToken={csrfToken}
+            />
+          </div>
         </div>
 
         <button
@@ -246,6 +259,7 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
               key={event.id}
               event={event}
               busy={busy}
+              csrfToken={csrfToken}
               onSave={(patch) => handleFieldSave(event, patch)}
               onDelete={() => handleDelete(event)}
             />
@@ -259,11 +273,13 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
 function EventRow({
   event,
   busy,
+  csrfToken,
   onSave,
   onDelete,
 }: {
   event: CelebrationEvent;
   busy: boolean;
+  csrfToken: string;
   onSave: (patch: Partial<CelebrationEvent>) => void;
   onDelete: () => void;
 }) {
@@ -272,13 +288,15 @@ function EventRow({
   const [eventTime, setEventTime] = useState(event.eventTime);
   const [venueName, setVenueName] = useState(event.venueName);
   const [venueAddress, setVenueAddress] = useState(event.venueAddress);
+  const [imageUrl, setImageUrl] = useState(event.imageUrl);
 
   const dirty =
     name !== event.name ||
     eventDate !== event.eventDate ||
     eventTime !== event.eventTime ||
     venueName !== event.venueName ||
-    venueAddress !== event.venueAddress;
+    venueAddress !== event.venueAddress ||
+    imageUrl !== event.imageUrl;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -315,12 +333,16 @@ function EventRow({
         />
       </div>
 
+      <div className="mt-3">
+        <ImageUploadField label="Venue photo" imageUrl={imageUrl} onChange={setImageUrl} csrfToken={csrfToken} />
+      </div>
+
       <div className="mt-3 flex gap-2">
         {dirty && (
           <button
             type="button"
             disabled={busy}
-            onClick={() => onSave({ name, eventDate, eventTime, venueName, venueAddress })}
+            onClick={() => onSave({ name, eventDate, eventTime, venueName, venueAddress, imageUrl })}
             className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
           >
             Save

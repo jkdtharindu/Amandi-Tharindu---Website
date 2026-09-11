@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import ImageUploadField from './ImageUploadField';
 
 export type Section = {
   id: string;
@@ -8,6 +9,7 @@ export type Section = {
   sectionType: string;
   title: string;
   content: string;
+  imageUrl: string;
   displayOrder: number;
   isVisible: boolean;
 };
@@ -25,9 +27,10 @@ type FormState = {
   sectionType: string;
   title: string;
   content: string;
+  imageUrl: string;
 };
 
-const EMPTY_FORM: FormState = { page: 'home', sectionType: 'text', title: '', content: '' };
+const EMPTY_FORM: FormState = { page: 'home', sectionType: 'text', title: '', content: '', imageUrl: '' };
 
 export default function SectionManager({
   initialSections,
@@ -220,6 +223,14 @@ export default function SectionManager({
               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
             />
           </div>
+
+          <div className="sm:col-span-2 lg:col-span-4">
+            <ImageUploadField
+              imageUrl={form.imageUrl}
+              onChange={(imageUrl) => setForm({ ...form, imageUrl })}
+              csrfToken={csrfToken}
+            />
+          </div>
         </div>
 
         <button
@@ -240,6 +251,7 @@ export default function SectionManager({
               key={section.id}
               section={section}
               busy={busy}
+              csrfToken={csrfToken}
               onSave={(patch) => handleFieldSave(section, patch)}
               onDelete={() => handleDelete(section)}
             />
@@ -253,17 +265,20 @@ export default function SectionManager({
 function SectionRow({
   section,
   busy,
+  csrfToken,
   onSave,
   onDelete,
 }: {
   section: Section;
   busy: boolean;
+  csrfToken: string;
   onSave: (patch: Partial<Section>) => void;
   onDelete: () => void;
 }) {
   const [title, setTitle] = useState(section.title);
   const [content, setContent] = useState(section.content);
-  const dirty = title !== section.title || content !== section.content;
+  const [imageUrl, setImageUrl] = useState(section.imageUrl);
+  const dirty = title !== section.title || content !== section.content || imageUrl !== section.imageUrl;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -319,11 +334,15 @@ function SectionRow({
         />
       </div>
 
+      <div className="mt-3">
+        <ImageUploadField imageUrl={imageUrl} onChange={setImageUrl} csrfToken={csrfToken} />
+      </div>
+
       {dirty && (
         <button
           type="button"
           disabled={busy}
-          onClick={() => onSave({ title, content })}
+          onClick={() => onSave({ title, content, imageUrl })}
           className="mt-3 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
         >
           Save
