@@ -3,6 +3,7 @@ import {
   listSeatingTables,
   createSeatingTable,
   listUnassignedGuests,
+  listUnassignedInvitees,
   listUnassignedProbableAttendees,
   getProbableAttendanceSummary,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
@@ -11,22 +12,27 @@ import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 /**
  * Every seating table with its seats, accepted guests not yet seated (P1-14),
- * and the ProbableAttendee buffer state (P1-16) — one read endpoint so the
- * client's existing post-action refresh picks up buffer changes for free.
+ * accepted individual invitees not yet seated (multi-person invitations,
+ * 2026-09), and the ProbableAttendee buffer state (P1-16) — one read
+ * endpoint so the client's existing post-action refresh picks up buffer
+ * changes for free.
  */
 export async function GET(): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
 
-  const [tables, unassignedGuests, unassignedProbableAttendees, probableAttendanceSummary] = await Promise.all([
-    listSeatingTables(),
-    listUnassignedGuests(),
-    listUnassignedProbableAttendees(),
-    getProbableAttendanceSummary(),
-  ]);
+  const [tables, unassignedGuests, unassignedInvitees, unassignedProbableAttendees, probableAttendanceSummary] =
+    await Promise.all([
+      listSeatingTables(),
+      listUnassignedGuests(),
+      listUnassignedInvitees(),
+      listUnassignedProbableAttendees(),
+      getProbableAttendanceSummary(),
+    ]);
   return NextResponse.json({
     success: true,
     tables,
     unassignedGuests,
+    unassignedInvitees,
     unassignedProbableAttendees,
     probableAttendanceSummary,
   });

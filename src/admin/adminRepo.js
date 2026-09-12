@@ -3,6 +3,7 @@ import { guestStore } from '../data/guestStore.js';
 import { rsvpResponses } from '../data/rsvpStore.js';
 import { mapGuestRow, mapResponseRow } from '../guest-auth/guestRepo.js';
 import { generateGuestCode } from './generateGuestCode.js';
+import { createInviteesForGuest } from '../invitees/inviteesRepo.js';
 
 /**
  * Admin-side data access (PRD P0-07, P0-08).
@@ -43,13 +44,14 @@ export async function listAllRsvpResponses() {
  *
  * @param {GuestInput} input
  */
-export async function createGuest({ name, relationship, slotCount, whatsappNumber = null }) {
+export async function createGuest({ name, relationship, slotCount, whatsappNumber = null, inviteeNames }) {
   const existing = await listAllGuests();
   // Soft-deleted guests keep their codes reserved, so pass every code.
   const code = generateGuestCode(name, relationship, existing.map((guest) => guest.code));
 
+  let guest;
   if (!isDbEnabled()) {
-    const guest = {
+    guest = {
       id: `guest-${Date.now()}-${guestStore.length + 1}`,
       code,
       name,
@@ -63,16 +65,23 @@ export async function createGuest({ name, relationship, slotCount, whatsappNumbe
       createdAt: new Date().toISOString(),
     };
     guestStore.push(guest);
-    return guest;
+  } else {
+    const { rows } = await query(
+      `INSERT INTO guests (code, name, relationship, slot_count, whatsapp_number)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [code, name, relationship, slotCount, whatsappNumber]
+    );
+    guest = mapGuestRow(rows[0]);
   }
 
-  const { rows } = await query(
-    `INSERT INTO guests (code, name, relationship, slot_count, whatsapp_number)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING *`,
-    [code, name, relationship, slotCount, whatsappNumber]
-  );
-  return mapGuestRow(rows[0]);
+  // Admin named each person up front -- create their individual invitee rows
+  // now, in the same request, so the party is never left half-set-up.
+  if (inviteeNames && inviteeNames.length > 0) {
+    await createInviteesForGuest(guest.id, inviteeNames, { addedBy: 'admin', approvalStatus: 'approved' });
+  }
+
+  return guest;
 }
 
 /**
@@ -96,6 +105,27 @@ export async function updateGuest(id, { name, relationship, slotCount, whatsappN
       WHERE id = $5 AND is_deleted = false
       RETURNING *`,
     [name, relationship, slotCount, whatsappNumber, id]
+  );
+  return mapGuestRow(rows[0]);
+}
+
+/**
+ * Bumps a guest's stored headcount by one -- called when an admin approves a
+ * guest's own "add another person" request, so slot_count (read by CSV
+ * export, the guest list, and WhatsApp templates) stays accurate without
+ * those readers needing to switch to counting invitee rows themselves.
+ */
+export async function incrementGuestSlotCount(id) {
+  if (!isDbEnabled()) {
+    const guest = guestStore.find((entry) => entry.id === id);
+    if (!guest) return null;
+    guest.slotCount = (guest.slotCount || 0) + 1;
+    return guest;
+  }
+
+  const { rows } = await query(
+    `UPDATE guests SET slot_count = slot_count + 1 WHERE id = $1 RETURNING *`,
+    [id]
   );
   return mapGuestRow(rows[0]);
 }

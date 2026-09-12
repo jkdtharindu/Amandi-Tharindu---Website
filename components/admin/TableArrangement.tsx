@@ -10,6 +10,8 @@ type Seat = {
   guestName: string | null;
   probableAttendeeId: string | null;
   probableAttendeeLabel: string | null;
+  inviteeId: string | null;
+  inviteeName: string | null;
   dietaryRequirements: string | null;
   specialNotes: string | null;
 };
@@ -23,6 +25,8 @@ export type SeatingTable = {
 };
 
 export type UnassignedGuest = { id: string; name: string };
+
+export type UnassignedInvitee = { id: string; name: string; guestId: string; guestName: string | null };
 
 export type ProbableBucket = 'declined' | 'pending';
 
@@ -44,7 +48,7 @@ export type TableArrangementDashboardStats = {
 };
 
 type NewTableForm = { tableNumber: string; tableName: string; capacity: string };
-type AssignChoice = { guestId?: string; probableAttendeeId?: string };
+type AssignChoice = { guestId?: string; probableAttendeeId?: string; inviteeId?: string };
 
 const EMPTY_FORM: NewTableForm = { tableNumber: '', tableName: '', capacity: '10' };
 const BUCKET_LABEL: Record<ProbableBucket, string> = { declined: 'Declined', pending: 'Pending' };
@@ -52,18 +56,21 @@ const BUCKET_LABEL: Record<ProbableBucket, string> = { declined: 'Declined', pen
 export default function TableArrangement({
   initialTables,
   initialUnassignedGuests,
+  initialUnassignedInvitees,
   initialUnassignedProbableAttendees,
   initialProbableAttendanceSummary,
   dashboardStats,
 }: {
   initialTables: SeatingTable[];
   initialUnassignedGuests: UnassignedGuest[];
+  initialUnassignedInvitees: UnassignedInvitee[];
   initialUnassignedProbableAttendees: UnassignedProbableAttendee[];
   initialProbableAttendanceSummary: ProbableAttendanceSummaryRow[];
   dashboardStats: TableArrangementDashboardStats;
 }) {
   const [tables, setTables] = useState<SeatingTable[]>(initialTables);
   const [unassignedGuests, setUnassignedGuests] = useState<UnassignedGuest[]>(initialUnassignedGuests);
+  const [unassignedInvitees, setUnassignedInvitees] = useState<UnassignedInvitee[]>(initialUnassignedInvitees);
   const [unassignedProbableAttendees, setUnassignedProbableAttendees] = useState<UnassignedProbableAttendee[]>(
     initialUnassignedProbableAttendees
   );
@@ -89,6 +96,7 @@ export default function TableArrangement({
       if (data.success) {
         setTables(data.tables);
         setUnassignedGuests(data.unassignedGuests);
+        setUnassignedInvitees(data.unassignedInvitees);
         setUnassignedProbableAttendees(data.unassignedProbableAttendees);
         setProbableAttendanceSummary(data.probableAttendanceSummary);
       }
@@ -328,6 +336,7 @@ export default function TableArrangement({
               key={table.id}
               table={table}
               unassignedGuests={unassignedGuests}
+              unassignedInvitees={unassignedInvitees}
               unassignedProbableAttendees={unassignedProbableAttendees}
               busy={busy}
               onDelete={() => handleDeleteTable(table)}
@@ -402,6 +411,7 @@ function ProbableAttendancePanel({
 function TableCard({
   table,
   unassignedGuests,
+  unassignedInvitees,
   unassignedProbableAttendees,
   busy,
   onDelete,
@@ -410,13 +420,14 @@ function TableCard({
 }: {
   table: SeatingTable;
   unassignedGuests: UnassignedGuest[];
+  unassignedInvitees: UnassignedInvitee[];
   unassignedProbableAttendees: UnassignedProbableAttendee[];
   busy: boolean;
   onDelete: () => void;
   onAssign: (seatId: string, choice: AssignChoice, notes?: { dietaryRequirements?: string; specialNotes?: string }) => void;
   onUnassign: (seatId: string) => void;
 }) {
-  const filled = table.seats.filter((seat) => seat.guestId || seat.probableAttendeeId).length;
+  const filled = table.seats.filter((seat) => seat.guestId || seat.probableAttendeeId || seat.inviteeId).length;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -446,6 +457,7 @@ function TableCard({
             key={seat.id}
             seat={seat}
             unassignedGuests={unassignedGuests}
+            unassignedInvitees={unassignedInvitees}
             unassignedProbableAttendees={unassignedProbableAttendees}
             busy={busy}
             onAssign={(choice, notes) => onAssign(seat.id, choice, notes)}
@@ -460,6 +472,7 @@ function TableCard({
 function SeatCard({
   seat,
   unassignedGuests,
+  unassignedInvitees,
   unassignedProbableAttendees,
   busy,
   onAssign,
@@ -467,6 +480,7 @@ function SeatCard({
 }: {
   seat: Seat;
   unassignedGuests: UnassignedGuest[];
+  unassignedInvitees: UnassignedInvitee[];
   unassignedProbableAttendees: UnassignedProbableAttendee[];
   busy: boolean;
   onAssign: (choice: AssignChoice, notes?: { dietaryRequirements?: string; specialNotes?: string }) => void;
@@ -474,7 +488,7 @@ function SeatCard({
 }) {
   const [dietary, setDietary] = useState(seat.dietaryRequirements || '');
   const [notes, setNotes] = useState(seat.specialNotes || '');
-  const occupied = seat.guestId !== null || seat.probableAttendeeId !== null;
+  const occupied = seat.guestId !== null || seat.probableAttendeeId !== null || seat.inviteeId !== null;
   const notesDirty = occupied && (dietary !== (seat.dietaryRequirements || '') || notes !== (seat.specialNotes || ''));
 
   const byDeclined = unassignedProbableAttendees.filter((p) => p.bucket === 'declined');
@@ -498,7 +512,9 @@ function SeatCard({
 
       {occupied ? (
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-900">{seat.guestName || seat.probableAttendeeLabel}</p>
+          <p className="text-sm font-semibold text-slate-900">
+            {seat.guestName || seat.inviteeName || seat.probableAttendeeLabel}
+          </p>
           <input
             value={dietary}
             onChange={(e) => setDietary(e.target.value)}
@@ -515,12 +531,14 @@ function SeatCard({
             <button
               type="button"
               disabled={busy}
-              onClick={() =>
-                onAssign(
-                  seat.guestId ? { guestId: seat.guestId } : { probableAttendeeId: seat.probableAttendeeId as string },
-                  { dietaryRequirements: dietary, specialNotes: notes }
-                )
-              }
+              onClick={() => {
+                const choice: AssignChoice = seat.guestId
+                  ? { guestId: seat.guestId }
+                  : seat.inviteeId
+                  ? { inviteeId: seat.inviteeId }
+                  : { probableAttendeeId: seat.probableAttendeeId as string };
+                onAssign(choice, { dietaryRequirements: dietary, specialNotes: notes });
+              }}
               className="px-2 py-1 rounded-md bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
             >
               Save
@@ -534,7 +552,9 @@ function SeatCard({
           onChange={(e) => {
             const [kind, id] = e.target.value.split(':');
             if (!id) return;
-            onAssign(kind === 'probable' ? { probableAttendeeId: id } : { guestId: id });
+            onAssign(
+              kind === 'probable' ? { probableAttendeeId: id } : kind === 'invitee' ? { inviteeId: id } : { guestId: id }
+            );
           }}
           className="w-full px-2 py-1.5 rounded-md border border-slate-300 text-xs bg-white disabled:opacity-50"
         >
@@ -546,6 +566,15 @@ function SeatCard({
               </option>
             ))}
           </optgroup>
+          {unassignedInvitees.length > 0 && (
+            <optgroup label="Accepted invitees">
+              {unassignedInvitees.map((invitee) => (
+                <option key={invitee.id} value={`invitee:${invitee.id}`}>
+                  {invitee.name} ({invitee.guestName})
+                </option>
+              ))}
+            </optgroup>
+          )}
           {byDeclined.length > 0 && (
             <optgroup label="Probable (Declined)">
               {byDeclined.map((p) => (

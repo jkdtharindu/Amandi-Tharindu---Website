@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { seatingTables } from '../data/tableArrangementStore.js';
 import { guestStore } from '../data/guestStore.js';
 import { probableAttendees } from '../data/probableAttendeesStore.js';
+import { invitees } from '../data/inviteesStore.js';
 import { mapGuestRow } from '../guest-auth/guestRepo.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
@@ -10,6 +11,7 @@ const useDb = Boolean(process.env.DATABASE_URL);
 const DUPLICATE_TABLE_NUMBER = 'A table with that number already exists';
 const GUEST_ALREADY_SEATED = 'Guest is already assigned to another seat';
 const PROBABLE_ALREADY_SEATED = 'This probable attendee is already assigned to another seat';
+const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat';
 const BUFFER_BELOW_SEATED = 'Cannot reduce below the number already seated — unassign them first';
 
 const PROBABLE_BUCKETS = ['declined', 'pending'];
@@ -31,6 +33,8 @@ const SEAT_JSON = `
             THEN 'Probable (' || initcap(pa.rsvp_bucket) || ') #' || pa.slot_index
             ELSE NULL
           END,
+        'inviteeId', ts.invitee_id,
+        'inviteeName', i.name,
         'dietaryRequirements', ts.dietary_requirements,
         'specialNotes', ts.special_notes
       ) ORDER BY ts.seat_number
@@ -50,6 +54,7 @@ const TABLE_SELECT = `
   LEFT JOIN table_seats ts ON st.id = ts.seating_table_id
   LEFT JOIN guests g ON ts.guest_id = g.id
   LEFT JOIN probable_attendees pa ON ts.probable_attendee_id = pa.id
+  LEFT JOIN invitees i ON ts.invitee_id = i.id
 `;
 
 function guestNameFor(guestId) {
@@ -67,6 +72,12 @@ function probableAttendeeLabelFor(probableAttendeeId) {
   if (!probableAttendeeId) return null;
   const slot = probableAttendees.find((entry) => entry.id === probableAttendeeId);
   return slot ? probableAttendeeLabel(slot.bucket, slot.slotIndex) : null;
+}
+
+function inviteeNameFor(inviteeId) {
+  if (!inviteeId) return null;
+  const invitee = invitees.find((entry) => entry.id === inviteeId);
+  return invitee ? invitee.name : null;
 }
 
 /**
@@ -87,6 +98,8 @@ function hydrateMemoryTable(table) {
       guestName: guestNameFor(seat.guestId),
       probableAttendeeId: seat.probableAttendeeId || null,
       probableAttendeeLabel: probableAttendeeLabelFor(seat.probableAttendeeId),
+      inviteeId: seat.inviteeId || null,
+      inviteeName: inviteeNameFor(seat.inviteeId),
       dietaryRequirements: seat.dietaryRequirements,
       specialNotes: seat.specialNotes,
     })),
@@ -160,6 +173,7 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
         seatNumber: index + 1,
         guestId: null,
         probableAttendeeId: null,
+        inviteeId: null,
         dietaryRequirements: null,
         specialNotes: null,
       })),
@@ -251,8 +265,9 @@ export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, 
 
     const { seat } = found;
     seat.guestId = guestId || null;
-    // A seat holds one occupant, real Guest or ProbableAttendee, never both.
+    // A seat holds one occupant -- real Guest, ProbableAttendee, or Invitee -- never more than one.
     seat.probableAttendeeId = null;
+    seat.inviteeId = null;
     seat.dietaryRequirements = dietaryRequirements || null;
     seat.specialNotes = specialNotes || null;
 
@@ -264,6 +279,7 @@ export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, 
       UPDATE table_seats
       SET guest_id = $2,
           probable_attendee_id = NULL,
+          invitee_id = NULL,
           dietary_requirements = $3,
           special_notes = $4,
           updated_at = now()
@@ -309,6 +325,7 @@ export async function assignProbableAttendeeToSeat(seatId, probableAttendeeId, {
     const { seat } = found;
     seat.probableAttendeeId = probableAttendeeId || null;
     seat.guestId = null;
+    seat.inviteeId = null;
     seat.dietaryRequirements = dietaryRequirements || null;
     seat.specialNotes = specialNotes || null;
 
@@ -320,6 +337,7 @@ export async function assignProbableAttendeeToSeat(seatId, probableAttendeeId, {
       UPDATE table_seats
       SET probable_attendee_id = $2,
           guest_id = NULL,
+          invitee_id = NULL,
           dietary_requirements = $3,
           special_notes = $4,
           updated_at = now()
@@ -345,15 +363,81 @@ export async function unassignProbableAttendeeFromSeat(seatId) {
 }
 
 /**
- * Get all accepted guests who are not yet seated.
+ * Assign an individual Invitee (a named person from a multi-person
+ * invitation) to a seat. Mirrors assignGuestToSeat/assignProbableAttendeeToSeat:
+ * same concurrency-safe partial-unique-index pattern.
+ */
+export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequirements, specialNotes } = {}) {
+  if (!useDb) {
+    const found = findMemorySeat(seatId);
+    if (!found) return null;
+
+    if (inviteeId) {
+      const clash = seatingTables.some((table) =>
+        table.seats.some((seat) => seat.inviteeId === inviteeId && seat.id !== seatId)
+      );
+      if (clash) throw new Error(INVITEE_ALREADY_SEATED);
+    }
+
+    const { seat } = found;
+    seat.inviteeId = inviteeId || null;
+    seat.guestId = null;
+    seat.probableAttendeeId = null;
+    seat.dietaryRequirements = dietaryRequirements || null;
+    seat.specialNotes = specialNotes || null;
+
+    return { id: seat.id, seat_number: seat.seatNumber, invitee_id: seat.inviteeId };
+  }
+
+  try {
+    const { rows } = await query(`
+      UPDATE table_seats
+      SET invitee_id = $2,
+          guest_id = NULL,
+          probable_attendee_id = NULL,
+          dietary_requirements = $3,
+          special_notes = $4,
+          updated_at = now()
+      WHERE id = $1
+      RETURNING id, seat_number, invitee_id
+    `, [seatId, inviteeId || null, dietaryRequirements || null, specialNotes || null]);
+
+    return rows[0] || null;
+  } catch (error) {
+    if (error.code === UNIQUE_VIOLATION) {
+      throw new Error(INVITEE_ALREADY_SEATED);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Remove an Invitee from a seat. A thin alias — clearing a seat is the same
+ * operation regardless of what occupied it.
+ */
+export async function unassignInviteeFromSeat(seatId) {
+  return assignGuestToSeat(seatId, null, {});
+}
+
+/**
+ * Get all accepted guests who are not yet seated. A guest that has any
+ * invitee rows is seated individually instead (see listUnassignedInvitees),
+ * so it's excluded here even if the party itself shows 'accepted'.
  */
 export async function listUnassignedGuests() {
   if (!useDb) {
     const seated = new Set(
       seatingTables.flatMap((table) => table.seats.map((seat) => seat.guestId).filter(Boolean))
     );
+    const guestIdsWithInvitees = new Set(invitees.map((invitee) => invitee.guestId));
     return guestStore
-      .filter((guest) => guest.rsvpStatus === 'accepted' && guest.isDeleted !== true && !seated.has(guest.id))
+      .filter(
+        (guest) =>
+          guest.rsvpStatus === 'accepted' &&
+          guest.isDeleted !== true &&
+          !seated.has(guest.id) &&
+          !guestIdsWithInvitees.has(guest.id)
+      )
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -364,7 +448,47 @@ export async function listUnassignedGuests() {
       AND NOT EXISTS (
         SELECT 1 FROM table_seats ts WHERE ts.guest_id = g.id
       )
+      AND NOT EXISTS (
+        SELECT 1 FROM invitees i WHERE i.guest_id = g.id
+      )
     ORDER BY g.name
+  `);
+  return rows;
+}
+
+/**
+ * Individually accepted invitees (approved + accepted) with no seat yet —
+ * feeds the "Accepted invitees" seat-assignment picker.
+ */
+export async function listUnassignedInvitees() {
+  if (!useDb) {
+    const seated = new Set(
+      seatingTables.flatMap((table) => table.seats.map((seat) => seat.inviteeId).filter(Boolean))
+    );
+    return invitees
+      .filter(
+        (invitee) =>
+          invitee.approvalStatus === 'approved' &&
+          invitee.rsvpStatus === 'accepted' &&
+          !seated.has(invitee.id)
+      )
+      .map((invitee) => ({
+        id: invitee.id,
+        name: invitee.name,
+        guestId: invitee.guestId,
+        guestName: guestNameFor(invitee.guestId),
+      }))
+      .sort((a, b) => (a.guestName || '').localeCompare(b.guestName || '') || a.name.localeCompare(b.name));
+  }
+
+  const { rows } = await query(`
+    SELECT i.id, i.name, i.guest_id AS "guestId", g.name AS "guestName"
+    FROM invitees i
+    JOIN guests g ON g.id = i.guest_id
+    WHERE i.approval_status = 'approved'
+      AND i.rsvp_status = 'accepted'
+      AND NOT EXISTS (SELECT 1 FROM table_seats ts WHERE ts.invitee_id = i.id)
+    ORDER BY g.name, i.name
   `);
   return rows;
 }

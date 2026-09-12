@@ -18,10 +18,15 @@ import {
   listUnassignedProbableAttendees,
   assignProbableAttendeeToSeat,
   unassignProbableAttendeeFromSeat,
+  listUnassignedInvitees,
+  assignInviteeToSeat,
+  unassignInviteeFromSeat,
 } from '../src/table-arrangement/tableArrangementRepo.js';
 import { seatingTables } from '../src/data/tableArrangementStore.js';
 import { guestStore } from '../src/data/guestStore.js';
 import { probableAttendees } from '../src/data/probableAttendeesStore.js';
+import { invitees } from '../src/data/inviteesStore.js';
+import { createInviteesForGuest } from '../src/invitees/inviteesRepo.js';
 
 // Table Arrangement (P2).
 //
@@ -43,6 +48,7 @@ function resetStores() {
   guestStore.length = 0;
   guestStore.push(...SEEDED_GUESTS.map((guest) => ({ ...guest })));
   probableAttendees.length = 0;
+  invitees.length = 0;
 }
 
 // --- Export -----------------------------------------------------------------
@@ -539,4 +545,129 @@ test('"Table Arranged" candidates (accepted, seated guests) exclude declined/pen
   const acceptedSeated = assigned.filter((guest) => guest.rsvpStatus === 'accepted');
   assert.deepEqual(acceptedSeated.map((g) => g.id), ['g1']);
   assert.equal(assigned.length, 2, 'both seats show up in the raw list — the accepted-only filter happens in the page, not the repo');
+});
+
+// --- Individual invitee seating (multi-person invitations) -----------------
+
+test('a guest with invitees is excluded from listUnassignedGuests -- seated individually instead', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  await createInviteesForGuest('g2', ['Nimal Silva', 'Anu Silva']);
+
+  const available = await listUnassignedGuests();
+  assert.deepEqual(available.map((guest) => guest.id), ['g1'], 'g2 has invitees, so it drops off the party-level list');
+});
+
+test('listUnassignedInvitees only returns approved, accepted, unseated invitees', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john, maria] = await createInviteesForGuest('g2', ['John', 'Maria']);
+  john.rsvpStatus = 'accepted';
+  maria.rsvpStatus = 'declined';
+
+  const available = await listUnassignedInvitees();
+  assert.deepEqual(available.map((i) => i.name), ['John']);
+  assert.equal(available[0].guestId, 'g2');
+  assert.equal(available[0].guestName, 'Nimal Silva');
+});
+
+test('an invitee can be seated individually, distinct from their party seat', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john] = await createInviteesForGuest('g2', ['John']);
+  john.rsvpStatus = 'accepted';
+
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+  await assignInviteeToSeat(table.seats[0].id, john.id);
+
+  const [afterSeat] = await listSeatingTables();
+  assert.equal(afterSeat.seats[0].inviteeId, john.id);
+  assert.equal(afterSeat.seats[0].inviteeName, 'John');
+  assert.equal(afterSeat.seats[0].guestId, null, 'the seat holds the invitee, not the party');
+
+  const remaining = await listUnassignedInvitees();
+  assert.equal(remaining.length, 0, 'seated invitee drops off the assignable list');
+});
+
+test('one invitee cannot occupy two seats', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john] = await createInviteesForGuest('g2', ['John']);
+  john.rsvpStatus = 'accepted';
+
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+  await assignInviteeToSeat(table.seats[0].id, john.id);
+
+  await assert.rejects(() => assignInviteeToSeat(table.seats[1].id, john.id), /already assigned/);
+});
+
+test('assigning an invitee to an occupied seat evicts the previous occupant type', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john] = await createInviteesForGuest('g2', ['John']);
+  john.rsvpStatus = 'accepted';
+
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 1 });
+  await assignGuestToSeat(table.seats[0].id, 'g1');
+  await assignInviteeToSeat(table.seats[0].id, john.id);
+
+  const [after] = await listSeatingTables();
+  assert.equal(after.seats[0].guestId, null);
+  assert.equal(after.seats[0].inviteeId, john.id);
+});
+
+test('unassigning an invitee frees them to be seated elsewhere', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john] = await createInviteesForGuest('g2', ['John']);
+  john.rsvpStatus = 'accepted';
+
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
+  await assignInviteeToSeat(table.seats[0].id, john.id);
+  await unassignInviteeFromSeat(table.seats[0].id);
+
+  assert.deepEqual((await listUnassignedInvitees()).map((i) => i.id), [john.id]);
+
+  await assignInviteeToSeat(table.seats[1].id, john.id);
+  const [refreshed] = await listSeatingTables();
+  assert.equal(refreshed.seats[1].inviteeId, john.id);
+});
+
+test('two invitees from the same party can be seated at different tables independently', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john, maria] = await createInviteesForGuest('g2', ['John', 'Maria']);
+  john.rsvpStatus = 'accepted';
+  maria.rsvpStatus = 'accepted';
+
+  const tableA = await createSeatingTable({ tableNumber: 1, capacity: 1 });
+  const tableB = await createSeatingTable({ tableNumber: 2, capacity: 1 });
+
+  await assignInviteeToSeat(tableA.seats[0].id, john.id);
+  await assignInviteeToSeat(tableB.seats[0].id, maria.id);
+
+  const tables = await listSeatingTables();
+  const seatedNames = tables.flatMap((t) => t.seats.map((s) => s.inviteeName)).filter(Boolean);
+  assert.deepEqual(seatedNames.sort(), ['John', 'Maria']);
+});
+
+test('the export shows an invitee by their own name, not the party name', () => {
+  const tables = [
+    {
+      table_number: 1,
+      table_name: 'Family Table',
+      seats: [
+        { seatNumber: 1, guestId: null, guestName: null, probableAttendeeId: null, probableAttendeeLabel: null, inviteeId: 'i1', inviteeName: 'John', dietaryRequirements: null, specialNotes: null },
+      ],
+    },
+  ];
+  const tsv = buildTableArrangementExport(tables);
+  assert.ok(tsv.includes('John'));
 });

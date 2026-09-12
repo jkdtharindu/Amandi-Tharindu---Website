@@ -1,5 +1,6 @@
 import AdminNav from '@/components/admin/AdminNav';
 import GuestManager, { type Guest } from '@/components/admin/GuestManager';
+import InviteeRequests from '@/components/admin/InviteeRequests';
 import { requireAdminPage } from '@/lib/adminGuard';
 import { listAllGuests } from '@/src/admin/adminRepo.js';
 import { filterGuests } from '@/src/admin/guestQueries.js';
@@ -18,6 +19,7 @@ export default async function AdminGuestsPage() {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Guest list</h1>
+        <InviteeRequests />
         <GuestManager
           initialGuests={filterGuests(guests, {}) as Guest[]}
           categories={categories}

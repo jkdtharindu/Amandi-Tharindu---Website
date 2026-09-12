@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { assignGuestToSeat, assignProbableAttendeeToSeat } from '@/src/table-arrangement/tableArrangementRepo.js';
+import {
+  assignGuestToSeat,
+  assignProbableAttendeeToSeat,
+  assignInviteeToSeat,
+} from '@/src/table-arrangement/tableArrangementRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ tableId: string; seatId: string }> };
 
 /**
- * Assigns a seat to either a real Guest or a ProbableAttendee placeholder
- * (P1-14 / P1-16) — exactly one of guestId/probableAttendeeId is required.
- * Rejects if that occupant already holds another seat.
+ * Assigns a seat to a real Guest, a ProbableAttendee placeholder, or an
+ * individual Invitee (P1-14 / P1-16 / multi-person invitations) — exactly
+ * one of guestId/probableAttendeeId/inviteeId is required. Rejects if that
+ * occupant already holds another seat.
  */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
@@ -32,24 +37,37 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     );
   }
 
-  const { guestId, probableAttendeeId, dietaryRequirements, specialNotes } = body as {
+  const { guestId, probableAttendeeId, inviteeId, dietaryRequirements, specialNotes } = body as {
     guestId?: string;
     probableAttendeeId?: string;
+    inviteeId?: string;
     dietaryRequirements?: string;
     specialNotes?: string;
   };
 
-  if (!guestId && !probableAttendeeId) {
-    return NextResponse.json({ success: false, message: 'Guest ID or probable attendee ID required.' }, { status: 400 });
+  const providedCount = [guestId, probableAttendeeId, inviteeId].filter(Boolean).length;
+  if (providedCount === 0) {
+    return NextResponse.json(
+      { success: false, message: 'Guest ID, probable attendee ID, or invitee ID required.' },
+      { status: 400 }
+    );
   }
-  if (guestId && probableAttendeeId) {
-    return NextResponse.json({ success: false, message: 'Provide only one of guestId or probableAttendeeId.' }, { status: 400 });
+  if (providedCount > 1) {
+    return NextResponse.json(
+      { success: false, message: 'Provide only one of guestId, probableAttendeeId, or inviteeId.' },
+      { status: 400 }
+    );
   }
 
   try {
-    const seat = probableAttendeeId
-      ? await assignProbableAttendeeToSeat(seatId, probableAttendeeId, { dietaryRequirements, specialNotes })
-      : await assignGuestToSeat(seatId, guestId, { dietaryRequirements, specialNotes });
+    let seat;
+    if (inviteeId) {
+      seat = await assignInviteeToSeat(seatId, inviteeId, { dietaryRequirements, specialNotes });
+    } else if (probableAttendeeId) {
+      seat = await assignProbableAttendeeToSeat(seatId, probableAttendeeId, { dietaryRequirements, specialNotes });
+    } else {
+      seat = await assignGuestToSeat(seatId, guestId, { dietaryRequirements, specialNotes });
+    }
     return NextResponse.json({ success: true, seat });
   } catch (error) {
     return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });

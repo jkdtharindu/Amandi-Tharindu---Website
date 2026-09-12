@@ -6,6 +6,7 @@
  */
 
 import { getCategories } from './categories.js';
+import { validateInviteeNames } from '../invitees/validateInvitees.js';
 
 /** The relationship groups the admin can choose from (customizable via GUEST_CATEGORIES env var). */
 export function getRelationships() {
@@ -15,6 +16,13 @@ export function getRelationships() {
 const MIN_SLOT_COUNT = 1;
 const MAX_SLOT_COUNT = 99;
 
+/**
+ * `inviteeNames`, when provided, names each person in a multi-person party
+ * up front. The headcount is then derived from that list -- slotCount is
+ * overwritten with inviteeNames.length rather than trusted from the form, so
+ * the two can never disagree. Omitting inviteeNames keeps today's
+ * headcount-only invitation (a single free-text RSVP for the whole party).
+ */
 export function validateGuestInput(input = {}) {
   const errors = {};
 
@@ -29,13 +37,28 @@ export function validateGuestInput(input = {}) {
     errors.relationship = `Relationship must be one of: ${validRelationships.join(', ')}.`;
   }
 
-  const slotCount = Number(input.slotCount);
-  if (
-    !Number.isInteger(slotCount) ||
-    slotCount < MIN_SLOT_COUNT ||
-    slotCount > MAX_SLOT_COUNT
-  ) {
-    errors.slotCount = `Slot count must be a whole number between ${MIN_SLOT_COUNT} and ${MAX_SLOT_COUNT}.`;
+  let inviteeNames;
+  if (input.inviteeNames !== undefined) {
+    const namesResult = validateInviteeNames(input.inviteeNames);
+    if (!namesResult.valid) {
+      errors.inviteeNames = namesResult.error;
+    } else {
+      inviteeNames = namesResult.names;
+    }
+  }
+
+  let slotCount;
+  if (inviteeNames) {
+    slotCount = inviteeNames.length;
+  } else {
+    slotCount = Number(input.slotCount);
+    if (
+      !Number.isInteger(slotCount) ||
+      slotCount < MIN_SLOT_COUNT ||
+      slotCount > MAX_SLOT_COUNT
+    ) {
+      errors.slotCount = `Slot count must be a whole number between ${MIN_SLOT_COUNT} and ${MAX_SLOT_COUNT}.`;
+    }
   }
 
   const rawWhatsapp = String(input.whatsappNumber ?? '').trim();
@@ -52,6 +75,7 @@ export function validateGuestInput(input = {}) {
       relationship,
       slotCount,
       whatsappNumber: rawWhatsapp || null,
+      ...(inviteeNames ? { inviteeNames } : {}),
     },
   };
 }

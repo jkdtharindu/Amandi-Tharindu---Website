@@ -2,12 +2,22 @@
 
 import { useState, useEffect } from 'react';
 
+export interface Invitee {
+  id: string;
+  name: string;
+  rsvpStatus: 'pending' | 'accepted' | 'declined';
+  addedBy: 'admin' | 'guest';
+  approvalStatus: 'approved' | 'pending_approval' | 'rejected';
+  displayOrder: number;
+}
+
 interface InvitationClientProps {
   guestCode: string;
   slotCount: number;
   hasResponded: boolean;
   currentRsvpStatus: string;
   coupleNames?: string;
+  invitees?: Invitee[];
 }
 
 export default function InvitationClient({
@@ -16,7 +26,36 @@ export default function InvitationClient({
   hasResponded,
   currentRsvpStatus,
   coupleNames = "Amandi & Tharindu",
+  invitees = [],
 }: InvitationClientProps) {
+  if (invitees.length > 0) {
+    return <InviteeChecklist guestCode={guestCode} coupleNames={coupleNames} invitees={invitees} />;
+  }
+
+  return (
+    <LegacyRsvpForm
+      guestCode={guestCode}
+      slotCount={slotCount}
+      hasResponded={hasResponded}
+      currentRsvpStatus={currentRsvpStatus}
+      coupleNames={coupleNames}
+    />
+  );
+}
+
+function LegacyRsvpForm({
+  guestCode,
+  slotCount,
+  hasResponded,
+  currentRsvpStatus,
+  coupleNames,
+}: {
+  guestCode: string;
+  slotCount: number;
+  hasResponded: boolean;
+  currentRsvpStatus: string;
+  coupleNames: string;
+}) {
   const [showForm, setShowForm] = useState(false);
   const [attending, setAttending] = useState(currentRsvpStatus !== 'declined');
   const [participantNames, setParticipantNames] = useState('');
@@ -200,6 +239,211 @@ export default function InvitationClient({
               {message}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Per-person accept/decline for a multi-person invitation with named
+ * invitees (2026-09), instead of one accept/decline for the whole party.
+ */
+function InviteeChecklist({
+  guestCode,
+  coupleNames,
+  invitees,
+}: {
+  guestCode: string;
+  coupleNames: string;
+  invitees: Invitee[];
+}) {
+  const approved = invitees
+    .filter((invitee) => invitee.approvalStatus === 'approved')
+    .sort((a, b) => a.displayOrder - b.displayOrder);
+  const pendingRequests = invitees.filter((invitee) => invitee.approvalStatus === 'pending_approval');
+
+  const [responses, setResponses] = useState<Record<string, boolean | null>>(() =>
+    Object.fromEntries(
+      approved.map((invitee) => [
+        invitee.id,
+        invitee.rsvpStatus === 'accepted' ? true : invitee.rsvpStatus === 'declined' ? false : null,
+      ])
+    )
+  );
+  const [newPersonName, setNewPersonName] = useState('');
+  const [csrfToken, setCsrfToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/csrf')
+      .then((res) => res.json())
+      .then((data) => setCsrfToken(data.token))
+      .catch((err) => console.error('Failed to fetch CSRF token:', err));
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    const unanswered = approved.filter((invitee) => responses[invitee.id] === null || responses[invitee.id] === undefined);
+    if (unanswered.length > 0) {
+      setMessage({ kind: 'error', text: 'Please accept or decline for everyone in the list.' });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/guest/rsvp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({
+          code: guestCode,
+          inviteeResponses: approved.map((invitee) => ({ id: invitee.id, attending: responses[invitee.id] })),
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setMessage({ kind: 'ok', text: 'Thank you! Your response has been saved.' });
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        setMessage({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });
+      }
+    } catch {
+      setMessage({ kind: 'error', text: 'An error occurred. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRequestAddPerson() {
+    const name = newPersonName.trim();
+    if (!name) return;
+
+    setRequesting(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/guest/invitees/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ code: guestCode, name }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setMessage({ kind: 'ok', text: `Request sent! ${coupleNames.split('&')[0].trim() || 'The couple'}'s admin will need to approve it before it's added.` });
+        setNewPersonName('');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        setMessage({ kind: 'error', text: data.message || 'Could not send that request.' });
+      }
+    } catch {
+      setMessage({ kind: 'error', text: 'An error occurred. Please try again.' });
+    } finally {
+      setRequesting(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-3xl shadow-lg p-8">
+      <h2 className="text-2xl font-bold mb-2 text-gray-900">Who&apos;s Coming?</h2>
+      <p className="text-sm text-gray-600 mb-6">
+        Let {coupleNames} know who from your party will be attending.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {approved.map((invitee) => (
+          <div
+            key={invitee.id}
+            className="flex flex-wrap items-center justify-between gap-3 border border-gray-200 rounded-2xl px-4 py-3"
+          >
+            <span className="font-semibold text-gray-900">{invitee.name}</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setResponses((prev) => ({ ...prev, [invitee.id]: true }))}
+                className={`py-1.5 px-4 rounded-full text-sm font-semibold transition-colors ${
+                  responses[invitee.id] === true
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                }`}
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => setResponses((prev) => ({ ...prev, [invitee.id]: false }))}
+                className={`py-1.5 px-4 rounded-full text-sm font-semibold transition-colors ${
+                  responses[invitee.id] === false
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {pendingRequests.map((invitee) => (
+          <div
+            key={invitee.id}
+            className="flex items-center justify-between gap-3 border border-amber-200 bg-amber-50 rounded-2xl px-4 py-3"
+          >
+            <span className="font-semibold text-gray-700">{invitee.name}</span>
+            <span className="text-xs font-semibold text-amber-700">Waiting for admin approval</span>
+          </div>
+        ))}
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full py-3 px-6 rounded-full bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {saving ? 'Saving...' : 'Submit RSVP'}
+        </button>
+      </form>
+
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <label htmlFor="newPerson" className="block text-sm font-semibold text-gray-700 mb-2">
+          Need to add someone not on this list?
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="newPerson"
+            value={newPersonName}
+            onChange={(e) => setNewPersonName(e.target.value)}
+            placeholder="Their full name"
+            className="flex-1 px-4 py-2 rounded-full border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="button"
+            onClick={handleRequestAddPerson}
+            disabled={requesting || !newPersonName.trim()}
+            className="py-2 px-5 rounded-full border-2 border-blue-600 text-blue-600 font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors"
+          >
+            {requesting ? 'Sending...' : 'Request'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          This needs a quick approval before it&apos;s added to your list.
+        </p>
+      </div>
+
+      {message && (
+        <div
+          className={`mt-6 p-4 rounded-2xl ${
+            message.kind === 'ok'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {message.text}
         </div>
       )}
     </div>

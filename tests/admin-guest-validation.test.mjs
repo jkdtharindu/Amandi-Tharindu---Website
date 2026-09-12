@@ -111,3 +111,39 @@ test('reports every invalid field at once', () => {
     'slotCount',
   ]);
 });
+
+test('inviteeNames, when given, derives slotCount from the list length', () => {
+  const result = validateGuestInput({
+    name: 'Nimal Silva',
+    relationship: 'Relations',
+    slotCount: '1', // deliberately wrong -- inviteeNames should win
+    inviteeNames: ['John Silva', 'Maria Silva', 'Sarah Silva'],
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(result.value.slotCount, 3);
+  assert.deepEqual(result.value.inviteeNames, ['John Silva', 'Maria Silva', 'Sarah Silva']);
+});
+
+test('inviteeNames rejects a blank name in the list', () => {
+  const result = validateGuestInput({
+    name: 'Nimal Silva',
+    relationship: 'Relations',
+    inviteeNames: ['John Silva', '  '],
+  });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.inviteeNames);
+});
+
+test('omitting inviteeNames keeps the legacy manual slotCount flow', () => {
+  const result = validateGuestInput({
+    name: 'Nimal Silva',
+    relationship: 'Relations',
+    slotCount: '4',
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(result.value.slotCount, 4);
+  assert.equal(result.value.inviteeNames, undefined);
+});

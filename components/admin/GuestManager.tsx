@@ -26,6 +26,7 @@ type FormState = {
   relationship: string;
   slotCount: string;
   whatsappNumber: string;
+  inviteeNames: string[];
 };
 
 /** Guest CRUD, filtering, and search (PRD P0-07). */
@@ -43,6 +44,7 @@ export default function GuestManager({
     relationship: categories[0] || 'Relations',
     slotCount: '1',
     whatsappNumber: '',
+    inviteeNames: [],
   };
   const [guests, setGuests] = useState<Guest[]>(initialGuests);
   const [reminderGuest, setReminderGuest] = useState<Guest | null>(null);
@@ -106,6 +108,7 @@ export default function GuestManager({
       relationship: guest.relationship,
       slotCount: String(guest.slotCount),
       whatsappNumber: guest.whatsappNumber ?? '',
+      inviteeNames: [],
     });
     setFieldErrors({});
     setShowForm(true);
@@ -118,12 +121,23 @@ export default function GuestManager({
     setMessage(null);
 
     const url = editing ? '/api/admin/guests/' + editing.id : '/api/admin/guests';
+    const trimmedInviteeNames = form.inviteeNames.map((n) => n.trim()).filter(Boolean);
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      relationship: form.relationship,
+      whatsappNumber: form.whatsappNumber,
+    };
+    if (!editing && trimmedInviteeNames.length > 0) {
+      payload.inviteeNames = trimmedInviteeNames;
+    } else {
+      payload.slotCount = Number(form.slotCount);
+    }
 
     try {
       const res = await fetch(url, {
         method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ ...form, slotCount: Number(form.slotCount) }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
@@ -346,9 +360,14 @@ export default function GuestManager({
                 min={1}
                 max={99}
                 required
-                value={form.slotCount}
+                disabled={!editing && form.inviteeNames.length > 0}
+                value={
+                  !editing && form.inviteeNames.length > 0
+                    ? String(form.inviteeNames.length)
+                    : form.slotCount
+                }
                 onChange={(e) => setForm({ ...form, slotCount: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm disabled:bg-slate-100 disabled:text-slate-500"
               />
               {fieldErrors.slotCount && (
                 <p className="mt-1 text-xs text-red-700">{fieldErrors.slotCount}</p>
@@ -371,6 +390,56 @@ export default function GuestManager({
               />
             </div>
           </div>
+
+          {!editing && (
+            <div className="mt-4">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Invitee names <span className="font-normal">(optional — name each person in this party)</span>
+              </label>
+              <div className="space-y-2">
+                {form.inviteeNames.map((name, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      value={name}
+                      onChange={(e) => {
+                        const next = [...form.inviteeNames];
+                        next[index] = e.target.value;
+                        setForm({ ...form, inviteeNames: next });
+                      }}
+                      placeholder={`Person ${index + 1}`}
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          inviteeNames: form.inviteeNames.filter((_, i) => i !== index),
+                        })
+                      }
+                      className="px-3 py-2 rounded-lg border border-slate-300 text-sm text-rose-600 hover:bg-rose-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, inviteeNames: [...form.inviteeNames, ''] })}
+                className="mt-2 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold hover:bg-slate-100"
+              >
+                + Add a person
+              </button>
+              {fieldErrors.inviteeNames && (
+                <p className="mt-1 text-xs text-red-700">{fieldErrors.inviteeNames}</p>
+              )}
+              <p className="mt-2 text-xs text-slate-500">
+                Add a name per person and the guest can accept or decline for each one
+                individually. Leave this empty to use a simple headcount instead.
+              </p>
+            </div>
+          )}
 
           {!editing && (
             <p className="mt-3 text-xs text-slate-500">

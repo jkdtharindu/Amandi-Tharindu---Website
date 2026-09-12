@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { findGuestById, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
+import { listInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
 import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
@@ -33,6 +34,18 @@ export default async function InvitationPage({
   const rsvp = await findRsvpResponseByGuestId(guest.id);
   const hasResponded = Boolean(rsvp);
   const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
+
+  // Multi-person invitations with named invitees (2026-09) let the guest
+  // accept/decline per person instead of one status for the whole party.
+  // listInviteesForGuest() must never throw -- same reasoning as
+  // getThemeSettings/listEvents below.
+  let invitees;
+  try {
+    invitees = await listInviteesForGuest(guest.id);
+  } catch (error) {
+    console.error('listInviteesForGuest failed, falling back to none:', error);
+    invitees = [];
+  }
 
   // getThemeSettings() hits the DB on every request; this must never throw,
   // or a transient DB hiccup takes down every page on the site.
@@ -134,6 +147,7 @@ export default async function InvitationPage({
             hasResponded={hasResponded}
             currentRsvpStatus={rsvpStatus}
             coupleNames={settings.coupleNames}
+            invitees={invitees}
           />
         </div>
       </main>
