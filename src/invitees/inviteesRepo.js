@@ -4,6 +4,12 @@ import { invitees } from '../data/inviteesStore.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
+// Postgres invalid_text_representation -- thrown when a non-UUID string
+// (e.g. a malformed or stale id in a request) is compared against a uuid
+// column. Treated as "not found" rather than a server error, the same way
+// an unmatched real id already is.
+const INVALID_UUID = '22P02';
+
 export function mapInviteeRow(row) {
   if (!row) return null;
   return {
@@ -88,11 +94,16 @@ export async function listInviteesForGuest(guestId) {
       .map((invitee) => ({ ...invitee }));
   }
 
-  const { rows } = await query(
-    'SELECT * FROM invitees WHERE guest_id = $1 ORDER BY display_order ASC',
-    [guestId]
-  );
-  return rows.map(mapInviteeRow);
+  try {
+    const { rows } = await query(
+      'SELECT * FROM invitees WHERE guest_id = $1 ORDER BY display_order ASC',
+      [guestId]
+    );
+    return rows.map(mapInviteeRow);
+  } catch (error) {
+    if (error.code === INVALID_UUID) return [];
+    throw error;
+  }
 }
 
 /** Only the approved invitees for a guest — what counts toward RSVP/seating. */
@@ -122,8 +133,13 @@ export async function getInviteeById(id) {
     return invitee ? { ...invitee } : null;
   }
 
-  const { rows } = await query('SELECT * FROM invitees WHERE id = $1', [id]);
-  return mapInviteeRow(rows[0]);
+  try {
+    const { rows } = await query('SELECT * FROM invitees WHERE id = $1', [id]);
+    return mapInviteeRow(rows[0]);
+  } catch (error) {
+    if (error.code === INVALID_UUID) return null;
+    throw error;
+  }
 }
 
 export async function approveInvitee(id) {
