@@ -21,6 +21,7 @@ import {
   listUnassignedInvitees,
   assignInviteeToSeat,
   unassignInviteeFromSeat,
+  unassignSeatByInviteeId,
 } from '../src/table-arrangement/tableArrangementRepo.js';
 import { seatingTables } from '../src/data/tableArrangementStore.js';
 import { guestStore } from '../src/data/guestStore.js';
@@ -637,6 +638,34 @@ test('unassigning an invitee frees them to be seated elsewhere', async (t) => {
   await assignInviteeToSeat(table.seats[1].id, john.id);
   const [refreshed] = await listSeatingTables();
   assert.equal(refreshed.seats[1].inviteeId, john.id);
+});
+
+test('unassignSeatByInviteeId frees the seat a specific invitee occupies', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john] = await createInviteesForGuest('g2', ['John']);
+  john.rsvpStatus = 'accepted';
+
+  const table = await createSeatingTable({ tableNumber: 1, capacity: 1 });
+  await assignInviteeToSeat(table.seats[0].id, john.id);
+
+  await unassignSeatByInviteeId(john.id);
+
+  const [after] = await listSeatingTables();
+  assert.equal(after.seats[0].inviteeId, null, 'the seat is open again');
+  assert.deepEqual((await listUnassignedInvitees()).map((i) => i.id), [john.id]);
+});
+
+test('unassignSeatByInviteeId is a no-op when the invitee was never seated', async (t) => {
+  resetStores();
+  t.after(resetStores);
+
+  const [john] = await createInviteesForGuest('g2', ['John']);
+  john.rsvpStatus = 'accepted';
+
+  await assert.doesNotReject(() => unassignSeatByInviteeId(john.id));
+  assert.deepEqual((await listUnassignedInvitees()).map((i) => i.id), [john.id]);
 });
 
 test('two invitees from the same party can be seated at different tables independently', async (t) => {

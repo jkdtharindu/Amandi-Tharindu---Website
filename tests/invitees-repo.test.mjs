@@ -11,6 +11,8 @@ import {
   updateInviteeRsvpStatuses,
   requestNewInvitee,
   deriveGuestRsvpStatus,
+  deleteInvitee,
+  getInviteeById,
 } from '../src/invitees/inviteesRepo.js';
 import { validateInviteeNames, validateRequestedInviteeName } from '../src/invitees/validateInvitees.js';
 import { invitees } from '../src/data/inviteesStore.js';
@@ -176,4 +178,22 @@ test('deriveGuestRsvpStatus ignores pending-approval invitees entirely', () => {
 
 test('deriveGuestRsvpStatus is pending with no approved invitees at all', () => {
   assert.equal(deriveGuestRsvpStatus([]), 'pending');
+});
+
+test('deleteInvitee permanently removes the row', async () => {
+  const [john, maria] = await createInviteesForGuest('guest-1', ['John', 'Maria']);
+
+  const result = await deleteInvitee(john.id);
+  assert.equal(result.success, true);
+  assert.equal(result.invitee.name, 'John');
+
+  assert.equal(await getInviteeById(john.id), null);
+  const remaining = await listInviteesForGuest('guest-1');
+  assert.deepEqual(remaining.map((i) => i.id), [maria.id]);
+});
+
+test('deleteInvitee returns not-found for an unknown id', async () => {
+  const result = await deleteInvitee('does-not-exist');
+  assert.equal(result.success, false);
+  assert.equal(result.reason, 'invitee_not_found');
 });

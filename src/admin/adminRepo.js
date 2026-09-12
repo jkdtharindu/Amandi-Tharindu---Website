@@ -1,6 +1,7 @@
 import { query } from '../db.js';
 import { guestStore } from '../data/guestStore.js';
 import { rsvpResponses } from '../data/rsvpStore.js';
+import { invitees } from '../data/inviteesStore.js';
 import { mapGuestRow, mapResponseRow } from '../guest-auth/guestRepo.js';
 import { generateGuestCode } from './generateGuestCode.js';
 import { createInviteesForGuest } from '../invitees/inviteesRepo.js';
@@ -125,6 +126,32 @@ export async function incrementGuestSlotCount(id) {
 
   const { rows } = await query(
     `UPDATE guests SET slot_count = slot_count + 1 WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return mapGuestRow(rows[0]);
+}
+
+/**
+ * Recomputes a guest's stored headcount from the ground truth — how many of
+ * their invitees are still approved — rather than incrementing/decrementing
+ * a counter that can drift (the edit form also lets slot_count be typed
+ * directly, so a relative -1 on delete could compound an existing mismatch).
+ * Called after an admin removes one named person from the party.
+ */
+export async function syncGuestSlotCountToInvitees(id) {
+  if (!isDbEnabled()) {
+    const guest = guestStore.find((entry) => entry.id === id);
+    if (!guest) return null;
+    guest.slotCount = invitees.filter(
+      (entry) => entry.guestId === id && entry.approvalStatus === 'approved'
+    ).length;
+    return guest;
+  }
+
+  const { rows } = await query(
+    `UPDATE guests SET slot_count = (
+       SELECT COUNT(*)::int FROM invitees WHERE guest_id = $1 AND approval_status = 'approved'
+     ) WHERE id = $1 RETURNING *`,
     [id]
   );
   return mapGuestRow(rows[0]);

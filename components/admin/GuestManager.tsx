@@ -29,6 +29,8 @@ type FormState = {
   inviteeNames: string[];
 };
 
+type ExistingInvitee = { id: string; name: string; rsvpStatus: string };
+
 /** Guest CRUD, filtering, and search (PRD P0-07). */
 export default function GuestManager({
   initialGuests,
@@ -56,6 +58,8 @@ export default function GuestManager({
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [existingInvitees, setExistingInvitees] = useState<ExistingInvitee[]>([]);
+  const [removingInviteeId, setRemovingInviteeId] = useState<string | null>(null);
 
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(
     null
@@ -98,7 +102,18 @@ export default function GuestManager({
     setEditing(null);
     setForm(EMPTY_FORM);
     setFieldErrors({});
+    setExistingInvitees([]);
     setShowForm(true);
+  }
+
+  async function loadExistingInvitees(guestId: string) {
+    try {
+      const res = await fetch('/api/admin/guests/' + guestId + '/invitees');
+      const data = await res.json();
+      if (data.success) setExistingInvitees(data.invitees);
+    } catch {
+      // Non-fatal — the edit form still works without the invitee list.
+    }
   }
 
   function openEdit(guest: Guest) {
@@ -111,7 +126,49 @@ export default function GuestManager({
       inviteeNames: [],
     });
     setFieldErrors({});
+    setExistingInvitees([]);
+    void loadExistingInvitees(guest.id);
     setShowForm(true);
+  }
+
+  async function handleRemoveInvitee(invitee: ExistingInvitee) {
+    if (!editing) return;
+    const confirmed = window.confirm(
+      'Remove ' +
+        invitee.name +
+        ' from this party?\n\n' +
+        'If they were already seated, their seat becomes open again.'
+    );
+    if (!confirmed) return;
+
+    setRemovingInviteeId(invitee.id);
+    setMessage(null);
+
+    try {
+      // Fetched fresh right before use, not the mount-time token above -- see
+      // TASKS.md Action 19a: /api/csrf rotates the token on every call, so a
+      // cached one can already be stale by the time this fires.
+      const csrfRes = await fetch('/api/csrf');
+      const { token: freshCsrfToken } = await csrfRes.json();
+
+      const res = await fetch(
+        '/api/admin/guests/' + editing.id + '/invitees/' + invitee.id,
+        { method: 'DELETE', headers: { 'x-csrf-token': freshCsrfToken } }
+      );
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setExistingInvitees(data.invitees);
+        setMessage({ kind: 'ok', text: 'Removed ' + invitee.name + '.' });
+        await load();
+      } else {
+        setMessage({ kind: 'error', text: data.message || 'Could not remove that person.' });
+      }
+    } catch {
+      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setRemovingInviteeId(null);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -360,17 +417,27 @@ export default function GuestManager({
                 min={1}
                 max={99}
                 required
-                disabled={!editing && form.inviteeNames.length > 0}
+                disabled={
+                  (!editing && form.inviteeNames.length > 0) ||
+                  (editing !== null && existingInvitees.length > 0)
+                }
                 value={
                   !editing && form.inviteeNames.length > 0
                     ? String(form.inviteeNames.length)
-                    : form.slotCount
+                    : editing && existingInvitees.length > 0
+                      ? String(existingInvitees.length)
+                      : form.slotCount
                 }
                 onChange={(e) => setForm({ ...form, slotCount: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm disabled:bg-slate-100 disabled:text-slate-500"
               />
               {fieldErrors.slotCount && (
                 <p className="mt-1 text-xs text-red-700">{fieldErrors.slotCount}</p>
+              )}
+              {editing && existingInvitees.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Derived from the named people below — remove someone there to reduce it.
+                </p>
               )}
             </div>
 
@@ -390,6 +457,40 @@ export default function GuestManager({
               />
             </div>
           </div>
+
+          {editing && existingInvitees.length > 0 && (
+            <div className="mt-4">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                People in this party
+              </label>
+              <div className="space-y-2">
+                {existingInvitees.map((invitee) => (
+                  <div
+                    key={invitee.id}
+                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-300 text-sm"
+                  >
+                    <span>
+                      {invitee.name}{' '}
+                      <span className="text-xs text-slate-500">({invitee.rsvpStatus})</span>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={removingInviteeId === invitee.id}
+                      onClick={() => handleRemoveInvitee(invitee)}
+                      className="px-3 py-1 rounded-lg border border-rose-300 text-rose-600 text-xs font-semibold hover:bg-rose-50 disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Removing someone here deletes their invitation permanently and frees their seat
+                if they had one. To add a new person instead, the guest can request it from their
+                invitation page for your approval above.
+              </p>
+            </div>
+          )}
 
           {!editing && (
             <div className="mt-4">

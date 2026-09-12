@@ -420,6 +420,26 @@ export async function unassignInviteeFromSeat(seatId) {
 }
 
 /**
+ * Finds whichever seat (if any) currently holds this invitee and clears it,
+ * so deleting the invitee doesn't leave a seat stranded on a now-nonexistent
+ * occupant. A no-op if the invitee was never seated. Called before deleting
+ * the invitee row itself (see the DELETE /api/admin/guests/:id/invitees/:inviteeId route).
+ */
+export async function unassignSeatByInviteeId(inviteeId) {
+  if (!useDb) {
+    for (const table of seatingTables) {
+      const seat = table.seats.find((entry) => entry.inviteeId === inviteeId);
+      if (seat) return unassignInviteeFromSeat(seat.id);
+    }
+    return null;
+  }
+
+  const { rows } = await query('SELECT id FROM table_seats WHERE invitee_id = $1', [inviteeId]);
+  if (!rows[0]) return null;
+  return unassignInviteeFromSeat(rows[0].id);
+}
+
+/**
  * Get all accepted guests who are not yet seated. A guest that has any
  * invitee rows is seated individually instead (see listUnassignedInvitees),
  * so it's excluded here even if the party itself shows 'accepted'.
