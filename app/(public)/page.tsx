@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Countdown from "@/components/public/Countdown";
@@ -37,9 +38,16 @@ export default async function HomePage() {
     sections = [];
   }
 
+  const heroClassName = settings.heroImageUrl
+    ? "hero-panel hero-panel--photo"
+    : "hero-panel";
+  const heroStyle = settings.heroImageUrl
+    ? ({ "--hero-image-url": `url(${JSON.stringify(settings.heroImageUrl)})` } as CSSProperties)
+    : undefined;
+
   return (
     <>
-      <section className="hero-panel">
+      <section className={heroClassName} style={heroStyle}>
         <svg className="hero-sprig" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
           <path d="M50 95 C48 70 46 45 44 15" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.2" />
           <path d="M44 30 C34 26 26 30 20 40 C30 42 38 40 44 30Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />

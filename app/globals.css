@@ -216,6 +216,31 @@ button {
   }
 
   /*
+   * Admin-uploaded hero photo (Phase 6 homepage redesign). Background image
+   * set inline via --hero-image-url; a dark overlay keeps the countdown and
+   * heading readable regardless of how bright or busy the photo is, rather
+   * than depending on the admin picking a photo with a dark enough area.
+   */
+  .hero-panel--photo {
+    background-image: var(--hero-image-url);
+    background-size: cover;
+    background-position: center;
+    box-shadow: none;
+  }
+  .hero-panel--photo::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .hero-panel--photo h1,
+  .hero-panel--photo p {
+    color: var(--color-surface);
+  }
+
+  /*
    * Corner accent (2026-09-12 "Moonlight Sprig" design pass) -- a single
    * hand-drawn line-art sprig, quieter and fainter in the opposite corner,
    * rather than a shape change or new color. Purely decorative: hidden from
