@@ -1,4 +1,5 @@
-export const themeSettings = {
+// globalThis-backed -- see MEMORY.md's 2026-09-12 entry for why.
+export const themeSettings = (globalThis.__themeSettings ??= {
   id: 'theme-1',
   paletteName: 'modern-royal-romance',
   primaryColor: '#4A1525',
@@ -22,4 +23,4 @@ export const themeSettings = {
   // Changing these affects codes generated afterwards, never existing ones.
   invitationCodeSurnamePosition: 'first',
   invitationCodeGroupPrefix: false,
-};
+});

@@ -7,7 +7,8 @@
  * without a database. They use the PRD's [Name]/[Code]/[Link]/[Date]/[Venue]
  * placeholder spelling — see renderTemplate() in src/admin/messageTemplates.js.
  */
-export const messageTemplates = [
+// globalThis-backed -- see MEMORY.md's 2026-09-12 entry for why.
+export const messageTemplates = (globalThis.__messageTemplates ??= [
   {
     id: 'template-initial-invite',
     name: 'initial_invite',
@@ -32,4 +33,4 @@ export const messageTemplates = [
     body: "Dear [Name], thank you so much for confirming your attendance! We can't wait to celebrate with you on [Date] at [Venue]. With love, Tharindu & Amandi 💍🎊",
     channel: 'whatsapp',
   },
-];
+]);

@@ -23,9 +23,12 @@ if (process.env.NODE_ENV === 'production' && (!envEmail || !envPasswordHash)) {
   throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD_HASH are required in production');
 }
 
-export const adminStore = [];
+// globalThis-backed -- see MEMORY.md's 2026-09-12 entry for why. The
+// length-0 guard below stops a second module instantiation (sharing this
+// same array via globalThis) from pushing a duplicate admin row.
+export const adminStore = (globalThis.__adminStore ??= []);
 
-if (envEmail && envPasswordHash) {
+if (envEmail && envPasswordHash && adminStore.length === 0) {
   adminStore.push({
     id: 'admin-1',
     email: envEmail,

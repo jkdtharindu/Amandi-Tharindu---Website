@@ -6,7 +6,8 @@
  * Seeded with the same two events the-celebration page has hardcoded since
  * launch, mirroring migration 009's seed rows.
  */
-export const celebrationEvents = [
+// globalThis-backed -- see MEMORY.md's 2026-09-12 entry for why.
+export const celebrationEvents = (globalThis.__celebrationEvents ??= [
   {
     id: 'event-ceremony',
     name: 'Ceremony',
@@ -27,4 +28,4 @@ export const celebrationEvents = [
     imageUrl: '',
     displayOrder: 1,
   },
-];
+]);

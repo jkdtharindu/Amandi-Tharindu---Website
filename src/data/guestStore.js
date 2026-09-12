@@ -1,4 +1,5 @@
-export const guestStore = [
+// globalThis-backed -- see MEMORY.md's 2026-09-12 entry for why.
+export const guestStore = (globalThis.__guestStore ??= [
   {
     id: 'guest-1',
     code: 'SILVA-001',
@@ -23,4 +24,4 @@ export const guestStore = [
     isDeleted: true,
     hasVisited: false,
   }
-];
+]);

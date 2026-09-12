@@ -5,4 +5,5 @@
  * stay snake_case (table_number, table_name) while seats are camelCase, so the
  * admin page renders identically with or without a database.
  */
-export const seatingTables = [];
+// globalThis-backed -- see MEMORY.md's 2026-09-12 entry for why.
+export const seatingTables = (globalThis.__seatingTables ??= []);
