@@ -18,6 +18,7 @@ interface InvitationClientProps {
   currentRsvpStatus: string;
   coupleNames?: string;
   invitees?: Invitee[];
+  weddingDate?: string;
 }
 
 export default function InvitationClient({
@@ -27,9 +28,10 @@ export default function InvitationClient({
   currentRsvpStatus,
   coupleNames = "Amandi & Tharindu",
   invitees = [],
+  weddingDate = "",
 }: InvitationClientProps) {
   if (invitees.length > 0) {
-    return <InviteeChecklist guestCode={guestCode} coupleNames={coupleNames} invitees={invitees} />;
+    return <InviteeChecklist guestCode={guestCode} coupleNames={coupleNames} invitees={invitees} weddingDate={weddingDate} />;
   }
 
   return (
@@ -39,6 +41,7 @@ export default function InvitationClient({
       hasResponded={hasResponded}
       currentRsvpStatus={currentRsvpStatus}
       coupleNames={coupleNames}
+      weddingDate={weddingDate}
     />
   );
 }
@@ -49,12 +52,14 @@ function LegacyRsvpForm({
   hasResponded,
   currentRsvpStatus,
   coupleNames,
+  weddingDate,
 }: {
   guestCode: string;
   slotCount: number;
   hasResponded: boolean;
   currentRsvpStatus: string;
   coupleNames: string;
+  weddingDate: string;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [attending, setAttending] = useState(currentRsvpStatus !== 'declined');
@@ -102,7 +107,15 @@ function LegacyRsvpForm({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage('Thank you! Your response has been saved. We look forward to seeing you!');
+        let msg: string;
+        if (attending && weddingDate) {
+          msg = `RSVP submitted — see you on ${weddingDate}!`;
+        } else if (attending) {
+          msg = 'RSVP submitted. We look forward to seeing you!';
+        } else {
+          msg = 'Thank you for letting us know. We hope to celebrate together another time.';
+        }
+        setMessage(msg);
         setTimeout(() => {
           window.location.reload();
         }, 2000);
@@ -253,10 +266,12 @@ function InviteeChecklist({
   guestCode,
   coupleNames,
   invitees,
+  weddingDate,
 }: {
   guestCode: string;
   coupleNames: string;
   invitees: Invitee[];
+  weddingDate: string;
 }) {
   const approved = invitees
     .filter((invitee) => invitee.approvalStatus === 'approved')
@@ -307,7 +322,16 @@ function InviteeChecklist({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({ kind: 'ok', text: 'Thank you! Your response has been saved.' });
+        const anyAccepted = approved.some((invitee) => responses[invitee.id] === true);
+        let text: string;
+        if (anyAccepted && weddingDate) {
+          text = `RSVP submitted — see you on ${weddingDate}!`;
+        } else if (anyAccepted) {
+          text = 'RSVP submitted. We look forward to seeing you!';
+        } else {
+          text = 'Thank you for letting us know. We hope to celebrate together another time.';
+        }
+        setMessage({ kind: 'ok', text });
         setTimeout(() => window.location.reload(), 1500);
       } else {
         setMessage({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });

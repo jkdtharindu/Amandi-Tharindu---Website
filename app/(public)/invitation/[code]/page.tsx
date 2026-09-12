@@ -148,6 +148,7 @@ export default async function InvitationPage({
             currentRsvpStatus={rsvpStatus}
             coupleNames={settings.coupleNames}
             invitees={invitees}
+            weddingDate={settings.weddingDate ? formatWeddingDate(settings.weddingDate) : ''}
           />
         </div>
       </main>
