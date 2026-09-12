@@ -18,16 +18,8 @@ export type InviteeRequest = {
  */
 export default function InviteeRequests() {
   const [requests, setRequests] = useState<InviteeRequest[]>([]);
-  const [csrfToken, setCsrfToken] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch('/api/csrf')
-      .then((res) => res.json())
-      .then((data) => setCsrfToken(data.token))
-      .catch(() => {});
-  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +40,12 @@ export default function InviteeRequests() {
     setBusyId(id);
     setMessage(null);
     try {
+      // Fetched fresh right before use, not cached from mount: /api/csrf issues
+      // a new token (and cookie) on every call, so a token cached earlier can
+      // already be stale by the time this fires -- see TASKS.md Action 19a.
+      const csrfRes = await fetch('/api/csrf');
+      const { token: csrfToken } = await csrfRes.json();
+
       const res = await fetch(`/api/admin/invitee-requests/${id}/${decision}`, {
         method: 'POST',
         headers: { 'x-csrf-token': csrfToken },
@@ -87,7 +85,7 @@ export default function InviteeRequests() {
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={busyId === req.id || !csrfToken}
+                disabled={busyId === req.id}
                 onClick={() => handleDecision(req.id, 'approve')}
                 className="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50"
               >
@@ -95,7 +93,7 @@ export default function InviteeRequests() {
               </button>
               <button
                 type="button"
-                disabled={busyId === req.id || !csrfToken}
+                disabled={busyId === req.id}
                 onClick={() => handleDecision(req.id, 'reject')}
                 className="px-3 py-1 rounded-lg border border-rose-300 text-rose-700 text-xs font-semibold hover:bg-rose-50 disabled:opacity-50"
               >
