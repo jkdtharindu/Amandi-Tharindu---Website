@@ -41,7 +41,7 @@ export default async function CelebrationPage() {
 
   return (
     <>
-      <section className="hero-panel">
+      <section className="hero-panel hero-panel--seal">
         <span className="hero-flag">Wedding events</span>
         <h1>Celebrate with us at the ceremony and reception.</h1>
         <p>

@@ -36,7 +36,7 @@ export default async function GalleryPage() {
 
   return (
     <>
-      <section className="hero-panel">
+      <section className="hero-panel hero-panel--seal">
         <span className="hero-flag">Gallery</span>
         <h1>Photos from our journey together.</h1>
         <p>

@@ -49,7 +49,7 @@ export default async function WishesPage() {
 
   return (
     <>
-      <section className="hero-panel">
+      <section className="hero-panel hero-panel--light">
         <span className="hero-flag">Wishes</span>
         <h1>Messages of love and blessings for our wedding.</h1>
         <p>

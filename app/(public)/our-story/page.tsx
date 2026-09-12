@@ -48,7 +48,7 @@ export default async function OurStoryPage() {
 
   return (
     <>
-      <section className="hero-panel">
+      <section className="hero-panel hero-panel--light">
         <span className="hero-flag">Our story</span>
         <h1>How our love story began and grew into a wedding celebration.</h1>
         <p>
