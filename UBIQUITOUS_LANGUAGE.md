@@ -46,6 +46,14 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `guest`, `member`, `attendee` in the context of family RSVP details
 - Example: A Guest with `slot_count = 4` can enter up to four participant names.
 - Note (proposed 2026-09-03, not yet built): each Participant will also carry an `AgeCategory` and an optional `SeatingTable` assignment — see PRD §14 and `TASKS.md`.
+- **Doc-drift flag (found 2026-09-12):** `Invitee` below shipped afterward (2026-09) and covers much of the same real-world thing — a named individual within a Guest's party — via a different, already-built mechanism (its own table, its own accept/decline, admin-approved guest-added rows). The two were never reconciled. Treat `Participant` as the still-unbuilt, finer-grained (AgeCategory/SeatingTable-per-person) vision, and `Invitee` as what a multi-person invitation with named individuals actually uses today; don't assume implementing one satisfies the other.
+
+### Invitee
+- Canonical name: `Invitee`
+- Definition: One named person within a multi-person Guest's party, with their own `RSVPStatus`, distinct from the party's own (a party's status is derived from its Invitees — see `deriveGuestRsvpStatus`). Created by the Admin up front, or requested by the Guest and held as `pending_approval` until the Admin approves it.
+- Do not call it: `participant` (see that entry's doc-drift flag above), `guest`, `member`, `attendee`
+- Example: A Guest with three named Invitees sees a per-person accept/decline checklist instead of one whole-party RSVP; removing an Invitee frees any `SeatAssignment` they held and recomputes the party's `SlotCount` from the remaining approved Invitees.
+- Note: Built 2026-09 (migration 012, `src/invitees/inviteesRepo.js`). Single-person Guests never get an Invitee row — their RSVP/seating behavior is unchanged. Individual removal (deleting one Invitee, not the whole party) shipped 2026-09-12.
 
 ### AgeCategory
 - Canonical name: `AgeCategory`
