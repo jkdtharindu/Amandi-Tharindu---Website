@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useToast } from '@/components/Toast';
 
 export type InviteeRequest = {
   id: string;
@@ -19,7 +20,7 @@ export type InviteeRequest = {
 export default function InviteeRequests() {
   const [requests, setRequests] = useState<InviteeRequest[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const showToast = useToast();
 
   const load = useCallback(async () => {
     try {
@@ -38,7 +39,6 @@ export default function InviteeRequests() {
 
   async function handleDecision(id: string, decision: 'approve' | 'reject') {
     setBusyId(id);
-    setMessage(null);
     try {
       const csrfRes = await fetch('/api/csrf');
       const { token: csrfToken } = await csrfRes.json();
@@ -49,13 +49,16 @@ export default function InviteeRequests() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setMessage(decision === 'approve' ? 'Request approved.' : 'Request rejected.');
+        showToast({
+          kind: 'ok',
+          text: decision === 'approve' ? 'Request approved.' : 'Request rejected.',
+        });
         await load();
       } else {
-        setMessage(data.message || 'Could not update that request.');
+        showToast({ kind: 'error', text: data.message || 'Could not update that request.' });
       }
     } catch {
-      setMessage('Something went wrong. Please try again.');
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusyId(null);
     }
@@ -68,7 +71,6 @@ export default function InviteeRequests() {
       <h2 className="font-semibold text-amber-900 mb-3">
         {requests.length} pending participant {requests.length === 1 ? 'request' : 'requests'}
       </h2>
-      {message && <p className="text-sm text-amber-800 mb-3">{message}</p>}
       <div className="space-y-2">
         {requests.map((req) => (
           <div

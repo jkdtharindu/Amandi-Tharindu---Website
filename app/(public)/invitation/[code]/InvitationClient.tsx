@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/components/Toast';
 
 export interface Invitee {
   id: string;
@@ -64,9 +65,9 @@ function LegacyRsvpForm({
   const [showForm, setShowForm] = useState(false);
   const [attending, setAttending] = useState(currentRsvpStatus !== 'declined');
   const [participantNames, setParticipantNames] = useState('');
-  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [csrfToken, setCsrfToken] = useState<string>('');
+  const showToast = useToast();
 
   useEffect(() => {
     // Fetch CSRF token on component mount
@@ -80,7 +81,7 @@ function LegacyRsvpForm({
     e.preventDefault();
 
     if (attending && !participantNames.trim()) {
-      setMessage('Please enter participant names or decline if you are not attending.');
+      showToast({ kind: 'error', text: 'Please enter participant names or decline if you are not attending.' });
       return;
     }
 
@@ -115,15 +116,15 @@ function LegacyRsvpForm({
         } else {
           msg = 'Thank you for letting us know. We hope to celebrate together another time.';
         }
-        setMessage(msg);
+        showToast({ kind: 'ok', text: msg });
         setTimeout(() => {
           window.location.reload();
         }, 2000);
       } else {
-        setMessage(data.message || data.reason || 'Unable to save RSVP. Please try again.');
+        showToast({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });
       }
     } catch {
-      setMessage('An error occurred. Please try again.');
+      showToast({ kind: 'error', text: 'An error occurred. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -237,21 +238,6 @@ function LegacyRsvpForm({
               </button>
             )}
           </form>
-
-          {/* Message */}
-          {message && (
-            <div
-              className={`mt-6 p-4 rounded-2xl ${
-                message.includes('Thank you')
-                  ? 'bg-green-50 text-green-800 border border-green-200'
-                  : 'bg-red-50 text-red-800 border border-red-200'
-              }`}
-              role="status"
-              aria-live="polite"
-            >
-              {message}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -290,7 +276,7 @@ function InviteeChecklist({
   const [csrfToken, setCsrfToken] = useState('');
   const [saving, setSaving] = useState(false);
   const [requesting, setRequesting] = useState(false);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const showToast = useToast();
 
   useEffect(() => {
     fetch('/api/csrf')
@@ -304,12 +290,11 @@ function InviteeChecklist({
 
     const unanswered = approved.filter((invitee) => responses[invitee.id] === null || responses[invitee.id] === undefined);
     if (unanswered.length > 0) {
-      setMessage({ kind: 'error', text: 'Please accept or decline for everyone in the list.' });
+      showToast({ kind: 'error', text: 'Please accept or decline for everyone in the list.' });
       return;
     }
 
     setSaving(true);
-    setMessage(null);
     try {
       const res = await fetch('/api/guest/rsvp', {
         method: 'POST',
@@ -331,13 +316,13 @@ function InviteeChecklist({
         } else {
           text = 'Thank you for letting us know. We hope to celebrate together another time.';
         }
-        setMessage({ kind: 'ok', text });
+        showToast({ kind: 'ok', text });
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        setMessage({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });
+        showToast({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'An error occurred. Please try again.' });
+      showToast({ kind: 'error', text: 'An error occurred. Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -348,7 +333,6 @@ function InviteeChecklist({
     if (!name) return;
 
     setRequesting(true);
-    setMessage(null);
     try {
       const res = await fetch('/api/guest/invitees/request', {
         method: 'POST',
@@ -358,14 +342,14 @@ function InviteeChecklist({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({ kind: 'ok', text: `Request sent! ${coupleNames.split('&')[0].trim() || 'The couple'}'s admin will need to approve it before it's added.` });
+        showToast({ kind: 'ok', text: `Request sent! ${coupleNames.split('&')[0].trim() || 'The couple'}'s admin will need to approve it before it's added.` });
         setNewPersonName('');
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        setMessage({ kind: 'error', text: data.message || 'Could not send that request.' });
+        showToast({ kind: 'error', text: data.message || 'Could not send that request.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'An error occurred. Please try again.' });
+      showToast({ kind: 'error', text: 'An error occurred. Please try again.' });
     } finally {
       setRequesting(false);
     }
@@ -456,20 +440,6 @@ function InviteeChecklist({
           This needs a quick approval before it&apos;s added to your list.
         </p>
       </div>
-
-      {message && (
-        <div
-          className={`mt-6 p-4 rounded-2xl ${
-            message.kind === 'ok'
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {message.text}
-        </div>
-      )}
     </div>
   );
 }

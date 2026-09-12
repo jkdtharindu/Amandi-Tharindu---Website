@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import WhatsAppReminderModal from './WhatsAppReminderModal';
+import { useToast } from '@/components/Toast';
 
 export type Guest = {
   id: string;
@@ -61,11 +62,9 @@ export default function GuestManager({
   const [existingInvitees, setExistingInvitees] = useState<ExistingInvitee[]>([]);
   const [removingInviteeId, setRemovingInviteeId] = useState<string | null>(null);
 
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(
-    null
-  );
   const [busy, setBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
+  const showToast = useToast();
 
   // Guards against an older in-flight request overwriting a newer result.
   const requestId = useRef(0);
@@ -74,8 +73,8 @@ export default function GuestManager({
     fetch('/api/csrf')
       .then((res) => res.json())
       .then((data) => setCsrfToken(data.token))
-      .catch(() => setMessage({ kind: 'error', text: 'Could not reach the server.' }));
-  }, []);
+      .catch(() => showToast({ kind: 'error', text: 'Could not reach the server.' }));
+  }, [showToast]);
 
   const load = useCallback(async () => {
     const id = ++requestId.current;
@@ -88,10 +87,10 @@ export default function GuestManager({
       if (data.success) setGuests(data.guests);
     } catch {
       if (id === requestId.current) {
-        setMessage({ kind: 'error', text: 'Could not load the guest list.' });
+        showToast({ kind: 'error', text: 'Could not load the guest list.' });
       }
     }
-  }, [status, relationship, search]);
+  }, [status, relationship, search, showToast]);
 
   useEffect(() => {
     const timer = setTimeout(load, search ? 250 : 0);
@@ -142,7 +141,6 @@ export default function GuestManager({
     if (!confirmed) return;
 
     setRemovingInviteeId(invitee.id);
-    setMessage(null);
 
     try {
       const res = await fetch(
@@ -153,13 +151,13 @@ export default function GuestManager({
 
       if (res.ok && data.success) {
         setExistingInvitees(data.invitees);
-        setMessage({ kind: 'ok', text: 'Removed ' + invitee.name + '.' });
+        showToast({ kind: 'ok', text: 'Removed ' + invitee.name + '.' });
         await load();
       } else {
-        setMessage({ kind: 'error', text: data.message || 'Could not remove that person.' });
+        showToast({ kind: 'error', text: data.message || 'Could not remove that person.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setRemovingInviteeId(null);
     }
@@ -169,7 +167,6 @@ export default function GuestManager({
     event.preventDefault();
     setBusy(true);
     setFieldErrors({});
-    setMessage(null);
 
     const url = editing ? '/api/admin/guests/' + editing.id : '/api/admin/guests';
     const trimmedInviteeNames = form.inviteeNames.map((n) => n.trim()).filter(Boolean);
@@ -193,7 +190,7 @@ export default function GuestManager({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({
+        showToast({
           kind: 'ok',
           text: editing
             ? 'Updated ' + data.guest.name + '.'
@@ -206,9 +203,9 @@ export default function GuestManager({
       }
 
       if (data.errors) setFieldErrors(data.errors);
-      setMessage({ kind: 'error', text: data.message || 'Could not save the guest.' });
+      showToast({ kind: 'error', text: data.message || 'Could not save the guest.' });
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -226,7 +223,6 @@ export default function GuestManager({
     if (!confirmed) return;
 
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/guests/' + guest.id, {
@@ -236,16 +232,16 @@ export default function GuestManager({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({ kind: 'ok', text: 'Removed ' + guest.name + '.' });
+        showToast({ kind: 'ok', text: 'Removed ' + guest.name + '.' });
         await load();
       } else {
-        setMessage({
+        showToast({
           kind: 'error',
           text: data.message || 'Could not remove the guest.',
         });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -329,20 +325,6 @@ export default function GuestManager({
           </button>
         </div>
       </div>
-
-      {message && (
-        <p
-          role="status"
-          className={
-            'mb-4 text-sm rounded-lg p-3 border ' +
-            (message.kind === 'ok'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-red-50 text-red-800 border-red-200')
-          }
-        >
-          {message.text}
-        </p>
-      )}
 
       {/* Add / edit form */}
       {showForm && (

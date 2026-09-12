@@ -931,6 +931,34 @@ button {
   to { opacity: 0; }
 }
 
+.toast-stack {
+  position: fixed;
+  z-index: 100;
+  bottom: 1rem;
+  right: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.toast-stack > * {
+  pointer-events: auto;
+  margin-left: auto;
+  width: 100%;
+  max-width: 24rem;
+}
+
+.toast-item {
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Honour the device's reduced-motion setting: everything appears at once, and
    SiteGate skips the envelope and opens the invitation straight away. */
 @media (prefers-reduced-motion: reduce) {
@@ -951,5 +979,9 @@ button {
   .gate-divider {
     animation: none;
     width: min(11rem, 60%);
+  }
+
+  .toast-item {
+    animation: none;
   }
 }
