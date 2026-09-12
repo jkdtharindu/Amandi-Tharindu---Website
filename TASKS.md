@@ -180,6 +180,55 @@ Not re-filed here because they're already tracked elsewhere in this file: the cl
 - Supabase integration is partially wired: migration runner and local seed script exist, but a live database connection still requires `DATABASE_URL`.
 - Session handling now uses signed cookies, but further production hardening is still advisable before any public exposure.
 
+## Issues Backlog — Consolidated Roast Pass (2026-09-12)
+
+A session was asked to review the project and list what's actually wrong with it. Nothing
+below is a new discovery except item 6 — every other item was already tracked in the
+Priority list above, a Next Action, or `docs/VIBE_CODING_PRODUCTION_CHECKLIST.md` §15. This
+section just pulls them into one punch list to work through one at a time, ranked by
+real-world impact. Check items off here as they close, and also update the original entry
+(Priority list / Next Action / checklist §15) so the historical record stays accurate.
+
+- [ ] **1. Rotate the exposed Neon database password.** Same item as the Priority list /
+  Next Action 18a. The scratch-branch connection string pasted into an earlier chat carries
+  the same password as the live database (Neon branches inherit the parent's role
+  passwords), and that password is now what `DATABASE_URL` carries in Vercel Production —
+  i.e., live and internet-reachable. Reset it in the Neon console, update `DATABASE_URL` in
+  both `.env` and Vercel Production, then redeploy. **Model: none — owner only, needs Neon
+  console access.**
+
+- [ ] **2. Fix `/api/csrf` at the root instead of patching call sites.** Same item as Next
+  Action 19a. `GET /api/csrf` (`app/api/csrf/route.ts`) mints a brand-new token and
+  overwrites the cookie on *every* call, so two components fetching their own token on the
+  same page race and invalidate each other. Two symptoms have already been patched
+  piecemeal (`InviteeRequests.tsx`, the guest gate's retry-once), but `GuestManager.tsx`
+  still fetches once on mount and carries the same latent bug, waiting for the next
+  component that shares its page. Fix: make the route reuse a still-valid existing token
+  instead of always minting a new one. **Model: Sonnet 5.**
+
+- [ ] **3. Make RSVP saving transactional.** Same item as Next Action 19d.
+  `upsertRsvpResponse` and `updateGuestRsvpStatus` (`app/api/guest/rsvp/route.ts`) are two
+  separate, unrelated database writes. A failure between them leaves `rsvp_status` stale,
+  and the route only logs it rather than repairing or retrying. Wrap both in one DB
+  transaction, or add a reconciliation path. **Model: Sonnet 5.**
+
+- [ ] **4. Decide and document a guest-data retention/deletion policy.** Flagged in
+  `docs/VIBE_CODING_PRODUCTION_CHECKLIST.md` §15. Guest records (name, phone number, RSVP
+  status, invitation code) are personal data; soft-delete exists, but nothing documents what
+  happens to the guest list after the wedding is over. Needs an owner decision first (how
+  long to keep it, who deletes it, how), then a short doc and possibly a scheduled cleanup
+  script. **Model: none — owner decision first; Haiku 4.5 to implement once decided.**
+
+- [ ] **5. Clean up the two real lint problems.** Residual note from Next Action 15/17.
+  `bin/append-memory.js` uses `require()`-style imports (2 errors); `scripts/ci-check-docs.js`
+  has 2 unused-var warnings (`err`, `err2`). Purely mechanical. **Model: Haiku 4.5.**
+
+- [ ] **6. De-duplicate the theme-settings fallback.** New finding from this pass.
+  `app/layout.tsx` and `app/(public)/layout.tsx` each carry an identical
+  `try { getThemeSettings() } catch { ...defaults }` block. Extract to one shared helper
+  (e.g. `src/theme/loadThemeSettingsSafe.js`). Cosmetic only, no behavior change.
+  **Model: Haiku 4.5.**
+
 ## Next Actions (step-by-step)
 1. ~~Theme editor (P1-10)~~ — done, reconciled 2026-09-04 (see Phase 4 note above).
 1a. ~~Wire `theme_settings.couple_names`/`wedding_date` into public pages~~ — done 2026-09-04. `SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, `app/layout.tsx` metadata, all five public page `<title>`s, and the invitation page's sticky RSVP bar now render live `theme_settings` values instead of hardcoded "Amandi & Tharindu" / 14 Dec 2026. New `src/theme/formatWeddingDate.js` shared helper. Verified via `npm test` (256/256), `npm run build`, and a live browser walkthrough against the DB. Countdown's ceremony start time (15:00) stays hardcoded — no time-of-day column exists on `wedding_date`. The invitation page's Ceremony/Reception venue/time details were deliberately left alone — `venue_name`/`venue_address` wiring belongs to Event Manager (P1-09, Next Action 3), not this slice.
