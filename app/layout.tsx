@@ -58,6 +58,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     "--color-canvas": settings.secondaryColor,
     "--color-accent": settings.accentColor,
     "--color-accent-deep": settings.accentColor,
+    "--color-text-base": settings.baseTextColor,
+    "--color-text-inverted": settings.invertedTextColor,
+    "--color-surface": settings.surfaceColor,
     "--font-sans": fontFamilyFor(settings.fontFamily),
     fontStyle: settings.fontStyle,
   };

@@ -48,6 +48,21 @@ export function validateThemeInput(input = {}) {
     errors.fontStyle = `Font style must be one of: ${FONT_STYLE_OPTIONS.join(', ')}.`;
   }
 
+  const baseTextColor = String(input.baseTextColor ?? '').trim();
+  if (!HEX_COLOR.test(baseTextColor)) {
+    errors.baseTextColor = 'Base text color must be a hex value like #2B2118.';
+  }
+
+  const invertedTextColor = String(input.invertedTextColor ?? '').trim();
+  if (!HEX_COLOR.test(invertedTextColor)) {
+    errors.invertedTextColor = 'Inverted text color must be a hex value like #FFFFFF.';
+  }
+
+  const surfaceColor = String(input.surfaceColor ?? '').trim();
+  if (!HEX_COLOR.test(surfaceColor)) {
+    errors.surfaceColor = 'Surface color must be a hex value like #FFFFFF.';
+  }
+
   const weddingDate = String(input.weddingDate ?? '').trim();
   if (!WEDDING_DATE_PATTERN.test(weddingDate)) {
     errors.weddingDate = 'Wedding date must be a valid date.';
@@ -65,6 +80,17 @@ export function validateThemeInput(input = {}) {
   return {
     valid: true,
     errors: {},
-    value: { primaryColor, secondaryColor, accentColor, fontFamily, fontStyle, weddingDate, weddingTime },
+    value: {
+      primaryColor,
+      secondaryColor,
+      accentColor,
+      baseTextColor,
+      invertedTextColor,
+      surfaceColor,
+      fontFamily,
+      fontStyle,
+      weddingDate,
+      weddingTime,
+    },
   };
 }

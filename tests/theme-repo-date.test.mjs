@@ -43,3 +43,25 @@ test('mapRow defaults wedding_time to 15:00 for a pre-migration row that has non
   const settings = mapRow(row);
   assert.equal(settings.weddingTime, '15:00');
 });
+
+test('mapRow reads base_text_color, inverted_text_color, and surface_color straight through', () => {
+  const row = {
+    id: 'theme-1',
+    wedding_date: new Date(2026, 11, 14),
+    base_text_color: '#111111',
+    inverted_text_color: '#EEEEEE',
+    surface_color: '#F5F5F5',
+  };
+  const settings = mapRow(row);
+  assert.equal(settings.baseTextColor, '#111111');
+  assert.equal(settings.invertedTextColor, '#EEEEEE');
+  assert.equal(settings.surfaceColor, '#F5F5F5');
+});
+
+test('mapRow defaults the three new colour fields for a pre-migration row that has none yet', () => {
+  const row = { id: 'theme-1', wedding_date: new Date(2026, 11, 14) };
+  const settings = mapRow(row);
+  assert.equal(settings.baseTextColor, '#2B2118');
+  assert.equal(settings.invertedTextColor, '#FFFFFF');
+  assert.equal(settings.surfaceColor, '#FFFFFF');
+});

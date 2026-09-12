@@ -1,7 +1,15 @@
 import { findPalette, findFontChoice } from './palettes.js';
 import { SURNAME_POSITIONS } from '../guest-auth/generateInvitationCode.js';
 
-const HEX_COLOR_FIELDS = ['primaryColor', 'secondaryColor', 'accentColor', 'invitationNameColor'];
+const HEX_COLOR_FIELDS = [
+  'primaryColor',
+  'secondaryColor',
+  'accentColor',
+  'invitationNameColor',
+  'baseTextColor',
+  'invertedTextColor',
+  'surfaceColor',
+];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -21,6 +29,9 @@ export const FIELD_LABELS = {
   primaryColor: { label: 'Main colour', hint: 'Used for buttons and highlights' },
   secondaryColor: { label: 'Background tint', hint: 'Soft background shade' },
   accentColor: { label: 'Accent colour', hint: 'Used for small highlights' },
+  baseTextColor: { label: 'Base text colour', hint: 'Used for ordinary body text' },
+  invertedTextColor: { label: 'Inverted text colour', hint: 'Used for text on a dark or coloured surface, like a button' },
+  surfaceColor: { label: 'Surface colour', hint: 'Background for cards and panels' },
   fontChoice: { label: 'Font pairing', hint: 'Pick a heading font from the curated list' },
   fontFamily: { label: 'Heading font', hint: 'For example Cormorant Garamond' },
   fontStyle: { label: 'Heading style', hint: 'normal or italic' },
@@ -65,6 +76,11 @@ export const THEME_FIELD_GROUPS = [
     id: 'colors',
     label: 'Advanced Colours (custom hex)',
     fields: ['primaryColor', 'secondaryColor', 'accentColor'],
+  },
+  {
+    id: 'text-surface-colors',
+    label: 'Text & Surface Colours',
+    fields: ['baseTextColor', 'invertedTextColor', 'surfaceColor'],
   },
   {
     id: 'font-choice',
@@ -118,6 +134,9 @@ export function mergeThemeUpdate(current, patch) {
       next.primaryColor = palette.primaryColor;
       next.secondaryColor = palette.secondaryColor;
       next.accentColor = palette.accentColor;
+      next.baseTextColor = palette.inkColor;
+      next.invertedTextColor = palette.invertedTextColor;
+      next.surfaceColor = palette.surfaceColor;
       continue;
     }
 
@@ -168,7 +187,7 @@ export function mergeThemeUpdate(current, patch) {
     // Editing a colour or font field directly (the advanced/custom path)
     // detaches it from whichever curated palette or font pairing it was
     // last set from, so the picker doesn't keep showing a stale selection.
-    if (['primaryColor', 'secondaryColor', 'accentColor'].includes(key)) {
+    if (['primaryColor', 'secondaryColor', 'accentColor', 'baseTextColor', 'invertedTextColor', 'surfaceColor'].includes(key)) {
       next.paletteName = '';
     }
     if (['fontFamily', 'fontStyle'].includes(key)) {

@@ -63,6 +63,40 @@ test('mergeThemeUpdate cascades a ThemePalette selection to all three colours', 
   assert.equal(settings.accentColor, '#866D3D');
 });
 
+test('mergeThemeUpdate cascades a ThemePalette selection to baseTextColor, invertedTextColor, and surfaceColor', () => {
+  const { settings, errors } = mergeThemeUpdate(themeSettings, { paletteName: 'terracotta' });
+  assert.deepEqual(errors, []);
+  assert.equal(settings.baseTextColor, '#2E1F17', "baseTextColor cascades from the palette's inkColor");
+  assert.equal(settings.invertedTextColor, '#FFFFFF');
+  assert.equal(settings.surfaceColor, '#FFFFFF');
+});
+
+test('mergeThemeUpdate accepts a valid hex value for each new text/surface field', () => {
+  for (const field of ['baseTextColor', 'invertedTextColor', 'surfaceColor']) {
+    const { settings, errors } = mergeThemeUpdate(themeSettings, { [field]: '#123ABC' });
+    assert.deepEqual(errors, [], `${field} should accept a valid hex`);
+    assert.equal(settings[field], '#123ABC');
+  }
+});
+
+test('mergeThemeUpdate rejects an invalid hex value for each new text/surface field', () => {
+  for (const field of ['baseTextColor', 'invertedTextColor', 'surfaceColor']) {
+    const { errors } = mergeThemeUpdate(themeSettings, { [field]: 'not-a-color' });
+    assert.equal(errors.length, 1, `${field} should reject a bad hex`);
+    assert.equal(errors[0].field, field);
+    assert.equal(errors[0].reason, 'invalid_hex_color');
+  }
+});
+
+test('editing baseTextColor, invertedTextColor, or surfaceColor directly detaches from the curated palette', () => {
+  for (const field of ['baseTextColor', 'invertedTextColor', 'surfaceColor']) {
+    const withPalette = mergeThemeUpdate(themeSettings, { paletteName: 'chateau-green' }).settings;
+    const { settings } = mergeThemeUpdate(withPalette, { [field]: '#654321' });
+    assert.equal(settings.paletteName, '', `editing ${field} should mark the palette as custom`);
+    assert.equal(settings[field], '#654321');
+  }
+});
+
 test('mergeThemeUpdate rejects an unknown paletteName', () => {
   const { errors } = mergeThemeUpdate(themeSettings, { paletteName: 'not-a-palette' });
   assert.equal(errors.length, 1);

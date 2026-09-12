@@ -31,6 +31,9 @@ export function mapRow(row) {
     primaryColor: row.primary_color,
     secondaryColor: row.secondary_color,
     accentColor: row.accent_color,
+    baseTextColor: row.base_text_color || '#2B2118',
+    invertedTextColor: row.inverted_text_color || '#FFFFFF',
+    surfaceColor: row.surface_color || '#FFFFFF',
     fontChoice: row.font_choice || '',
     fontFamily: row.font_family,
     fontStyle: row.font_style,
@@ -79,8 +82,9 @@ export async function updateThemeSettings(patch) {
       invitation_template_url = $9, invitation_name_top = $10, invitation_name_left = $11,
       invitation_name_font_size = $12, invitation_name_color = $13,
       couple_names = $14, wedding_date = $15, wedding_time = $16, venue_name = $17, venue_address = $18,
-      invitation_code_surname_position = $19, invitation_code_group_prefix = $20
-    WHERE id = $21`,
+      invitation_code_surname_position = $19, invitation_code_group_prefix = $20,
+      base_text_color = $21, inverted_text_color = $22, surface_color = $23
+    WHERE id = $24`,
     [
       settings.paletteName,
       settings.primaryColor,
@@ -102,6 +106,9 @@ export async function updateThemeSettings(patch) {
       settings.venueAddress,
       settings.invitationCodeSurnamePosition,
       settings.invitationCodeGroupPrefix,
+      settings.baseTextColor,
+      settings.invertedTextColor,
+      settings.surfaceColor,
       settings.id,
     ]
   );

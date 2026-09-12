@@ -3,6 +3,13 @@
  * these writes primaryColor/secondaryColor/accentColor (or fontFamily/
  * fontStyle) in one step, replacing free-form hex/font-name entry as the
  * primary path. Values must clear WCAG AA — see tests/theme-palettes.test.mjs.
+ *
+ * `inkColor` doubles as each palette's baseTextColor. `invertedTextColor`
+ * (for text on a primaryColor-ish dark surface) and `surfaceColor` (a neutral
+ * card background, distinct from the secondaryColor page tint) are white for
+ * every palette — verified to clear WCAG AA against every palette's
+ * primaryColor/inkColor, and matching the pre-existing hardcoded white cards
+ * site-wide, so introducing them doesn't shift any palette's look.
  */
 export const THEME_PALETTES = [
   {
@@ -12,6 +19,8 @@ export const THEME_PALETTES = [
     secondaryColor: '#F2F0E6',
     accentColor: '#A67C52',
     inkColor: '#1F2A22',
+    invertedTextColor: '#FFFFFF',
+    surfaceColor: '#FFFFFF',
   },
   {
     id: 'imperial-gold',
@@ -20,6 +29,8 @@ export const THEME_PALETTES = [
     secondaryColor: '#FFF8DC',
     accentColor: '#7A1F1F',
     inkColor: '#2B2118',
+    invertedTextColor: '#FFFFFF',
+    surfaceColor: '#FFFFFF',
   },
   {
     id: 'rose-blush',
@@ -28,6 +39,8 @@ export const THEME_PALETTES = [
     secondaryColor: '#FBF1F0',
     accentColor: '#B08D57',
     inkColor: '#2E2024',
+    invertedTextColor: '#FFFFFF',
+    surfaceColor: '#FFFFFF',
   },
   {
     id: 'midnight-silver',
@@ -36,6 +49,8 @@ export const THEME_PALETTES = [
     secondaryColor: '#F1F3F5',
     accentColor: '#8A94A6',
     inkColor: '#1C242E',
+    invertedTextColor: '#FFFFFF',
+    surfaceColor: '#FFFFFF',
   },
   {
     id: 'terracotta',
@@ -44,6 +59,8 @@ export const THEME_PALETTES = [
     secondaryColor: '#FBF2EA',
     accentColor: '#5F7A6B',
     inkColor: '#2E1F17',
+    invertedTextColor: '#FFFFFF',
+    surfaceColor: '#FFFFFF',
   },
   {
     id: 'modern-royal-romance',
@@ -52,6 +69,8 @@ export const THEME_PALETTES = [
     secondaryColor: '#FBF9F5',
     accentColor: '#866D3D',
     inkColor: '#4A1525',
+    invertedTextColor: '#FFFFFF',
+    surfaceColor: '#FFFFFF',
   },
 ];
 

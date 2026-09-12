@@ -11,6 +11,9 @@ const VALID_INPUT = {
   primaryColor: '#B8860B',
   secondaryColor: '#FFF8DC',
   accentColor: '#8B0000',
+  baseTextColor: '#2B2118',
+  invertedTextColor: '#FFFFFF',
+  surfaceColor: '#FFFFFF',
   fontFamily: 'Cormorant Garamond',
   fontStyle: 'italic',
   weddingDate: '2026-12-14',
@@ -55,6 +58,9 @@ test('reports every invalid field at once', () => {
     primaryColor: 'nope',
     secondaryColor: 'nope',
     accentColor: 'nope',
+    baseTextColor: 'nope',
+    invertedTextColor: 'nope',
+    surfaceColor: 'nope',
     fontFamily: 'Comic Sans',
     fontStyle: 'oblique',
     weddingDate: '14-12-2026',
@@ -64,13 +70,37 @@ test('reports every invalid field at once', () => {
   assert.equal(result.valid, false);
   assert.deepEqual(Object.keys(result.errors).sort(), [
     'accentColor',
+    'baseTextColor',
     'fontFamily',
     'fontStyle',
+    'invertedTextColor',
     'primaryColor',
     'secondaryColor',
+    'surfaceColor',
     'weddingDate',
     'weddingTime',
   ]);
+});
+
+test('rejects malformed hex colors for the text/surface fields', () => {
+  for (const field of ['baseTextColor', 'invertedTextColor', 'surfaceColor']) {
+    const result = validateThemeInput({ ...VALID_INPUT, [field]: 'not-a-hex' });
+    assert.equal(result.valid, false, `should reject ${field}`);
+    assert.ok(result.errors[field]);
+  }
+});
+
+test('accepts valid hex values for the text/surface fields', () => {
+  const result = validateThemeInput({
+    ...VALID_INPUT,
+    baseTextColor: '#111111',
+    invertedTextColor: '#EEEEEE',
+    surfaceColor: '#F5F5F5',
+  });
+  assert.equal(result.valid, true);
+  assert.equal(result.value.baseTextColor, '#111111');
+  assert.equal(result.value.invertedTextColor, '#EEEEEE');
+  assert.equal(result.value.surfaceColor, '#F5F5F5');
 });
 
 test('rejects a malformed wedding date', () => {

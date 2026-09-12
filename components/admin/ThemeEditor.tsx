@@ -6,6 +6,9 @@ export type ThemeSettings = {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+  baseTextColor: string;
+  invertedTextColor: string;
+  surfaceColor: string;
   fontFamily: string;
   fontStyle: string;
   weddingDate: string;
@@ -154,6 +157,66 @@ export default function ThemeEditor({
             />
             {fieldErrors.accentColor && (
               <p className="mt-1 text-xs text-red-700">{fieldErrors.accentColor}</p>
+            )}
+          </div>
+        </div>
+
+        <h2 className="font-semibold mb-4">Text &amp; Surface Colours</h2>
+        <div className="grid gap-4 sm:grid-cols-3 mb-6">
+          <div>
+            <label
+              htmlFor="baseTextColor"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Base text
+            </label>
+            <input
+              id="baseTextColor"
+              type="color"
+              value={form.baseTextColor}
+              onChange={(e) => setForm({ ...form, baseTextColor: e.target.value })}
+              className="w-full h-10 rounded-lg border border-slate-300"
+            />
+            {fieldErrors.baseTextColor && (
+              <p className="mt-1 text-xs text-red-700">{fieldErrors.baseTextColor}</p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="invertedTextColor"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Inverted text
+            </label>
+            <input
+              id="invertedTextColor"
+              type="color"
+              value={form.invertedTextColor}
+              onChange={(e) => setForm({ ...form, invertedTextColor: e.target.value })}
+              className="w-full h-10 rounded-lg border border-slate-300"
+            />
+            {fieldErrors.invertedTextColor && (
+              <p className="mt-1 text-xs text-red-700">{fieldErrors.invertedTextColor}</p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="surfaceColor"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Surface
+            </label>
+            <input
+              id="surfaceColor"
+              type="color"
+              value={form.surfaceColor}
+              onChange={(e) => setForm({ ...form, surfaceColor: e.target.value })}
+              className="w-full h-10 rounded-lg border border-slate-300"
+            />
+            {fieldErrors.surfaceColor && (
+              <p className="mt-1 text-xs text-red-700">{fieldErrors.surfaceColor}</p>
             )}
           </div>
         </div>

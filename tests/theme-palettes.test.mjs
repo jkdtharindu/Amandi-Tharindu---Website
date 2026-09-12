@@ -19,6 +19,28 @@ test('every approved palette clears WCAG AA for primary-button text', () => {
   }
 });
 
+test('every approved palette clears WCAG AA for invertedTextColor on the primary colour (Next Action 25)', () => {
+  for (const palette of THEME_PALETTES) {
+    const ratio = contrastRatio(palette.invertedTextColor, palette.primaryColor);
+    assert.ok(ratio >= 4.5, `${palette.name} inverted-text/primary ratio ${ratio.toFixed(2)} fails AA`);
+  }
+});
+
+test('every approved palette clears WCAG AA for baseTextColor (inkColor) on the surfaceColor (Next Action 25)', () => {
+  for (const palette of THEME_PALETTES) {
+    const ratio = contrastRatio(palette.inkColor, palette.surfaceColor);
+    assert.ok(ratio >= 4.5, `${palette.name} ink/surface ratio ${ratio.toFixed(2)} fails AA`);
+  }
+});
+
+test('every approved palette defines invertedTextColor and surfaceColor as valid hex colours', () => {
+  const hexPattern = /^#[0-9A-Fa-f]{6}$/;
+  for (const palette of THEME_PALETTES) {
+    assert.match(palette.invertedTextColor, hexPattern, `${palette.name} invertedTextColor`);
+    assert.match(palette.surfaceColor, hexPattern, `${palette.name} surfaceColor`);
+  }
+});
+
 test('Modern Royal Romance accent clears WCAG AA as text, unlike its original gold', () => {
   const palette = findPalette('modern-royal-romance');
   const ratio = contrastRatio(palette.accentColor, palette.secondaryColor);
