@@ -17,8 +17,6 @@
   --color-surface: #ffffff;
   --color-accent: #2563eb;
   --color-accent-deep: #1d4ed8;
-  --color-flag-bg: #e0f2fe;
-  --color-flag-ink: #0369a1;
   --color-hairline: #e2e8f0;
   --color-field-border: #cbd5e1;
 
@@ -153,6 +151,7 @@ button {
 
   /* The prototype declared .hero-panel twice; merged here. */
   .hero-panel {
+    position: relative;
     background: var(--color-surface);
     border-radius: var(--radius-hero);
     padding: 2.5rem;
@@ -162,14 +161,55 @@ button {
     margin: 0 auto;
   }
 
+  /*
+   * Corner accent (2026-09-12 "Moonlight Sprig" design pass) -- a single
+   * hand-drawn line-art sprig, quieter and fainter in the opposite corner,
+   * rather than a shape change or new color. Purely decorative: hidden from
+   * assistive tech and skipped on narrow screens where there's no room for
+   * it to read as anything but clutter.
+   */
+  .hero-sprig {
+    position: absolute;
+    top: -18px;
+    right: 6%;
+    width: 110px;
+    height: 110px;
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .hero-sprig-mirror {
+    position: absolute;
+    bottom: -14px;
+    left: 4%;
+    width: 80px;
+    height: 80px;
+    opacity: 0.5;
+    transform: scaleX(-1) rotate(8deg);
+    pointer-events: none;
+  }
+
+  @media (max-width: 640px) {
+    .hero-sprig,
+    .hero-sprig-mirror {
+      display: none;
+    }
+  }
+
+  /*
+   * Was a hardcoded light blue (#e0f2fe/#0369a1) that never matched the
+   * admin-chosen accent color -- flagged 2026-09-12. Deriving from
+   * --color-accent instead means it can never drift from the palette again,
+   * whatever color an admin picks.
+   */
   .hero-flag {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.65rem 1rem;
     border-radius: var(--radius-pill);
-    background: var(--color-flag-bg);
-    color: var(--color-flag-ink);
+    background: color-mix(in srgb, var(--color-accent) 16%, white);
+    color: color-mix(in srgb, var(--color-accent) 65%, black);
     font-size: 0.95rem;
     margin-bottom: 1.4rem;
   }

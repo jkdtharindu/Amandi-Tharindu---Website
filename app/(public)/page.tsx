@@ -40,6 +40,18 @@ export default async function HomePage() {
   return (
     <>
       <section className="hero-panel">
+        <svg className="hero-sprig" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <path d="M50 95 C48 70 46 45 44 15" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.2" />
+          <path d="M44 30 C34 26 26 30 20 40 C30 42 38 40 44 30Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
+          <path d="M46 45 C58 40 66 44 71 54 C60 57 51 54 46 45Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
+          <path d="M44 58 C33 55 25 60 21 70 C32 71 40 68 44 58Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
+          <circle cx="50" cy="14" r="3" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
+        </svg>
+        <svg className="hero-sprig-mirror" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <path d="M50 95 C48 70 46 45 44 15" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.2" />
+          <path d="M44 30 C34 26 26 30 20 40 C30 42 38 40 44 30Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
+          <path d="M46 45 C58 40 66 44 71 54 C60 57 51 54 46 45Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
+        </svg>
         <span className="hero-flag">
           Save the date — {formatWeddingDate(settings.weddingDate)}
         </span>
