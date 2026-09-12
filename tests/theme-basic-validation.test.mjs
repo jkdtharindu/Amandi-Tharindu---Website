@@ -18,6 +18,7 @@ const VALID_INPUT = {
   fontStyle: 'italic',
   weddingDate: '2026-12-14',
   weddingTime: '15:00',
+  heroImageUrl: '',
 };
 
 test('accepts valid theme input and returns normalised values', () => {
@@ -123,6 +124,19 @@ test('accepts a valid 24-hour wedding time', () => {
   const result = validateThemeInput({ ...VALID_INPUT, weddingTime: '09:05' });
   assert.equal(result.valid, true);
   assert.equal(result.value.weddingTime, '09:05');
+});
+
+test('accepts an empty hero image (clears it) and trims a set one', () => {
+  const cleared = validateThemeInput({ ...VALID_INPUT, heroImageUrl: '' });
+  assert.equal(cleared.valid, true);
+  assert.equal(cleared.value.heroImageUrl, '');
+
+  const set = validateThemeInput({
+    ...VALID_INPUT,
+    heroImageUrl: '  https://example.com/hero.jpg  ',
+  });
+  assert.equal(set.valid, true);
+  assert.equal(set.value.heroImageUrl, 'https://example.com/hero.jpg');
 });
 
 test('exposes the curated font options', () => {

@@ -8,17 +8,32 @@
  * component classes below use.
  */
 @theme {
-  --color-ink: #1f2937;
-  --color-heading: #0f172a;
-  --color-body: #475569;
+  /*
+   * --color-ink/heading/body/muted/hairline/field-border were static slate
+   * hex literals (Tailwind's own port of the Express prototype's fixed
+   * baseStyles) even after Next Action 25 added an admin-editable
+   * baseTextColor and set --color-text-base from it on <html> -- nothing
+   * ever consumed that variable, so headings, nav links, body copy, form
+   * borders and the footer's hairline stayed slate-blue-gray regardless of
+   * the chosen palette (only --color-brand/--color-accent/--color-surface
+   * were actually wired through). Deriving these from --color-text-base
+   * with color-mix() (the same idiom already used for the hero corner
+   * accents and the seal border below) makes every text/border tone follow
+   * the admin's chosen ink color, not just brand/accent/surface. A
+   * fallback hex after the comma keeps these usable if --color-text-base
+   * is ever unset (e.g. a page that doesn't go through app/layout.tsx).
+   */
+  --color-ink: var(--color-text-base, #1f2937);
+  --color-heading: var(--color-text-base, #0f172a);
+  --color-body: color-mix(in srgb, var(--color-text-base, #1f2937) 82%, var(--color-canvas));
   --color-brand: #334155;
-  --color-muted: #64748b;
+  --color-muted: color-mix(in srgb, var(--color-text-base, #1f2937) 60%, var(--color-canvas));
   --color-canvas: #f8fafc;
   --color-surface: #ffffff;
   --color-accent: #2563eb;
   --color-accent-deep: #1d4ed8;
-  --color-hairline: #e2e8f0;
-  --color-field-border: #cbd5e1;
+  --color-hairline: color-mix(in srgb, var(--color-text-base, #1f2937) 12%, var(--color-canvas));
+  --color-field-border: color-mix(in srgb, var(--color-text-base, #1f2937) 24%, var(--color-canvas));
 
   --radius-pill: 999px;
   --radius-hero: 32px;
@@ -216,6 +231,31 @@ button {
   }
 
   /*
+   * Admin-uploaded hero photo (Phase 6 homepage redesign). Background image
+   * set inline via --hero-image-url; a dark overlay keeps the countdown and
+   * heading readable regardless of how bright or busy the photo is, rather
+   * than depending on the admin picking a photo with a dark enough area.
+   */
+  .hero-panel--photo {
+    background-image: var(--hero-image-url);
+    background-size: cover;
+    background-position: center;
+    box-shadow: none;
+  }
+  .hero-panel--photo::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .hero-panel--photo h1,
+  .hero-panel--photo p {
+    color: var(--color-surface);
+  }
+
+  /*
    * Corner accent (2026-09-12 "Moonlight Sprig" design pass) -- a single
    * hand-drawn line-art sprig, quieter and fainter in the opposite corner,
    * rather than a shape change or new color. Purely decorative: hidden from
@@ -303,7 +343,7 @@ button {
   .button-secondary {
     background: transparent;
     color: var(--color-brand);
-    border: 1px solid rgba(100, 116, 139, 0.22);
+    border: 1px solid color-mix(in srgb, var(--color-text-base, #64748b) 22%, transparent);
   }
 
   /*

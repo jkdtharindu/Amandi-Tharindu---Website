@@ -73,6 +73,12 @@ export function validateThemeInput(input = {}) {
     errors.weddingTime = 'Ceremony time must be in 24-hour HH:MM format.';
   }
 
+  // Optional — an empty string clears the hero image, so unlike the fields
+  // above there's no "missing" case to reject. No format check: this value
+  // only ever comes from the admin's own upload (ImageUploadField) or from
+  // clearing it, never free-typed.
+  const heroImageUrl = String(input.heroImageUrl ?? '').trim();
+
   if (Object.keys(errors).length > 0) {
     return { valid: false, errors };
   }
@@ -91,6 +97,7 @@ export function validateThemeInput(input = {}) {
       fontStyle,
       weddingDate,
       weddingTime,
+      heroImageUrl,
     },
   };
 }

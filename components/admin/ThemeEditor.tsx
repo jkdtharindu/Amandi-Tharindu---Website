@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import ImageUploadField from './ImageUploadField';
 
 export type ThemeSettings = {
   primaryColor: string;
@@ -13,6 +14,7 @@ export type ThemeSettings = {
   fontStyle: string;
   weddingDate: string;
   weddingTime: string;
+  heroImageUrl: string;
 };
 
 /** Site-wide colors and typography (PRD P1-10). */
@@ -315,6 +317,19 @@ export default function ThemeEditor({
               (Asia/Colombo) time, no matter where a guest is viewing from.
             </p>
           </div>
+        </div>
+
+        <h2 className="font-semibold mb-4">Hero Photo</h2>
+        <div className="mb-6">
+          <ImageUploadField
+            label="Home page hero background"
+            imageUrl={form.heroImageUrl}
+            onChange={(url) => setForm({ ...form, heroImageUrl: url })}
+            csrfToken={csrfToken}
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Shown behind the countdown on the home page. Leave empty to use the default design.
+          </p>
         </div>
 
         <button
