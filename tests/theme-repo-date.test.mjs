@@ -31,3 +31,15 @@ test('mapRow normalizes wedding_date from a Postgres Date into the string every 
   const settings = mapRow(row);
   assert.equal(settings.weddingDate, '2026-12-14');
 });
+
+test('mapRow reads wedding_time straight through, for combining into the countdown target', () => {
+  const row = { id: 'theme-1', wedding_date: new Date(2026, 11, 14), wedding_time: '09:30' };
+  const settings = mapRow(row);
+  assert.equal(settings.weddingTime, '09:30');
+});
+
+test('mapRow defaults wedding_time to 15:00 for a pre-migration row that has none yet', () => {
+  const row = { id: 'theme-1', wedding_date: new Date(2026, 11, 14), wedding_time: null };
+  const settings = mapRow(row);
+  assert.equal(settings.weddingTime, '15:00');
+});

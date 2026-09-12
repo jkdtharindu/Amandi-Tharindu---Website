@@ -35,6 +35,19 @@ test('mergeThemeUpdate rejects an invalid wedding date', () => {
   assert.equal(errors[0].field, 'weddingDate');
 });
 
+test('mergeThemeUpdate accepts a valid wedding time', () => {
+  const { settings, errors } = mergeThemeUpdate(themeSettings, { weddingTime: '09:30' });
+  assert.deepEqual(errors, []);
+  assert.equal(settings.weddingTime, '09:30');
+});
+
+test('mergeThemeUpdate rejects a wedding time outside 24-hour HH:MM', () => {
+  const { errors } = mergeThemeUpdate(themeSettings, { weddingTime: '3:00 PM' });
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].field, 'weddingTime');
+  assert.equal(errors[0].reason, 'invalid_time');
+});
+
 test('mergeThemeUpdate does not mutate the original settings object', () => {
   const original = { ...themeSettings };
   mergeThemeUpdate(themeSettings, { fontFamily: 'Playfair Display' });

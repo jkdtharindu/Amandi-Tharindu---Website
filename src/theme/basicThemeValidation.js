@@ -1,4 +1,6 @@
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+const WEDDING_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const WEDDING_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
  * Curated options for the simple colors+font admin form (`/admin/theme`).
@@ -46,6 +48,16 @@ export function validateThemeInput(input = {}) {
     errors.fontStyle = `Font style must be one of: ${FONT_STYLE_OPTIONS.join(', ')}.`;
   }
 
+  const weddingDate = String(input.weddingDate ?? '').trim();
+  if (!WEDDING_DATE_PATTERN.test(weddingDate)) {
+    errors.weddingDate = 'Wedding date must be a valid date.';
+  }
+
+  const weddingTime = String(input.weddingTime ?? '').trim();
+  if (!WEDDING_TIME_PATTERN.test(weddingTime)) {
+    errors.weddingTime = 'Ceremony time must be in 24-hour HH:MM format.';
+  }
+
   if (Object.keys(errors).length > 0) {
     return { valid: false, errors };
   }
@@ -53,6 +65,6 @@ export function validateThemeInput(input = {}) {
   return {
     valid: true,
     errors: {},
-    value: { primaryColor, secondaryColor, accentColor, fontFamily, fontStyle },
+    value: { primaryColor, secondaryColor, accentColor, fontFamily, fontStyle, weddingDate, weddingTime },
   };
 }

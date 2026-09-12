@@ -42,6 +42,7 @@ export function mapRow(row) {
     invitationNameColor: row.invitation_name_color,
     coupleNames: row.couple_names,
     weddingDate: toIsoDateString(row.wedding_date),
+    weddingTime: row.wedding_time || '15:00',
     venueName: row.venue_name || '',
     venueAddress: row.venue_address || '',
     invitationCodeSurnamePosition: row.invitation_code_surname_position || 'first',
@@ -77,9 +78,9 @@ export async function updateThemeSettings(patch) {
       font_choice = $5, font_family = $6, font_style = $7, hero_image_url = $8,
       invitation_template_url = $9, invitation_name_top = $10, invitation_name_left = $11,
       invitation_name_font_size = $12, invitation_name_color = $13,
-      couple_names = $14, wedding_date = $15, venue_name = $16, venue_address = $17,
-      invitation_code_surname_position = $18, invitation_code_group_prefix = $19
-    WHERE id = $20`,
+      couple_names = $14, wedding_date = $15, wedding_time = $16, venue_name = $17, venue_address = $18,
+      invitation_code_surname_position = $19, invitation_code_group_prefix = $20
+    WHERE id = $21`,
     [
       settings.paletteName,
       settings.primaryColor,
@@ -96,6 +97,7 @@ export async function updateThemeSettings(patch) {
       settings.invitationNameColor,
       settings.coupleNames,
       settings.weddingDate,
+      settings.weddingTime,
       settings.venueName,
       settings.venueAddress,
       settings.invitationCodeSurnamePosition,

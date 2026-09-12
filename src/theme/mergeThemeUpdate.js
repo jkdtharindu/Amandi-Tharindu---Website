@@ -4,6 +4,7 @@ import { SURNAME_POSITIONS } from '../guest-auth/generateInvitationCode.js';
 const HEX_COLOR_FIELDS = ['primaryColor', 'secondaryColor', 'accentColor', 'invitationNameColor'];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
  * Human-readable labels and hints for the admin form. The couple edits these
@@ -25,6 +26,7 @@ export const FIELD_LABELS = {
   fontStyle: { label: 'Heading style', hint: 'normal or italic' },
   coupleNames: { label: 'Couple names', hint: 'Shown in the header and footer' },
   weddingDate: { label: 'Wedding date', hint: 'YYYY-MM-DD — also drives the countdown' },
+  weddingTime: { label: 'Ceremony time', hint: '24-hour HH:MM, Sri Lanka time — also drives the countdown' },
   venueName: { label: 'Venue name', hint: '' },
   venueAddress: { label: 'Venue address', hint: '' },
   invitationCodeSurnamePosition: {
@@ -77,7 +79,7 @@ export const THEME_FIELD_GROUPS = [
   {
     id: 'wedding-info',
     label: 'Wedding Info',
-    fields: ['coupleNames', 'weddingDate'],
+    fields: ['coupleNames', 'weddingDate', 'weddingTime'],
   },
   {
     id: 'venue',
@@ -142,6 +144,11 @@ export function mergeThemeUpdate(current, patch) {
 
     if (key === 'weddingDate' && value && !DATE_PATTERN.test(value)) {
       errors.push({ field: key, reason: 'invalid_date' });
+      continue;
+    }
+
+    if (key === 'weddingTime' && value && !TIME_PATTERN.test(value)) {
+      errors.push({ field: key, reason: 'invalid_time' });
       continue;
     }
 

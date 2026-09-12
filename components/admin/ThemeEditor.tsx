@@ -8,6 +8,8 @@ export type ThemeSettings = {
   accentColor: string;
   fontFamily: string;
   fontStyle: string;
+  weddingDate: string;
+  weddingTime: string;
 };
 
 /** Site-wide colors and typography (PRD P1-10). */
@@ -64,6 +66,17 @@ export default function ThemeEditor({
 
   const previewFontFamily =
     form.fontFamily === 'Default' ? 'inherit' : `'${form.fontFamily}', serif`;
+
+  const previewDate = (() => {
+    const parsed = new Date(`${form.weddingDate}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return form.weddingDate;
+    return parsed.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  })();
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -196,6 +209,51 @@ export default function ThemeEditor({
           </div>
         </div>
 
+        <h2 className="font-semibold mb-4">Wedding Date &amp; Time</h2>
+        <div className="grid gap-4 sm:grid-cols-2 mb-6">
+          <div>
+            <label
+              htmlFor="weddingDate"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Wedding date
+            </label>
+            <input
+              id="weddingDate"
+              type="date"
+              value={form.weddingDate}
+              onChange={(e) => setForm({ ...form, weddingDate: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+            />
+            {fieldErrors.weddingDate && (
+              <p className="mt-1 text-xs text-red-700">{fieldErrors.weddingDate}</p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="weddingTime"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Ceremony time (Sri Lanka time)
+            </label>
+            <input
+              id="weddingTime"
+              type="time"
+              value={form.weddingTime}
+              onChange={(e) => setForm({ ...form, weddingTime: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+            />
+            {fieldErrors.weddingTime && (
+              <p className="mt-1 text-xs text-red-700">{fieldErrors.weddingTime}</p>
+            )}
+            <p className="mt-1 text-xs text-slate-500">
+              The countdown on the home page always counts down to this moment in Sri Lanka
+              (Asia/Colombo) time, no matter where a guest is viewing from.
+            </p>
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={busy || !csrfToken}
@@ -222,7 +280,7 @@ export default function ThemeEditor({
             Amandi &amp; Tharindu
           </h3>
           <p className="text-sm mb-3" style={{ color: form.primaryColor }}>
-            Monday, 14 December 2026
+            {previewDate}
           </p>
           <span
             className="inline-block px-3 py-1.5 rounded-full text-white text-sm font-semibold"

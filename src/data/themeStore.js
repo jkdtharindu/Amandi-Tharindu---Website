@@ -15,6 +15,7 @@ export const themeSettings = {
   invitationNameColor: '#5C3317',
   coupleNames: 'Tharindu & Amandi',
   weddingDate: '2026-12-14',
+  weddingTime: '15:00',
   venueName: '',
   venueAddress: '',
   // InvitationCode format — see src/guest-auth/generateInvitationCode.js.

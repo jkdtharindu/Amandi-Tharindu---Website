@@ -59,7 +59,7 @@ export default async function HomePage() {
             Our Story
           </Link>
         </div>
-        <Countdown targetDate={`${settings.weddingDate}T15:00:00`} />
+        <Countdown targetDate={`${settings.weddingDate}T${settings.weddingTime}:00+05:30`} />
       </section>
       <section className="section-grid">
         <div className="feature-card">

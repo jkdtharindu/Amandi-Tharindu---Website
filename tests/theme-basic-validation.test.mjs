@@ -13,6 +13,8 @@ const VALID_INPUT = {
   accentColor: '#8B0000',
   fontFamily: 'Cormorant Garamond',
   fontStyle: 'italic',
+  weddingDate: '2026-12-14',
+  weddingTime: '15:00',
 };
 
 test('accepts valid theme input and returns normalised values', () => {
@@ -55,6 +57,8 @@ test('reports every invalid field at once', () => {
     accentColor: 'nope',
     fontFamily: 'Comic Sans',
     fontStyle: 'oblique',
+    weddingDate: '14-12-2026',
+    weddingTime: '3:00 PM',
   });
 
   assert.equal(result.valid, false);
@@ -64,7 +68,31 @@ test('reports every invalid field at once', () => {
     'fontStyle',
     'primaryColor',
     'secondaryColor',
+    'weddingDate',
+    'weddingTime',
   ]);
+});
+
+test('rejects a malformed wedding date', () => {
+  for (const weddingDate of ['14-12-2026', '2026/12/14', '', 'not-a-date']) {
+    const result = validateThemeInput({ ...VALID_INPUT, weddingDate });
+    assert.equal(result.valid, false, `should reject ${weddingDate}`);
+    assert.ok(result.errors.weddingDate);
+  }
+});
+
+test('rejects a wedding time outside 24-hour HH:MM', () => {
+  for (const weddingTime of ['3:00 PM', '25:00', '15:60', '', '3pm']) {
+    const result = validateThemeInput({ ...VALID_INPUT, weddingTime });
+    assert.equal(result.valid, false, `should reject ${weddingTime}`);
+    assert.ok(result.errors.weddingTime);
+  }
+});
+
+test('accepts a valid 24-hour wedding time', () => {
+  const result = validateThemeInput({ ...VALID_INPUT, weddingTime: '09:05' });
+  assert.equal(result.valid, true);
+  assert.equal(result.value.weddingTime, '09:05');
 });
 
 test('exposes the curated font options', () => {
