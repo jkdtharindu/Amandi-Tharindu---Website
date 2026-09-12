@@ -145,15 +145,9 @@ export default function GuestManager({
     setMessage(null);
 
     try {
-      // Fetched fresh right before use, not the mount-time token above -- see
-      // TASKS.md Action 19a: /api/csrf rotates the token on every call, so a
-      // cached one can already be stale by the time this fires.
-      const csrfRes = await fetch('/api/csrf');
-      const { token: freshCsrfToken } = await csrfRes.json();
-
       const res = await fetch(
         '/api/admin/guests/' + editing.id + '/invitees/' + invitee.id,
-        { method: 'DELETE', headers: { 'x-csrf-token': freshCsrfToken } }
+        { method: 'DELETE', headers: { 'x-csrf-token': csrfToken } }
       );
       const data = await res.json();
 

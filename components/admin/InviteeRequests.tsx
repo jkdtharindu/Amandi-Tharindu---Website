@@ -40,9 +40,6 @@ export default function InviteeRequests() {
     setBusyId(id);
     setMessage(null);
     try {
-      // Fetched fresh right before use, not cached from mount: /api/csrf issues
-      // a new token (and cookie) on every call, so a token cached earlier can
-      // already be stale by the time this fires -- see TASKS.md Action 19a.
       const csrfRes = await fetch('/api/csrf');
       const { token: csrfToken } = await csrfRes.json();
 
