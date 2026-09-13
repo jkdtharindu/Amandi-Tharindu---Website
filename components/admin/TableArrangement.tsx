@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import StatCard from './StatCard';
+import { useToast } from '@/components/Toast';
 
 type Seat = {
   id: string;
@@ -78,16 +79,16 @@ export default function TableArrangement({
     initialProbableAttendanceSummary
   );
   const [form, setForm] = useState<NewTableForm>(EMPTY_FORM);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
+  const showToast = useToast();
 
   useEffect(() => {
     fetch('/api/csrf')
       .then((res) => res.json())
       .then((data) => setCsrfToken(data.token))
-      .catch(() => setMessage({ kind: 'error', text: 'Could not reach the server.' }));
-  }, []);
+      .catch(() => showToast({ kind: 'error', text: 'Could not reach the server.' }));
+  }, [showToast]);
 
   const load = useCallback(async () => {
     try {
@@ -101,14 +102,13 @@ export default function TableArrangement({
         setProbableAttendanceSummary(data.probableAttendanceSummary);
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Could not load the seating plan.' });
+      showToast({ kind: 'error', text: 'Could not load the seating plan.' });
     }
-  }, []);
+  }, [showToast]);
 
   async function handleAddTable(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/table-arrangement', {
@@ -123,14 +123,14 @@ export default function TableArrangement({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({ kind: 'ok', text: 'Table added.' });
+        showToast({ kind: 'ok', text: 'Table added.' });
         setForm(EMPTY_FORM);
         await load();
         return;
       }
-      setMessage({ kind: 'error', text: data.message || 'Could not add the table.' });
+      showToast({ kind: 'error', text: data.message || 'Could not add the table.' });
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -143,7 +143,6 @@ export default function TableArrangement({
     if (!confirmed) return;
 
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/table-arrangement/' + table.id, {
@@ -153,13 +152,13 @@ export default function TableArrangement({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({ kind: 'ok', text: 'Table removed.' });
+        showToast({ kind: 'ok', text: 'Table removed.' });
         await load();
       } else {
-        setMessage({ kind: 'error', text: data.message || 'Could not remove the table.' });
+        showToast({ kind: 'error', text: data.message || 'Could not remove the table.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -172,7 +171,6 @@ export default function TableArrangement({
     notes?: { dietaryRequirements?: string; specialNotes?: string }
   ) {
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch(`/api/admin/table-arrangement/${tableId}/seats/${seatId}/assign`, {
@@ -185,10 +183,10 @@ export default function TableArrangement({
       if (res.ok && data.success) {
         await load();
       } else {
-        setMessage({ kind: 'error', text: data.message || 'Could not assign that seat.' });
+        showToast({ kind: 'error', text: data.message || 'Could not assign that seat.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -196,7 +194,6 @@ export default function TableArrangement({
 
   async function handleSetBuffer(bucket: ProbableBucket, count: number) {
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/table-arrangement/probable-attendees', {
@@ -207,13 +204,13 @@ export default function TableArrangement({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({ kind: 'ok', text: `${BUCKET_LABEL[bucket]} probable estimate updated.` });
+        showToast({ kind: 'ok', text: `${BUCKET_LABEL[bucket]} probable estimate updated.` });
         await load();
       } else {
-        setMessage({ kind: 'error', text: data.message || 'Could not update that estimate.' });
+        showToast({ kind: 'error', text: data.message || 'Could not update that estimate.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -221,7 +218,6 @@ export default function TableArrangement({
 
   async function handleUnassign(tableId: string, seatId: string) {
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch(`/api/admin/table-arrangement/${tableId}/seats/${seatId}/unassign`, {
@@ -233,10 +229,10 @@ export default function TableArrangement({
       if (res.ok && data.success) {
         await load();
       } else {
-        setMessage({ kind: 'error', text: data.message || 'Could not remove that guest.' });
+        showToast({ kind: 'error', text: data.message || 'Could not remove that guest.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -244,20 +240,6 @@ export default function TableArrangement({
 
   return (
     <div>
-      {message && (
-        <p
-          role="status"
-          className={
-            'mb-4 text-sm rounded-lg p-3 border ' +
-            (message.kind === 'ok'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-red-50 text-red-800 border-red-200')
-          }
-        >
-          {message.text}
-        </p>
-      )}
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard label="RSVP Accepted" value={dashboardStats.accepted} />
         <StatCard label="Table Arranged" value={dashboardStats.tableArranged} />

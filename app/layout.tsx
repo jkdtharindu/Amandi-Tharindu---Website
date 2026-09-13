@@ -5,6 +5,7 @@ import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { buildFontFaceCss } from "@/src/theme/fontFaces.js";
 import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
+import { ToastProvider } from "@/components/Toast";
 
 // getThemeSettings() hits the DB on every request; this must never throw, or
 // a transient DB hiccup takes down every page on the site.
@@ -70,7 +71,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <head>
         <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss() }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

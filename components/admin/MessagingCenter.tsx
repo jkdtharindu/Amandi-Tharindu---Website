@@ -6,6 +6,7 @@ import {
   buildInvitationLink,
   buildWhatsAppLink,
 } from '@/src/admin/messageTemplates.js';
+import { useToast } from '@/components/Toast';
 
 export type MessageTemplate = {
   id: string;
@@ -90,8 +91,8 @@ export default function MessagingCenter({
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [csrfToken, setCsrfToken] = useState('');
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const showToast = useToast();
 
   // Guards against an older in-flight audience request overwriting a newer one.
   const requestId = useRef(0);
@@ -130,26 +131,26 @@ export default function MessagingCenter({
           alreadySentCount: data.alreadySentCount,
         });
       } else {
-        setMessage({ kind: 'error', text: data.message || 'Could not load the audience.' });
+        showToast({ kind: 'error', text: data.message || 'Could not load the audience.' });
       }
     } catch {
       if (id === requestId.current) {
-        setMessage({ kind: 'error', text: 'Could not load the audience.' });
+        showToast({ kind: 'error', text: 'Could not load the audience.' });
       }
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [status, relationship, templateId, skipSent]);
+  }, [status, relationship, templateId, skipSent, showToast]);
 
   useEffect(() => {
     fetch('/api/csrf')
       .then((res) => res.json())
       .then((data) => setCsrfToken(data.token))
-      .catch(() => setMessage({ kind: 'error', text: 'Could not reach the server.' }));
+      .catch(() => showToast({ kind: 'error', text: 'Could not reach the server.' }));
 
     const timer = setTimeout(loadLogs, 0);
     return () => clearTimeout(timer);
-  }, [loadLogs]);
+  }, [loadLogs, showToast]);
 
   useEffect(() => {
     const timer = setTimeout(loadAudience, 0);
@@ -187,7 +188,7 @@ export default function MessagingCenter({
     if (!current) return;
 
     if (!messageText.trim()) {
-      setMessage({ kind: 'error', text: 'Message cannot be empty.' });
+      showToast({ kind: 'error', text: 'Message cannot be empty.' });
       return;
     }
 
@@ -195,13 +196,13 @@ export default function MessagingCenter({
     try {
       waLink = buildWhatsAppLink(current.whatsappNumber, messageText);
     } catch {
-      setMessage({ kind: 'error', text: `${current.name} has no usable WhatsApp number.` });
+      showToast({ kind: 'error', text: `${current.name} has no usable WhatsApp number.` });
       return;
     }
 
     const opened = window.open(waLink, '_blank', 'noopener,noreferrer');
     if (!opened) {
-      setMessage({
+      showToast({
         kind: 'error',
         text: 'WhatsApp could not be opened (pop-up blocked). Nothing was logged.',
       });
@@ -209,7 +210,6 @@ export default function MessagingCenter({
     }
 
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/messages/log', {
@@ -220,14 +220,14 @@ export default function MessagingCenter({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setMessage({
+        showToast({
           kind: 'error',
           text: data.message || 'WhatsApp opened, but the send could not be logged.',
         });
       }
       await loadLogs();
     } catch {
-      setMessage({
+      showToast({
         kind: 'error',
         text: 'WhatsApp opened, but the send could not be logged.',
       });
@@ -356,20 +356,6 @@ export default function MessagingCenter({
             </button>
           )}
         </div>
-
-        {message && (
-          <p
-            role="status"
-            className={
-              'text-sm rounded-lg p-3 border ' +
-              (message.kind === 'ok'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                : 'bg-red-50 text-red-800 border-red-200')
-            }
-          >
-            {message.text}
-          </p>
-        )}
 
         {/* Worklist */}
         {current && (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import ImageUploadField from './ImageUploadField';
+import { useToast } from '@/components/Toast';
 
 export type ThemeSettings = {
   primaryColor: string;
@@ -29,22 +30,21 @@ export default function ThemeEditor({
 }) {
   const [form, setForm] = useState<ThemeSettings>(initialSettings);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
+  const showToast = useToast();
 
   useEffect(() => {
     fetch('/api/csrf')
       .then((res) => res.json())
       .then((data) => setCsrfToken(data.token))
-      .catch(() => setMessage({ kind: 'error', text: 'Could not reach the server.' }));
-  }, []);
+      .catch(() => showToast({ kind: 'error', text: 'Could not reach the server.' }));
+  }, [showToast]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setFieldErrors({});
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/theme', {
@@ -56,14 +56,14 @@ export default function ThemeEditor({
 
       if (res.ok && data.success) {
         setForm(data.settings);
-        setMessage({ kind: 'ok', text: 'Theme updated. Changes are live site-wide.' });
+        showToast({ kind: 'ok', text: 'Theme updated. Changes are live site-wide.' });
         return;
       }
 
       if (data.errors) setFieldErrors(data.errors);
-      setMessage({ kind: 'error', text: data.message || 'Could not save theme settings.' });
+      showToast({ kind: 'error', text: data.message || 'Could not save theme settings.' });
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -89,20 +89,6 @@ export default function ThemeEditor({
         onSubmit={handleSubmit}
         className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5"
       >
-        {message && (
-          <p
-            role="status"
-            className={
-              'mb-4 text-sm rounded-lg p-3 border ' +
-              (message.kind === 'ok'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                : 'bg-red-50 text-red-800 border-red-200')
-            }
-          >
-            {message.text}
-          </p>
-        )}
-
         <h2 className="font-semibold mb-4">Colors</h2>
         <div className="grid gap-4 sm:grid-cols-3 mb-6">
           <div>

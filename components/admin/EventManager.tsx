@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import ImageUploadField from './ImageUploadField';
+import { useToast } from '@/components/Toast';
 
 export type CelebrationEvent = {
   id: string;
@@ -37,16 +38,16 @@ const EMPTY_FORM: FormState = {
 export default function EventManager({ initialEvents }: { initialEvents: CelebrationEvent[] }) {
   const [events, setEvents] = useState<CelebrationEvent[]>(initialEvents);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
+  const showToast = useToast();
 
   useEffect(() => {
     fetch('/api/csrf')
       .then((res) => res.json())
       .then((data) => setCsrfToken(data.token))
-      .catch(() => setMessage({ kind: 'error', text: 'Could not reach the server.' }));
-  }, []);
+      .catch(() => showToast({ kind: 'error', text: 'Could not reach the server.' }));
+  }, [showToast]);
 
   const load = useCallback(async () => {
     try {
@@ -54,14 +55,13 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
       const data = await res.json();
       if (data.success) setEvents(data.events);
     } catch {
-      setMessage({ kind: 'error', text: 'Could not load events.' });
+      showToast({ kind: 'error', text: 'Could not load events.' });
     }
-  }, []);
+  }, [showToast]);
 
   async function handleAdd(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/events', {
@@ -72,14 +72,14 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage({ kind: 'ok', text: 'Event added.' });
+        showToast({ kind: 'ok', text: 'Event added.' });
         setForm({ ...EMPTY_FORM, displayOrder: String(events.length) });
         await load();
         return;
       }
-      setMessage({ kind: 'error', text: data.message || 'Could not add the event.' });
+      showToast({ kind: 'error', text: data.message || 'Could not add the event.' });
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -87,7 +87,6 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
 
   async function handleFieldSave(event: CelebrationEvent, patch: Partial<CelebrationEvent>) {
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/events/' + event.id, {
@@ -100,10 +99,10 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
       if (res.ok && data.success) {
         setEvents((prev) => prev.map((e) => (e.id === event.id ? data.event : e)));
       } else {
-        setMessage({ kind: 'error', text: 'Could not save that change.' });
+        showToast({ kind: 'error', text: 'Could not save that change.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -114,7 +113,6 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
     if (!confirmed) return;
 
     setBusy(true);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/admin/events/' + event.id, {
@@ -125,12 +123,12 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
 
       if (res.ok && data.success) {
         setEvents((prev) => prev.filter((e) => e.id !== event.id));
-        setMessage({ kind: 'ok', text: 'Event removed.' });
+        showToast({ kind: 'ok', text: 'Event removed.' });
       } else {
-        setMessage({ kind: 'error', text: 'Could not remove the event.' });
+        showToast({ kind: 'error', text: 'Could not remove the event.' });
       }
     } catch {
-      setMessage({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
@@ -138,20 +136,6 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
 
   return (
     <div>
-      {message && (
-        <p
-          role="status"
-          className={
-            'mb-4 text-sm rounded-lg p-3 border ' +
-            (message.kind === 'ok'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-red-50 text-red-800 border-red-200')
-          }
-        >
-          {message.text}
-        </p>
-      )}
-
       <form onSubmit={handleAdd} className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
         <h2 className="font-semibold mb-4">Add an event</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
