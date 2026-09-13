@@ -7,6 +7,10 @@ import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js"
 import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 import { listSections } from "@/src/sections/sectionsRepo.js";
 import CustomSections from "@/components/public/CustomSections";
+import FaqAccordion from "@/components/public/FaqAccordion";
+import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
+import type { CelebrationEvent } from "@/components/admin/EventManager";
+import type { Section } from "@/components/admin/SectionManager";
 
 // getThemeSettings() hits the DB on every request; this must never throw, or
 // a transient DB hiccup takes down every page on the site.
@@ -69,6 +73,38 @@ export default async function HomePage() {
     ourStorySections = [];
   }
 
+  // Page key stays "celebration" (unchanged from the old /the-celebration
+  // route, VALID_PAGES) so any sections an admin already configured for it
+  // keep showing up here.
+  let celebrationSections;
+  try {
+    celebrationSections = await listSections("celebration");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    celebrationSections = [];
+  }
+
+  let events: CelebrationEvent[];
+  try {
+    events = await listEvents();
+  } catch (error) {
+    console.error("listEvents failed, falling back to none:", error);
+    events = [];
+  }
+
+  // Page key "faq" is new (Phase 6) — admin adds questions/answers as plain
+  // sections (title = question, content = answer) via the existing Section
+  // Manager (P1-11); FaqAccordion renders them as a <details> accordion.
+  let faqSections: Section[];
+  try {
+    faqSections = await listSections("faq");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    faqSections = [];
+  }
+
+  const hasFaq = faqSections.some((section) => section.isVisible && section.title);
+
   const heroClassName = settings.heroImageUrl
     ? "hero-panel hero-panel--photo"
     : "hero-panel";
@@ -130,14 +166,45 @@ export default async function HomePage() {
         ))}
       </section>
       <CustomSections sections={ourStorySections} />
+      <section id="event-details" className="hero-panel hero-panel--seal">
+        <span className="hero-flag">Wedding events</span>
+        <h2>Celebrate with us at the ceremony and reception.</h2>
+        <p>
+          We are excited to welcome our family and friends for a day filled with
+          love, joy, and unforgettable moments.
+        </p>
+      </section>
       <section className="section-grid">
-        <div className="feature-card">
-          <h2>The Celebration</h2>
-          <p>
-            See the ceremony and reception details, venues, and schedule for the
-            wedding day.
-          </p>
-        </div>
+        {events.map((event) => (
+          <div className="event-card" key={event.id}>
+            {event.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
+              <img src={event.imageUrl} alt={event.venueName} className="event-image" />
+            )}
+            <h3>{event.name}</h3>
+            <p>
+              <strong>Date:</strong> {formatWeddingDate(event.eventDate)}
+            </p>
+            <p>
+              <strong>Time:</strong> {event.eventTime}
+            </p>
+            <p>
+              <strong>Venue:</strong> {event.venueName}
+            </p>
+            <p>
+              <a
+                href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View on Google Maps
+              </a>
+            </p>
+          </div>
+        ))}
+      </section>
+      <CustomSections sections={celebrationSections} />
+      <section className="section-grid">
         <div className="feature-card">
           <h2>Gallery</h2>
           <p>
@@ -153,6 +220,17 @@ export default async function HomePage() {
           </p>
         </div>
       </section>
+      {hasFaq && (
+        <section id="faq" className="hero-panel hero-panel--light">
+          <span className="hero-flag">FAQ</span>
+          <h2>Frequently asked questions.</h2>
+          <p>
+            Answers to the questions we hear most often — reach out if yours
+            isn&rsquo;t here.
+          </p>
+          <FaqAccordion sections={faqSections} />
+        </section>
+      )}
       <CustomSections sections={sections} />
     </>
   );

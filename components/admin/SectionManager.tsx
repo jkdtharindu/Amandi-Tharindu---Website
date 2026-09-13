@@ -21,6 +21,7 @@ const PAGE_LABELS: Record<string, string> = {
   celebration: 'The Celebration',
   gallery: 'Gallery',
   wishes: 'Wishes',
+  faq: 'FAQ',
 };
 
 type FormState = {

@@ -1,4 +1,4 @@
-export const VALID_PAGES = ['home', 'our-story', 'celebration', 'gallery', 'wishes'];
+export const VALID_PAGES = ['home', 'our-story', 'celebration', 'gallery', 'wishes', 'faq'];
 export const VALID_SECTION_TYPES = ['text', 'image', 'gallery', 'custom'];
 
 export function validateSectionInput(input) {

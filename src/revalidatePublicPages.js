@@ -13,10 +13,10 @@ import { revalidatePath } from 'next/cache';
  * rather than the layout-wide form until that's understood.
  */
 export function revalidateAllPublicPages() {
-  // '/our-story' is no longer its own page (Phase 6: folded into '/' as a
-  // section, redirected in next.config.ts) -- revalidating '/' covers it.
+  // '/our-story' and '/the-celebration' are no longer their own pages
+  // (Phase 6: folded into '/' as sections, redirected in next.config.ts) --
+  // revalidating '/' covers both.
   revalidatePath('/');
-  revalidatePath('/the-celebration');
   revalidatePath('/gallery');
   revalidatePath('/wishes');
 }
