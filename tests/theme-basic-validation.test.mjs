@@ -19,6 +19,12 @@ const VALID_INPUT = {
   weddingDate: '2026-12-14',
   weddingTime: '15:00',
   heroImageUrl: '',
+  brideName: '',
+  bridePhotoUrl: '',
+  brideBio: '',
+  groomName: '',
+  groomPhotoUrl: '',
+  groomBio: '',
 };
 
 test('accepts valid theme input and returns normalised values', () => {
@@ -137,6 +143,30 @@ test('accepts an empty hero image (clears it) and trims a set one', () => {
   });
   assert.equal(set.valid, true);
   assert.equal(set.value.heroImageUrl, 'https://example.com/hero.jpg');
+});
+
+test('accepts empty bride/groom fields (hides the section) and trims set ones', () => {
+  const cleared = validateThemeInput({ ...VALID_INPUT });
+  assert.equal(cleared.valid, true);
+  assert.equal(cleared.value.brideName, '');
+  assert.equal(cleared.value.groomName, '');
+
+  const set = validateThemeInput({
+    ...VALID_INPUT,
+    brideName: '  Amandi Wijesundara  ',
+    bridePhotoUrl: '  https://example.com/bride.jpg  ',
+    brideBio: '  Loves the ocean.  ',
+    groomName: '  Tharindu Jayanetti  ',
+    groomPhotoUrl: '  https://example.com/groom.jpg  ',
+    groomBio: '  Loves the mountains.  ',
+  });
+  assert.equal(set.valid, true);
+  assert.equal(set.value.brideName, 'Amandi Wijesundara');
+  assert.equal(set.value.bridePhotoUrl, 'https://example.com/bride.jpg');
+  assert.equal(set.value.brideBio, 'Loves the ocean.');
+  assert.equal(set.value.groomName, 'Tharindu Jayanetti');
+  assert.equal(set.value.groomPhotoUrl, 'https://example.com/groom.jpg');
+  assert.equal(set.value.groomBio, 'Loves the mountains.');
 });
 
 test('exposes the curated font options', () => {

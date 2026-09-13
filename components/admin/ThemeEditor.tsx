@@ -16,6 +16,12 @@ export type ThemeSettings = {
   weddingDate: string;
   weddingTime: string;
   heroImageUrl: string;
+  brideName: string;
+  bridePhotoUrl: string;
+  brideBio: string;
+  groomName: string;
+  groomPhotoUrl: string;
+  groomBio: string;
 };
 
 /** Site-wide colors and typography (PRD P1-10). */
@@ -315,6 +321,78 @@ export default function ThemeEditor({
           />
           <p className="mt-1 text-xs text-slate-500">
             Shown behind the countdown on the home page. Leave empty to use the default design.
+          </p>
+        </div>
+
+        <h2 className="font-semibold mb-4">Bride &amp; Groom</h2>
+        <div className="grid gap-4 sm:grid-cols-2 mb-6">
+          <div className="grid gap-3">
+            <div>
+              <label htmlFor="brideName" className="block text-xs font-semibold text-slate-500 mb-1">
+                Bride&rsquo;s name
+              </label>
+              <input
+                id="brideName"
+                type="text"
+                value={form.brideName}
+                onChange={(e) => setForm({ ...form, brideName: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+              />
+            </div>
+            <ImageUploadField
+              label="Bride's photo"
+              imageUrl={form.bridePhotoUrl}
+              onChange={(url) => setForm({ ...form, bridePhotoUrl: url })}
+              csrfToken={csrfToken}
+            />
+            <div>
+              <label htmlFor="brideBio" className="block text-xs font-semibold text-slate-500 mb-1">
+                Bride&rsquo;s short bio
+              </label>
+              <textarea
+                id="brideBio"
+                value={form.brideBio}
+                onChange={(e) => setForm({ ...form, brideBio: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <div>
+              <label htmlFor="groomName" className="block text-xs font-semibold text-slate-500 mb-1">
+                Groom&rsquo;s name
+              </label>
+              <input
+                id="groomName"
+                type="text"
+                value={form.groomName}
+                onChange={(e) => setForm({ ...form, groomName: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+              />
+            </div>
+            <ImageUploadField
+              label="Groom's photo"
+              imageUrl={form.groomPhotoUrl}
+              onChange={(url) => setForm({ ...form, groomPhotoUrl: url })}
+              csrfToken={csrfToken}
+            />
+            <div>
+              <label htmlFor="groomBio" className="block text-xs font-semibold text-slate-500 mb-1">
+                Groom&rsquo;s short bio
+              </label>
+              <textarea
+                id="groomBio"
+                value={form.groomBio}
+                onChange={(e) => setForm({ ...form, groomBio: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+              />
+            </div>
+          </div>
+          <p className="sm:col-span-2 -mt-2 text-xs text-slate-500">
+            Leave a name empty to hide the Bride &amp; Groom section on the home page entirely.
           </p>
         </div>
 

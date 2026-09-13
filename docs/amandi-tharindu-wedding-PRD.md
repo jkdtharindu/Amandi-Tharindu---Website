@@ -772,6 +772,59 @@ with unseated ones, and is rejected outright if the reduction would require dele
 
 ---
 
+## 17. Bride & Groom Homepage Section (Owner-confirmed 2026-09-13 via Grill Me session)
+
+> Status: Built 2026-09-13 — see TASKS.md Phase 6 for the implementation writeup.
+
+### Problem
+Phase 6's single-page homepage redesign (§ "Phase 6" in TASKS.md, reference: a Dribbble-style pitch screenshot) called for a "Bride & Groom / Family Details" section with individual portraits/bios, but the backlog item left three things undecided: who it covers, where the admin manages it, and what fields each profile needs.
+
+### Grill Me session — 2026-09-13 (owner answers)
+- **Scope:** Bride & Groom only — not parents or wider family. Two profiles, side by side.
+- **Admin UI:** A new field group on the existing `/admin/theme` page (Theme Editor), not a
+  dedicated new admin page — reuses the already-shipped `ImageUploadField`/Vercel Blob pattern
+  exactly as the Hero Photo field did, no new nav item.
+- **Fields per profile:** Name, photo, and a short bio only — no role/title label (unnecessary
+  with just two fixed profiles) and no display-order field (only two profiles, fixed order:
+  bride then groom).
+
+### Requirement
+1. `theme_settings` (single-row, admin-wide settings — same table as colors/fonts/hero image)
+   gains six new optional fields: `brideName`/`bridePhotoUrl`/`brideBio` and
+   `groomName`/`groomPhotoUrl`/`groomBio`. All optional — an unfilled field simply doesn't
+   render, same convention as `heroImageUrl`.
+2. Admin: a "Bride & Groom" section on `/admin/theme`, two sub-forms (name text input, photo
+   upload via `ImageUploadField`, bio textarea), saved through the existing `PUT /api/admin/theme`
+   route — no new route needed.
+3. Guest-facing: a new `id="family-details"` section on the homepage, between Our Story and
+   Event Details (matching the backlog's stated position), rendering each profile as a card
+   (photo, name, bio) using the existing card visual language (`story-card`/`event-card`
+   pattern). The section renders only when at least one of `brideName`/`groomName` is set —
+   same "don't show an empty heading" rule the FAQ section already established.
+
+### Proposed Schema Changes
+```sql
+-- Migration 015, additive only.
+ALTER TABLE theme_settings
+  ADD COLUMN IF NOT EXISTS bride_name text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS bride_photo_url text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS bride_bio text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS groom_name text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS groom_photo_url text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS groom_bio text DEFAULT '';
+```
+
+### Acceptance Criteria
+- [x] `theme_settings` has six new columns, additive-only migration (015), HITL approval
+      required before applying to any database, per standing project policy.
+- [x] `/admin/theme` has a "Bride & Groom" section: name/photo/bio for each of two profiles.
+- [x] Saving reuses the existing theme save path (`PUT /api/admin/theme`), which already busts
+      the static-page cache (`revalidateAllPublicPages()`) — no new sync mechanism needed.
+- [x] The homepage renders a `family-details` section with a card per named profile, positioned
+      between Our Story and Event Details, and stays hidden entirely when neither name is set.
+
+---
+
 *Document version: 1.0 | Created: August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*

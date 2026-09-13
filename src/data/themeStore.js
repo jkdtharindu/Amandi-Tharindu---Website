@@ -22,6 +22,12 @@ export const themeSettings = (globalThis.__themeSettings ??= {
   weddingTime: '15:00',
   venueName: '',
   venueAddress: '',
+  brideName: '',
+  bridePhotoUrl: '',
+  brideBio: '',
+  groomName: '',
+  groomPhotoUrl: '',
+  groomBio: '',
   // InvitationCode format — see src/guest-auth/generateInvitationCode.js.
   // Changing these affects codes generated afterwards, never existing ones.
   invitationCodeSurnamePosition: 'first',
