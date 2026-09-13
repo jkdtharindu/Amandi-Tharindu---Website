@@ -218,6 +218,16 @@ Wait for confirmation before proceeding.
 
 ---
 
+### Documentation & meta-tasks (added 2026-09-12)
+
+Running `UPDATE_ME.md` or the `SESSION_END_PROMPT.md` doc-sync pass is **Haiku 4.5** by
+default — mechanical write-up of a conversation that already happened, not a design decision.
+Escalate to **Sonnet 5** only if the pass has to adjudicate a genuinely ambiguous or contested
+decision (e.g. reconciling two different accounts of what was actually agreed). This mirrors
+`TASKS.md`'s Model Assignment Convention — the two must not drift apart.
+
+---
+
 ## Historical Context
 
 - No model was formally tracked for Slices 1–9; this file's "completed" assignments are

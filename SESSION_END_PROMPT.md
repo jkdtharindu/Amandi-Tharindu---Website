@@ -6,6 +6,10 @@ Pairs with `STARTUP_PROMPT.md` — that one reads state before working; this one
 changed. Don't re-run STARTUP_PROMPT.md's full audit here: you already know what happened this
 session because you just did it. This is about writing it down, not rediscovering it.
 
+For a lighter, mid-session doc sync instead of a full close-out — e.g. the user just says
+"update the md files" partway through — use `UPDATE_ME.md` instead. It covers the same
+docs-from-chat-context idea without the tests/build/lint/push steps below.
+
 ---
 
 Do the end-of-session documentation pass.
