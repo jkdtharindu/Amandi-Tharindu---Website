@@ -197,14 +197,12 @@ real-world impact. Check items off here as they close, and also update the origi
   both `.env` and Vercel Production, then redeploy. **Model: none — owner only, needs Neon
   console access.**
 
-- [ ] **2. Fix `/api/csrf` at the root instead of patching call sites.** Same item as Next
-  Action 19a. `GET /api/csrf` (`app/api/csrf/route.ts`) mints a brand-new token and
-  overwrites the cookie on *every* call, so two components fetching their own token on the
-  same page race and invalidate each other. Two symptoms have already been patched
-  piecemeal (`InviteeRequests.tsx`, the guest gate's retry-once), but `GuestManager.tsx`
-  still fetches once on mount and carries the same latent bug, waiting for the next
-  component that shares its page. Fix: make the route reuse a still-valid existing token
-  instead of always minting a new one. **Model: Sonnet 5.**
+- [x] **2. Fix `/api/csrf` at the root instead of patching call sites.** Same item as Next
+  Action 19a — **done 2026-09-13** (commit `9f38a0b`, already on `main` before this backlog
+  was merged in). `/api/csrf` now reuses a still-valid existing cookie instead of minting a
+  new one on every call, and the two piecemeal workarounds this item described
+  (`InviteeRequests.tsx`, `GuestManager.tsx`) were removed as redundant once the root cause
+  was fixed. See Next Action 19a for full detail.
 
 - [ ] **3. Make RSVP saving transactional.** Same item as Next Action 19d.
   `upsertRsvpResponse` and `updateGuestRsvpStatus` (`app/api/guest/rsvp/route.ts`) are two
