@@ -5,6 +5,12 @@ node_modules/
 .env
 .env.local
 
+# `vercel env pull` without -o writes an env file literally named "production"
+# (or "preview"/"development") in the repo root, containing real secrets.
+/production
+/preview
+/development
+
 # next.js
 .next/
 /out/
