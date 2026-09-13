@@ -24,6 +24,27 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${settings.coupleNames} — Home` };
 }
 
+/**
+ * Milestones for the inlined Our Story section below. Moved here from the
+ * old standalone `/our-story` page (Phase 6: single-page homepage redesign)
+ * — static, matching the prototype. Making them admin-managed via a
+ * `story_milestones` table is deferred (PRD P1-02), same as before the move.
+ */
+const STORY_MILESTONES = [
+  {
+    title: "2022 — First meeting",
+    body: "They met through mutual friends at a cozy café, and the rest was fate.",
+  },
+  {
+    title: "2024 — First trip together",
+    body: "A weekend escape to the coast brought them even closer and proved they were ready for the next chapter.",
+  },
+  {
+    title: "2025 — Engagement",
+    body: "A romantic proposal under the stars sealed their promise to spend forever together.",
+  },
+];
+
 /** Ports the prototype's `GET /home` route from src/server.js. */
 export default async function HomePage() {
   const settings = await loadThemeSettings();
@@ -36,6 +57,16 @@ export default async function HomePage() {
   } catch (error) {
     console.error("listSections failed, falling back to none:", error);
     sections = [];
+  }
+
+  // Page key stays "our-story" (unchanged from the old standalone route) so
+  // any sections an admin already configured for it keep showing up here.
+  let ourStorySections;
+  try {
+    ourStorySections = await listSections("our-story");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    ourStorySections = [];
   }
 
   const heroClassName = settings.heroImageUrl
@@ -75,20 +106,31 @@ export default async function HomePage() {
           <Link className="button button-primary" href="/invitation">
             View Your Invitation
           </Link>
-          <Link className="button button-secondary" href="/our-story">
+          <Link className="button button-secondary" href="#our-story">
             Our Story
           </Link>
         </div>
         <Countdown targetDate={`${settings.weddingDate}T${settings.weddingTime}:00+05:30`} />
       </section>
+      <section id="our-story" className="hero-panel hero-panel--light">
+        <span className="hero-flag">Our story</span>
+        <h2>How our love story began and grew into a wedding celebration.</h2>
+        <p>
+          From a serendipitous first meeting to a joyful proposal under the
+          stars, our story is full of memorable moments we want to share with
+          you.
+        </p>
+      </section>
+      <section className="grid-panel">
+        {STORY_MILESTONES.map((milestone) => (
+          <div className="story-card" key={milestone.title}>
+            <h3>{milestone.title}</h3>
+            <p>{milestone.body}</p>
+          </div>
+        ))}
+      </section>
+      <CustomSections sections={ourStorySections} />
       <section className="section-grid">
-        <div className="feature-card">
-          <h2>Our Love Story</h2>
-          <p>
-            Explore how two hearts met, grew together, and decided to celebrate
-            forever with family.
-          </p>
-        </div>
         <div className="feature-card">
           <h2>The Celebration</h2>
           <p>

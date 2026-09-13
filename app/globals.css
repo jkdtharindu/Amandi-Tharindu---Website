@@ -308,7 +308,8 @@ button {
     margin-bottom: 1.4rem;
   }
 
-  .hero-panel h1 {
+  .hero-panel h1,
+  .hero-panel h2 {
     margin: 0 0 1rem;
     font-size: clamp(2.5rem, 4vw, 4.2rem);
     line-height: 1.02;
