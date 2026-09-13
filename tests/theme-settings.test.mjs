@@ -139,3 +139,21 @@ test('editing a font directly detaches it from its curated font pairing', () => 
   assert.equal(settings.fontChoice, '', 'a manual font edit should mark the pairing as custom');
   assert.equal(settings.fontFamily, 'Georgia');
 });
+
+test('mergeThemeUpdate applies bride/groom profile fields and trims strings', () => {
+  const { settings, errors } = mergeThemeUpdate(themeSettings, {
+    brideName: '  Amandi Wijesundara  ',
+    bridePhotoUrl: '  https://example.com/bride.jpg  ',
+    brideBio: '  Loves the ocean.  ',
+    groomName: '  Tharindu Jayanetti  ',
+    groomPhotoUrl: '  https://example.com/groom.jpg  ',
+    groomBio: '  Loves the mountains.  ',
+  });
+  assert.deepEqual(errors, []);
+  assert.equal(settings.brideName, 'Amandi Wijesundara');
+  assert.equal(settings.bridePhotoUrl, 'https://example.com/bride.jpg');
+  assert.equal(settings.brideBio, 'Loves the ocean.');
+  assert.equal(settings.groomName, 'Tharindu Jayanetti');
+  assert.equal(settings.groomPhotoUrl, 'https://example.com/groom.jpg');
+  assert.equal(settings.groomBio, 'Loves the mountains.');
+});

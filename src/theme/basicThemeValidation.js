@@ -79,6 +79,17 @@ export function validateThemeInput(input = {}) {
   // clearing it, never free-typed.
   const heroImageUrl = String(input.heroImageUrl ?? '').trim();
 
+  // Bride & Groom profiles (PRD §17) — all optional, free text/upload, no
+  // format check, same treatment as heroImageUrl above. The homepage section
+  // only renders a profile once its name is set, so there's no "required"
+  // case to enforce here either.
+  const brideName = String(input.brideName ?? '').trim();
+  const bridePhotoUrl = String(input.bridePhotoUrl ?? '').trim();
+  const brideBio = String(input.brideBio ?? '').trim();
+  const groomName = String(input.groomName ?? '').trim();
+  const groomPhotoUrl = String(input.groomPhotoUrl ?? '').trim();
+  const groomBio = String(input.groomBio ?? '').trim();
+
   if (Object.keys(errors).length > 0) {
     return { valid: false, errors };
   }
@@ -98,6 +109,12 @@ export function validateThemeInput(input = {}) {
       weddingDate,
       weddingTime,
       heroImageUrl,
+      brideName,
+      bridePhotoUrl,
+      brideBio,
+      groomName,
+      groomPhotoUrl,
+      groomBio,
     },
   };
 }

@@ -40,6 +40,12 @@ export const FIELD_LABELS = {
   weddingTime: { label: 'Ceremony time', hint: '24-hour HH:MM, Sri Lanka time — also drives the countdown' },
   venueName: { label: 'Venue name', hint: '' },
   venueAddress: { label: 'Venue address', hint: '' },
+  brideName: { label: "Bride's name", hint: 'Shown on the homepage Bride & Groom section' },
+  bridePhotoUrl: { label: "Bride's photo link", hint: 'Web address of the bride’s portrait' },
+  brideBio: { label: "Bride's short bio", hint: 'A sentence or two, shown under her name' },
+  groomName: { label: "Groom's name", hint: 'Shown on the homepage Bride & Groom section' },
+  groomPhotoUrl: { label: "Groom's photo link", hint: 'Web address of the groom’s portrait' },
+  groomBio: { label: "Groom's short bio", hint: 'A sentence or two, shown under his name' },
   invitationCodeSurnamePosition: {
     label: 'Invitation code — which part of the name',
     hint: 'Sri Lankan names often put the family name first; pick whichever gives a recognisable code',
@@ -101,6 +107,11 @@ export const THEME_FIELD_GROUPS = [
     id: 'venue',
     label: 'Venue',
     fields: ['venueName', 'venueAddress'],
+  },
+  {
+    id: 'couple-profiles',
+    label: 'Bride & Groom',
+    fields: ['brideName', 'bridePhotoUrl', 'brideBio', 'groomName', 'groomPhotoUrl', 'groomBio'],
   },
   {
     id: 'invitation-code',

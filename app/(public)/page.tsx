@@ -104,6 +104,7 @@ export default async function HomePage() {
   }
 
   const hasFaq = faqSections.some((section) => section.isVisible && section.title);
+  const hasCoupleProfiles = Boolean(settings.brideName || settings.groomName);
 
   const heroClassName = settings.heroImageUrl
     ? "hero-panel hero-panel--photo"
@@ -166,6 +167,36 @@ export default async function HomePage() {
         ))}
       </section>
       <CustomSections sections={ourStorySections} />
+      {hasCoupleProfiles && (
+        <>
+          <section id="family-details" className="hero-panel hero-panel--light">
+            <span className="hero-flag">The couple</span>
+            <h2>Meet the bride and groom.</h2>
+          </section>
+          <section className="section-grid">
+            {settings.brideName && (
+              <div className="couple-card">
+                {settings.bridePhotoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
+                  <img src={settings.bridePhotoUrl} alt={settings.brideName} className="couple-photo" />
+                )}
+                <h3>{settings.brideName}</h3>
+                {settings.brideBio && <p>{settings.brideBio}</p>}
+              </div>
+            )}
+            {settings.groomName && (
+              <div className="couple-card">
+                {settings.groomPhotoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
+                  <img src={settings.groomPhotoUrl} alt={settings.groomName} className="couple-photo" />
+                )}
+                <h3>{settings.groomName}</h3>
+                {settings.groomBio && <p>{settings.groomBio}</p>}
+              </div>
+            )}
+          </section>
+        </>
+      )}
       <section id="event-details" className="hero-panel hero-panel--seal">
         <span className="hero-flag">Wedding events</span>
         <h2>Celebrate with us at the ceremony and reception.</h2>

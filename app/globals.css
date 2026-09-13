@@ -369,11 +369,26 @@ button {
   .event-card,
   .gallery-card,
   .wish-card,
-  .story-card {
+  .story-card,
+  .couple-card {
     background: var(--color-surface);
     border-radius: var(--radius-card);
     padding: 1.75rem;
     box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+  }
+
+  .couple-card {
+    text-align: center;
+  }
+
+  .couple-photo {
+    display: block;
+    width: 160px;
+    height: 160px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--color-accent);
   }
 
   .gallery-card {
@@ -390,14 +405,16 @@ button {
 
   .feature-card h2,
   .event-card h3,
-  .story-card h3 {
+  .story-card h3,
+  .couple-card h3 {
     margin: 0 0 0.75rem;
   }
 
   .feature-card p,
   .event-card p,
   .story-card p,
-  .wish-card p {
+  .wish-card p,
+  .couple-card p {
     margin: 0;
     color: var(--color-body);
     line-height: 1.75;
