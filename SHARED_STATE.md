@@ -2,7 +2,7 @@
 
 This describes how data moves between the **Admin portal** (`app/admin/**`) and the **Guest portal** (`app/(public)/**`) in this wedding RSVP app. Both portals read and write the same underlying data, but they are two separate apps glued together by a shared database — there is no live push channel between them today. Every "sync" described below is either a server round-trip on next page load, or an explicit cache-refresh call.
 
-Plain-language summary before the details: **the admin makes a change, the database is updated immediately, and the guest side picks it up the next time it loads a page** — either because that page always re-checks the database (most guest pages), or because the admin's save explicitly told Next.js to throw away its cached copy of a few specific pages (the 5 static ones). There are no WebSockets, no polling, and no "live" badge that updates itself without a reload.
+Plain-language summary before the details: **the admin makes a change, the database is updated immediately, and the guest side picks it up the next time it loads a page** — either because that page always re-checks the database (most guest pages), or because the admin's save explicitly told Next.js to throw away its cached copy of the one static page (the homepage). There are no WebSockets, no polling, and no "live" badge that updates itself without a reload.
 
 ---
 
@@ -54,8 +54,8 @@ A legacy, whole-party mirror of the RSVP, kept in sync alongside the per-Invitee
 | `participantNames` | string[] |
 | `submittedAt`, `updatedAt` | timestamp |
 
-### ThemeSettings, SiteSection, CelebrationEvent
-Content the admin edits and the guest site renders: palette/fonts/couple names/date/venue (single row), page sections (About, Gallery, etc.), and celebration events (ceremony, reception — name, date, time, venue, image). These are the entities behind the "instant" sync problem in Section 2, because the pages that render them are pre-built (static), not re-checked per request.
+### ThemeSettings, SiteSection, CelebrationEvent, GalleryPhoto
+Content the admin edits and the guest site renders: palette/fonts/couple names/date/venue/bride & groom profiles (single `theme_settings` row), page sections (About, FAQ, etc.), celebration events (ceremony, reception — name, date, time, venue, image), and gallery photos (`photo_url`, `caption`, `display_order` — added Phase 6, `src/gallery/galleryPhotosRepo.js`). These are the entities behind the "instant" sync problem in Section 2, because the pages that render them are pre-built (static), not re-checked per request.
 
 ### SeatingTable / TableSeat / ProbableAttendee
 Table planning: a `TableSeat` holds **at most one** occupant — a real Guest, an individual Invitee, or an anonymous `ProbableAttendee` placeholder (a seat held for an expected-but-unconfirmed party) — enforced by a database constraint, never by application logic alone.
@@ -72,10 +72,10 @@ There is **no real-time channel** (no WebSockets, no Server-Sent Events, no poll
 **A. Guest-facing dynamic pages (the common case) — always fresh, nothing to invalidate.**
 Pages like the guest's own `/invitation/[code]` view are rendered fresh on every request (`force-dynamic`, or forced dynamic by reading cookies for the session). An admin edit to that guest's RSVP status, seat, or invitee list is visible to the guest the instant they load or reload that page. No cache exists here to go stale.
 
-**B. The static public pages — cached, and explicitly busted on save.**
-Home (which now includes the Our Story and Event Details sections, folded in during Phase 6), Gallery, and Wishes are pre-rendered as static HTML for speed. If the admin changes the theme, a page section, or a celebration event, that change would otherwise only reach guests on the next full deploy. To avoid that, every admin save to Theme, Sections, or Events explicitly calls `revalidateAllPublicPages()` ([src/revalidatePublicPages.js](src/revalidatePublicPages.js)), which tells Next.js to throw away and regenerate the cached HTML for those 3 specific paths (`/`, `/gallery`, `/wishes`). The next guest to load any of those pages gets the new content; anyone with the page already open in their browser needs to reload. `/our-story` and `/the-celebration` are now just redirects to anchors on `/` (`next.config.ts`), so revalidating `/` covers both.
+**B. The static public page — cached, and explicitly busted on save.**
+The homepage (`/`) — which now includes every Phase 6 section: Our Story, Bride & Groom, Event Details, Gallery, and Wishes — is pre-rendered as static HTML for speed. If the admin changes the theme, a page section, a celebration event, or a gallery photo, that change would otherwise only reach guests on the next full deploy. To avoid that, every admin save to Theme, Sections, Events, or Gallery explicitly calls `revalidateAllPublicPages()` ([src/revalidatePublicPages.js](src/revalidatePublicPages.js)), which tells Next.js to throw away and regenerate the cached HTML for `/`. The next guest to load the page gets the new content; anyone with the page already open in their browser needs to reload. `/our-story`, `/the-celebration`, `/gallery`, and `/wishes` are now all just redirects to anchors on `/` (`next.config.ts`) — none of them are their own page anymore, so revalidating `/` alone covers everything.
 
-  A known quirk, documented in code: this only works with literal per-page calls (`revalidatePath('/gallery')`); the broader "revalidate the whole layout" form was tested and found *not* to regenerate the on-disk static file under this project's production build, so don't switch to it without re-verifying.
+  A known quirk, documented in code: this only works with a literal `revalidatePath('/')` call; the broader "revalidate the whole layout" form (`revalidatePath('/', 'layout')`) was tested and found *not* to regenerate the on-disk static file under this project's production build, so don't switch to it without re-verifying.
 
 **C. Inside the Admin portal itself — no live sync between two admins, no optimistic updates.**
 If two admins have the guest list open at once, one admin's edit does **not** appear for the other automatically — there is no push and no polling. Each admin's own screen only refreches after **their own** mutation: every add/edit/delete/approve/reject re-fetches the full list from the server (`load()`) rather than patching the local list in place. So the source of truth after any write is always a fresh server round-trip, never a locally-guessed update — this avoids the UI ever showing a value that doesn't match the database, at the cost of one extra request per action.
@@ -98,6 +98,7 @@ Every mutation is a plain REST call (GET/POST/PATCH/DELETE) guarded by CSRF toke
 | Admin edits theme (colors, fonts, couple info) | `PUT /api/admin/theme` | `theme_settings` (single row) | **Yes** |
 | Admin edits a page section | `POST` / `PATCH` / `DELETE` `/api/admin/sections[/id]` | `site_sections` | **Yes** |
 | Admin edits a celebration event | `POST` / `PATCH` / `DELETE` `/api/admin/events[/id]` | `celebration_events` | **Yes** |
+| Admin adds/edits/deletes a gallery photo | `POST /api/admin/gallery`, `PUT` / `DELETE /api/admin/gallery/[id]` | `gallery_photos` | **Yes** |
 | Admin assigns/unassigns a seat | `POST /api/admin/table-arrangement/[tableId]/seats/[seatId]/assign` \| `unassign` | `table_seats` | No |
 | Admin logs a sent message | `POST /api/admin/messages/log` | `message_logs` | No |
 
@@ -118,4 +119,4 @@ Every mutation is a plain REST call (GET/POST/PATCH/DELETE) guarded by CSRF toke
 - After every mutation, the admin UI **re-fetches from the server** rather than patching its local copy — so what you see always matches what was just written to the database, one request later
 - A guest's own RSVP state is never cached client-side across visits in a way that matters — the page that shows it is server-rendered fresh on each load
 
-**Rule of thumb for new features:** if two different windows (two admin tabs, or an admin tab and a guest page) both need to see the same fact, it belongs in the database, not component state — and if that fact is rendered by one of the 5 static public pages, the write path must also call `revalidateAllPublicPages()` or guests won't see it until the next deploy.
+**Rule of thumb for new features:** if two different windows (two admin tabs, or an admin tab and a guest page) both need to see the same fact, it belongs in the database, not component state — and if that fact is rendered on the static homepage, the write path must also call `revalidateAllPublicPages()` or guests won't see it until the next deploy.

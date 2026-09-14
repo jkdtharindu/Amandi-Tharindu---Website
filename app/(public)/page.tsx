@@ -9,8 +9,16 @@ import { listSections } from "@/src/sections/sectionsRepo.js";
 import CustomSections from "@/components/public/CustomSections";
 import FaqAccordion from "@/components/public/FaqAccordion";
 import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
+import { listGalleryPhotos } from "@/src/gallery/galleryPhotosRepo.js";
 import type { CelebrationEvent } from "@/components/admin/EventManager";
 import type { Section } from "@/components/admin/SectionManager";
+
+type GalleryPhoto = {
+  id: string;
+  photoUrl: string;
+  caption: string;
+  displayOrder: number;
+};
 
 // getThemeSettings() hits the DB on every request; this must never throw, or
 // a transient DB hiccup takes down every page on the site.
@@ -92,6 +100,24 @@ export default async function HomePage() {
     events = [];
   }
 
+  // Page key stays "gallery" (unchanged from the old standalone route) so any
+  // sections an admin already configured for it keep showing up here.
+  let gallerySections: Section[];
+  try {
+    gallerySections = await listSections("gallery");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    gallerySections = [];
+  }
+
+  let galleryPhotos: GalleryPhoto[] = [];
+  try {
+    galleryPhotos = await listGalleryPhotos();
+  } catch (error) {
+    console.error("listGalleryPhotos failed, falling back to none:", error);
+    galleryPhotos = [];
+  }
+
   // Page key "faq" is new (Phase 6) — admin adds questions/answers as plain
   // sections (title = question, content = answer) via the existing Section
   // Manager (P1-11); FaqAccordion renders them as a <details> accordion.
@@ -103,7 +129,18 @@ export default async function HomePage() {
     faqSections = [];
   }
 
+  // Page key stays "wishes" (unchanged from the old standalone route) so any
+  // sections an admin already configured for it keep showing up here.
+  let wishesSections: Section[];
+  try {
+    wishesSections = await listSections("wishes");
+  } catch (error) {
+    console.error("listSections failed, falling back to none:", error);
+    wishesSections = [];
+  }
+
   const hasFaq = faqSections.some((section) => section.isVisible && section.title);
+  const hasGalleryPhotos = galleryPhotos.length > 0;
   const hasCoupleProfiles = Boolean(settings.brideName || settings.groomName);
 
   const heroClassName = settings.heroImageUrl
@@ -235,22 +272,32 @@ export default async function HomePage() {
         ))}
       </section>
       <CustomSections sections={celebrationSections} />
-      <section className="section-grid">
-        <div className="feature-card">
-          <h2>Gallery</h2>
-          <p>
-            Enjoy a curated collection of photos from the couple&rsquo;s journey
-            and engagement moments.
-          </p>
-        </div>
-        <div className="feature-card">
-          <h2>Wishes Wall</h2>
-          <p>
-            Read warm wishes from family and friends, and leave your own message
-            to the couple.
-          </p>
-        </div>
-      </section>
+      {hasGalleryPhotos && (
+        <>
+          <section id="gallery" className="hero-panel hero-panel--light">
+            <span className="hero-flag">Gallery</span>
+            <h2>Photos from our journey together.</h2>
+            <p>
+              Enjoy a curated collection of moments from our story, engagement,
+              and memories shared with loved ones.
+            </p>
+          </section>
+          <section className="gallery-grid">
+            {galleryPhotos.map((photo) => (
+              <div key={photo.id} className="gallery-card">
+                {/* eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx. */}
+                <img
+                  src={photo.photoUrl}
+                  alt={photo.caption || "Gallery photo"}
+                  className="w-full h-full object-cover"
+                />
+                {photo.caption && <p className="gallery-caption">{photo.caption}</p>}
+              </div>
+            ))}
+          </section>
+        </>
+      )}
+      <CustomSections sections={gallerySections} />
       {hasFaq && (
         <section id="faq" className="hero-panel hero-panel--light">
           <span className="hero-flag">FAQ</span>
@@ -262,6 +309,20 @@ export default async function HomePage() {
           <FaqAccordion sections={faqSections} />
         </section>
       )}
+      <section id="wishes" className="hero-panel hero-panel--seal">
+        <span className="hero-flag">Wishes</span>
+        <h2>Thank you for being part of our story.</h2>
+        <p>
+          We can&rsquo;t wait to celebrate with you. View your personal
+          invitation to RSVP and see your event details.
+        </p>
+        <div className="button-group">
+          <Link className="button button-primary" href="/invitation">
+            View Your Invitation
+          </Link>
+        </div>
+      </section>
+      <CustomSections sections={wishesSections} />
       <CustomSections sections={sections} />
     </>
   );

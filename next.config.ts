@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/our-story", destination: "/#our-story", permanent: false },
       { source: "/the-celebration", destination: "/#event-details", permanent: false },
+      { source: "/gallery", destination: "/#gallery", permanent: false },
+      { source: "/wishes", destination: "/#wishes", permanent: false },
     ];
   },
 };
