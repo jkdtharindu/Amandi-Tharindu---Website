@@ -152,7 +152,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className={heroClassName} style={heroStyle}>
+      <section id="home" className={heroClassName} style={heroStyle}>
         <svg className="hero-sprig" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
           <path d="M50 95 C48 70 46 45 44 15" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.2" />
           <path d="M44 30 C34 26 26 30 20 40 C30 42 38 40 44 30Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />

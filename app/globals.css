@@ -62,6 +62,12 @@ body {
   min-height: 100%;
 }
 
+/* Smooth-scrolls the nav's #anchor links (SiteHeader); overridden back to
+   instant under prefers-reduced-motion below. */
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: radial-gradient(
       circle at top,
@@ -139,12 +145,33 @@ button {
     padding: 1rem 0;
   }
 
+  .site-header-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
   .site-brand {
     font-size: 0.95rem;
     font-weight: 700;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--color-brand);
+  }
+
+  /* Hidden on desktop, where .site-nav is always visible inline. */
+  .nav-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-field-border);
+    background: var(--color-surface);
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--color-heading);
   }
 
   .site-nav {
@@ -160,7 +187,8 @@ button {
     transition: color 0.2s ease;
   }
 
-  .site-nav a:hover {
+  .site-nav a:hover,
+  .site-nav a.active {
     color: var(--color-accent);
   }
 
@@ -538,7 +566,32 @@ button {
 
   .site-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .site-header-row {
+    justify-content: space-between;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  /* Collapsed by default on mobile; .site-nav--open (SiteHeader's mobile
+     menu state) reveals it as a full-width stacked list. */
+  .site-nav {
+    display: none;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.75rem;
+  }
+
+  .site-nav--open {
+    display: flex;
+  }
+
+  .site-nav a {
+    padding: 0.6rem 0;
   }
 
   .countdown {
@@ -1029,6 +1082,10 @@ button {
 /* Honour the device's reduced-motion setting: everything appears at once, and
    SiteGate skips the envelope and opens the invitation straight away. */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .gate-ghost,
   .gate-names-part,
   .gate-names-amp,
