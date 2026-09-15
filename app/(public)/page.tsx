@@ -286,11 +286,7 @@ export default async function HomePage() {
             {galleryPhotos.map((photo) => (
               <div key={photo.id} className="gallery-card">
                 {/* eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx. */}
-                <img
-                  src={photo.photoUrl}
-                  alt={photo.caption || "Gallery photo"}
-                  className="w-full h-full object-cover"
-                />
+                <img src={photo.photoUrl} alt={photo.caption || "Gallery photo"} />
                 {photo.caption && <p className="gallery-caption">{photo.caption}</p>}
               </div>
             ))}

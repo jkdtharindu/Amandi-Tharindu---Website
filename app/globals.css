@@ -75,6 +75,15 @@ body {
       transparent 30%
     ),
     var(--color-canvas);
+  /*
+   * .hero-panel--light/--seal's decorative ::before/::after glows and seal
+   * shapes deliberately bleed outside their section via a negative inset
+   * (that's the "hand-stamped"/"soft glow" look, not a bug) -- on a narrow
+   * viewport that bleed can poke past the screen edge and turn into a real
+   * horizontal scrollbar. Clipping it here (rather than on the sections
+   * themselves) hides only the off-screen overflow, not the visible shape.
+   */
+  overflow-x: hidden;
 }
 
 img {
@@ -159,13 +168,16 @@ button {
     color: var(--color-brand);
   }
 
-  /* Hidden on desktop, where .site-nav is always visible inline. */
+  /*
+   * Hidden on desktop, where .site-nav is always visible inline. 3rem
+   * (48px) meets the design brief's minimum touch-target size (§6).
+   */
   .nav-toggle {
     display: none;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 3rem;
+    height: 3rem;
     border-radius: var(--radius-pill);
     border: 1px solid var(--color-field-border);
     background: var(--color-surface);
@@ -405,6 +417,37 @@ button {
     box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
   }
 
+  /*
+   * Overrides the shared card padding/centering above -- .gallery-card was
+   * originally styled to center a text-only placeholder tile (the old
+   * PLACEHOLDER_TILES) and was never updated when the Gallery fold (Phase 6)
+   * replaced that with a real <img> + caption. Left as-is, the default
+   * flex-row + centered layout crammed the photo and caption side by side
+   * instead of stacking a full-bleed photo above its caption.
+   */
+  .gallery-card {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow: hidden;
+    color: var(--color-muted);
+  }
+
+  .gallery-card img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+  }
+
+  .gallery-caption {
+    margin: 0;
+    padding: 0.85rem 1.25rem;
+    color: var(--color-body);
+  }
+
   .couple-card {
     text-align: center;
   }
@@ -417,14 +460,6 @@ button {
     border-radius: 50%;
     object-fit: cover;
     border: 3px solid var(--color-accent);
-  }
-
-  .gallery-card {
-    min-height: 180px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-muted);
   }
 
   .story-card {
@@ -590,8 +625,15 @@ button {
     display: flex;
   }
 
-  .site-nav a {
-    padding: 0.6rem 0;
+  /* min-height (not just padding) meets the design brief's 48px touch-target
+     minimum (§6) regardless of font-metric rounding. Horizontal padding is
+     untouched -- .site-nav a had none before (flush with the nav's own left
+     edge) and LogoutButton keeps its own Tailwind px-3. */
+  .site-nav a,
+  .site-nav button {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
   }
 
   .countdown {
@@ -600,6 +642,16 @@ button {
 
   .hero-panel {
     padding: 1.75rem;
+  }
+
+  /* Plain text link (event card's "View on Google Maps") rendered at its
+     natural ~20px line height -- below the 48px touch-target minimum (§6).
+     inline-flex + min-height widens the tappable area without changing the
+     visible text size. */
+  .event-card a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
   }
 }
 
