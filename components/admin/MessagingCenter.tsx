@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   renderTemplate,
-  buildInvitationLink,
+  buildSiteLink,
   buildWhatsAppLink,
 } from '@/src/admin/messageTemplates.js';
 import { useToast } from '@/components/Toast';
@@ -171,7 +171,7 @@ export default function MessagingCenter({
     return renderTemplate(template?.body ?? '', {
       name: recipient.name,
       code: recipient.code,
-      link: buildInvitationLink(siteUrl, recipient.code),
+      link: buildSiteLink(siteUrl),
       date: weddingDate,
       venue: venueName,
     });

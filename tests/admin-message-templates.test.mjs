@@ -4,13 +4,16 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_RSVP_REMINDER_TEMPLATE,
   renderTemplate,
-  buildInvitationLink,
+  buildSiteLink,
   buildWhatsAppLink,
 } from '../src/admin/messageTemplates.js';
 
-test('default template mentions the guest and includes a link placeholder', () => {
+test('default template mentions the guest, a link placeholder, and the code as separate text', () => {
   assert.match(DEFAULT_RSVP_REMINDER_TEMPLATE, /\{name\}/);
   assert.match(DEFAULT_RSVP_REMINDER_TEMPLATE, /\{link\}/);
+  // The code must appear outside of {link} (Action 37): the link no longer
+  // carries the code, since the code is the site's only login credential.
+  assert.match(DEFAULT_RSVP_REMINDER_TEMPLATE, /\{code\}/);
 });
 
 test('renderTemplate substitutes name, link, and code placeholders', () => {
@@ -37,18 +40,14 @@ test('renderTemplate treats missing values as empty strings', () => {
   assert.equal(result, 'Hi !');
 });
 
-test('buildInvitationLink joins the site URL and code', () => {
-  assert.equal(
-    buildInvitationLink('https://example.com', 'NEI-RU-628'),
-    'https://example.com/invitation/NEI-RU-628'
-  );
+test('buildSiteLink returns the bare site URL, not an invitation deep link', () => {
+  // Action 37: the code is the site's only login credential, so a message
+  // link must never carry it -- the code is sent as separate plain text.
+  assert.equal(buildSiteLink('https://example.com'), 'https://example.com');
 });
 
-test('buildInvitationLink strips a trailing slash from the site URL', () => {
-  assert.equal(
-    buildInvitationLink('https://example.com/', 'NEI-RU-628'),
-    'https://example.com/invitation/NEI-RU-628'
-  );
+test('buildSiteLink strips a trailing slash from the site URL', () => {
+  assert.equal(buildSiteLink('https://example.com/'), 'https://example.com');
 });
 
 test('buildWhatsAppLink strips formatting characters from the phone number', () => {

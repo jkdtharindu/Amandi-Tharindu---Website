@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   DEFAULT_RSVP_REMINDER_TEMPLATE,
   renderTemplate,
-  buildInvitationLink,
+  buildSiteLink,
   buildWhatsAppLink,
 } from '@/src/admin/messageTemplates.js';
 
@@ -24,15 +24,17 @@ export default function WhatsAppReminderModal({
   siteUrl: string;
   onClose: () => void;
 }) {
-  const link = useMemo(() => buildInvitationLink(siteUrl, guest.code), [siteUrl, guest.code]);
+  const link = useMemo(() => buildSiteLink(siteUrl), [siteUrl]);
 
   const [message, setMessage] = useState(() =>
-    renderTemplate(DEFAULT_RSVP_REMINDER_TEMPLATE, { name: guest.name, link })
+    renderTemplate(DEFAULT_RSVP_REMINDER_TEMPLATE, { name: guest.name, link, code: guest.code })
   );
   const [error, setError] = useState('');
 
   function resetToDefault() {
-    setMessage(renderTemplate(DEFAULT_RSVP_REMINDER_TEMPLATE, { name: guest.name, link }));
+    setMessage(
+      renderTemplate(DEFAULT_RSVP_REMINDER_TEMPLATE, { name: guest.name, link, code: guest.code })
+    );
   }
 
   function handleSend() {

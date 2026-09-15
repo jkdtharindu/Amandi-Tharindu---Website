@@ -2,9 +2,10 @@
  * In-memory MessageTemplate store, used when DATABASE_URL is unset.
  *
  * Bodies mirror the four templates seeded by migration 005 *as amended by
- * migration 008* — which flipped the couple-name order to the canonical
- * "Tharindu & Amandi" — so the messaging center renders the same text with or
- * without a database. They use the PRD's [Name]/[Code]/[Link]/[Date]/[Venue]
+ * migration 008* (canonical "Tharindu & Amandi" order) *and migration 017*
+ * (added [Code] to reminder_2, since [Link] no longer carries it — Action
+ * 37) — so the messaging center renders the same text with or without a
+ * database. They use the PRD's [Name]/[Code]/[Link]/[Date]/[Venue]
  * placeholder spelling — see renderTemplate() in src/admin/messageTemplates.js.
  */
 // globalThis-backed -- see MEMORY.md's 2026-09-12 entry for why.
@@ -24,7 +25,7 @@ export const messageTemplates = (globalThis.__messageTemplates ??= [
   {
     id: 'template-reminder-2',
     name: 'reminder_2',
-    body: "Dear [Name], we're finalising our guest list for our wedding on [Date]. Could you please confirm your attendance at [Link]? Thank you so much — Tharindu & Amandi 💛",
+    body: "Dear [Name], we're finalising our guest list for our wedding on [Date]. Could you please confirm your attendance at [Link]? Your code is [Code]. Thank you so much — Tharindu & Amandi 💛",
     channel: 'whatsapp',
   },
   {

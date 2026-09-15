@@ -26,10 +26,11 @@ missing:
 - `app/admin/guests/page.tsx:24`
 - `app/admin/messages/page.tsx:60`
 
-That value is passed to `buildInvitationLink(siteUrl, guest.code)` and goes straight
-into the WhatsApp text you send. So if the variable is unset, **every invitation you
-send contains a dead link** — `http://localhost:3010/invitation/THEIR-CODE`, which only
-works on the machine that generated it. Guests would tap it and get nothing.
+That value is passed to `buildSiteLink(siteUrl)` and goes straight into the WhatsApp
+text you send (the code itself is sent as separate plain text, not baked into the link
+— see Action 37, 2026-09-15). So if the variable is unset, **every message you send
+contains a dead link** — `http://localhost:3010`, which only works on the machine that
+generated it. Guests would tap it and get nothing.
 
 Nothing crashes and no error appears. The admin panel looks completely normal. This is
 why it is first in this document.

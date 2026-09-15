@@ -8,7 +8,7 @@
  */
 
 export const DEFAULT_RSVP_REMINDER_TEMPLATE =
-  "Hi {name}, we'd love to hear if you can make it! Please RSVP at {link}";
+  "Hi {name}, we'd love to hear if you can make it! Please RSVP at {link} using your code: {code}";
 
 const MIN_PHONE_DIGITS = 8;
 const KNOWN_PLACEHOLDERS = ['name', 'link', 'code', 'date', 'venue'];
@@ -35,10 +35,19 @@ export function renderTemplate(template, data = {}) {
   );
 }
 
-/** Builds the guest-facing invitation URL for a code. */
-export function buildInvitationLink(siteUrl, code) {
-  const base = String(siteUrl ?? '').replace(/\/+$/, '');
-  return `${base}/invitation/${code}`;
+/**
+ * Builds the site link used in outbound guest messages.
+ *
+ * Deliberately just the bare site root, not `/invitation/{code}` — the
+ * invitation code is the *only* login credential the site has (there's no
+ * separate password), so a clickable link with the code baked in lets
+ * anyone who receives a forwarded message sign in as that guest with a
+ * single tap. Every template that needs the code shows it as separate
+ * plain text via the `{code}`/`[Code]` placeholder instead, matching how a
+ * guest would read it off a printed invitation card (Action 37, 2026-09-15).
+ */
+export function buildSiteLink(siteUrl) {
+  return String(siteUrl ?? '').replace(/\/+$/, '');
 }
 
 /** Builds a wa.me deep link that opens WhatsApp with `message` pre-filled. */
