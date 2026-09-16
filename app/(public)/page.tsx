@@ -215,7 +215,7 @@ export default async function HomePage() {
               <div className="couple-card">
                 {settings.bridePhotoUrl && (
                   // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
-                  <img src={settings.bridePhotoUrl} alt={settings.brideName} className="couple-photo" />
+                  <img src={settings.bridePhotoUrl} alt={settings.brideName} className="couple-photo" loading="lazy" />
                 )}
                 <h3>{settings.brideName}</h3>
                 {settings.brideBio && <p>{settings.brideBio}</p>}
@@ -225,7 +225,7 @@ export default async function HomePage() {
               <div className="couple-card">
                 {settings.groomPhotoUrl && (
                   // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
-                  <img src={settings.groomPhotoUrl} alt={settings.groomName} className="couple-photo" />
+                  <img src={settings.groomPhotoUrl} alt={settings.groomName} className="couple-photo" loading="lazy" />
                 )}
                 <h3>{settings.groomName}</h3>
                 {settings.groomBio && <p>{settings.groomBio}</p>}
@@ -247,7 +247,7 @@ export default async function HomePage() {
           <div className="event-card" key={event.id}>
             {event.imageUrl && (
               // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
-              <img src={event.imageUrl} alt={event.venueName} className="event-image" />
+              <img src={event.imageUrl} alt={event.venueName} className="event-image" loading="lazy" />
             )}
             <h3>{event.name}</h3>
             <p>
@@ -286,7 +286,7 @@ export default async function HomePage() {
             {galleryPhotos.map((photo) => (
               <div key={photo.id} className="gallery-card">
                 {/* eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx. */}
-                <img src={photo.photoUrl} alt={photo.caption || "Gallery photo"} />
+                <img src={photo.photoUrl} alt={photo.caption || "Gallery photo"} loading="lazy" />
                 {photo.caption && <p className="gallery-caption">{photo.caption}</p>}
               </div>
             ))}

@@ -231,6 +231,48 @@ real-world impact. Check items off here as they close, and also update the origi
   (e.g. `src/theme/loadThemeSettingsSafe.js`). Cosmetic only, no behavior change.
   **Model: Haiku 4.5.**
 
+## Issues Backlog — UI/UX Improvement Pass (2026-09-16)
+
+A Toast Me pass over the Phase 6 homepage redesign (see MEMORY.md for the genuine strengths
+found) was followed by a request for what could still improve. Five real, Tier-1-scoped gaps
+came out of it. **Correction made while filing this:** the verbal version of this list
+included "migrations 015/016 still unapplied" as a blocker — checked against commit
+`d2df21e` before writing it down here, and that claim is stale; both migrations are live as
+of 2026-09-15, so it's dropped rather than logged as still open.
+
+- [x] **1. Add `loading="lazy"` to below-the-fold public images.** Gallery photos
+  (`app/(public)/page.tsx:289`), event photos (`:250`), and couple photos (`:218`, `:228`)
+  all fetch eagerly regardless of scroll position, on a homepage that's now 7+ sections long.
+  One attribute per tag, no behavior risk. **Done 2026-09-16.** Verified 472/472 tests, lint
+  unchanged, and live on a throwaway in-memory `next dev` instance (synthetic test-only admin
+  login, no real data touched): seeded a gallery photo, bride/groom photos, and an event image
+  via the real admin API, then fetched the guest-facing homepage as the seeded `SILVA-001`
+  guest and confirmed all four `<img>` tags render `loading="lazy"` in the actual HTML.
+
+- [ ] **2. Revisit plain `<img>` vs `next/image` for admin-uploaded photos.** MEMORY.md
+  records this was deliberately avoided "to avoid a `next.config.ts` `remotePatterns`
+  change" back when Vercel Blob wasn't configured yet (Next Action 20). Blob is live now, so
+  that reason no longer holds — adding the Blob host to `remotePatterns` would get automatic
+  `srcset`/sizing/lazy-loading across gallery/event/couple photos for free. Needs an owner
+  yes/no since it revisits a past deliberate call rather than fixing a bug.
+  **Model: Sonnet 5 — proposed, unconfirmed.**
+
+- [ ] **3. Add a skip-to-content link.** Phase 6 folded five separate pages into one
+  long-scrolling homepage behind a 6-link nav (`components/public/SiteHeader.tsx`) — a
+  keyboard/screen-reader visitor now tabs through the entire header before reaching any page
+  content, on every load. This cost didn't exist before the fold. **Model: Haiku 4.5.**
+
+- [ ] **4. Move focus when the mobile nav opens/closes.** `SiteHeader.tsx:85-92`'s
+  Escape-to-close handler and the hamburger's own click handler never move focus anywhere —
+  a keyboard user opening or closing the menu loses their place. Focus the first nav link on
+  open, return focus to the toggle button on close. **Model: Sonnet 5.**
+
+- [ ] **5. Add a lightbox / enlarge-on-click to the Gallery.** `app/(public)/page.tsx:285-294`
+  renders a fixed 220px-tall grid with no way to view a photo larger — close to a baseline
+  expectation for a wedding gallery specifically, not a nice-to-have. A real feature, not a
+  bug fix — needs an owner decision on scope before building.
+  **Model: Sonnet 5 — proposed, unconfirmed.**
+
 ## Next Actions (step-by-step)
 1. ~~Theme editor (P1-10)~~ — done, reconciled 2026-09-04 (see Phase 4 note above).
 1a. ~~Wire `theme_settings.couple_names`/`wedding_date` into public pages~~ — done 2026-09-04. `SiteHeader.tsx`, `PageFooter.tsx`, `Countdown.tsx`, `app/layout.tsx` metadata, all five public page `<title>`s, and the invitation page's sticky RSVP bar now render live `theme_settings` values instead of hardcoded "Amandi & Tharindu" / 14 Dec 2026. New `src/theme/formatWeddingDate.js` shared helper. Verified via `npm test` (256/256), `npm run build`, and a live browser walkthrough against the DB. Countdown's ceremony start time (15:00) stays hardcoded — no time-of-day column exists on `wedding_date`. The invitation page's Ceremony/Reception venue/time details were deliberately left alone — `venue_name`/`venue_address` wiring belongs to Event Manager (P1-09, Next Action 3), not this slice.
@@ -326,6 +368,16 @@ real-world impact. Check items off here as they close, and also update the origi
 40. Homepage redesign — single-page layout (scoped 2026-09-12; two items shipped same day — hero image admin field and the base-text-color CSS fix, see Phase 6 above for both and for the full remaining backlog). Owner pasted a reference wedding-site screenshot (a Mandapp Invites template) asking for layout/UI refinement. Scoping session established: (a) reuse the reference's section architecture (hero+countdown → Our Story → Family/Bride&Groom details → Event Details cards → Gallery → FAQ → footer) but restyle it in the project's own approved "Modern Royal Romance" burgundy/gold/ivory palette (`WEDDING_UI_UX_DESIGN_BRIEF.md`), not the reference's coral/pink visual style — copying the reference pixel-for-pixel was flagged and rejected, partly because its footer credits "Mandapp Invites" as a commercial third-party template; (b) owner confirmed the reference is single-page (anchor-nav to on-page sections), not multi-page like the current site, and chose to go single-page rather than keep `/our-story`, `/the-celebration`, `/gallery`, `/wishes` as separate routes; (c) owner confirmed the old routes must keep working, so each becomes a redirect to its matching homepage anchor rather than being removed. Complexity assessment done against the real codebase, not assumed: the theme/palette system, `src/celebration-events`, `CustomSections`, and Vercel Blob image upload (Next Action 20) are all already-built infra this reuses; the two genuine gaps are (1) no Bride & Groom / FAQ content types yet — FAQ is cheap since it reuses `CustomSections`, Bride & Groom is not — and (2) `app/(public)/gallery/page.tsx` still renders hardcoded `PLACEHOLDER_TILES` — real photos were never wired to the existing upload infra. **Admin-panel impact checked separately (owner asked directly):** Event Details and FAQ need zero new admin work (existing `/admin/events` and `/admin/sections` already cover them); Hero photo, Bride & Groom, and Gallery each need genuinely new admin UI that doesn't exist today — Gallery is the largest gap, since unlike Events it has no admin management surface at all, not even a basic one. Nothing has been built yet; this is scoping only. (Model: see per-item tags in Phase 6)
 
 41. ~~PR #12 opened for the Phase 6 slice above (hero image field + base-text-color fix)~~ — **merged 2026-09-12** (merge commit `21558d3`). **Was blocked on an owner-only Vercel dashboard step, not code, before that:** the PR's Vercel Preview deployment failed at build time with `SESSION_SECRET is required in production` (`src/session.js:3-6` throws during `next build`'s page-data-collection step whenever `NODE_ENV=production` and `SESSION_SECRET` is unset). Vercel builds every deployment — Preview included — with `NODE_ENV=production`, and `SESSION_SECRET` was only ever added to the **Production** environment scope (Next Action 10), never Preview, because this project had had no PR-triggered Preview deployments before this PR. Confirmed not caused by this PR's diff: reproduced the exact failure locally with a plain `npm run build` and no `SESSION_SECRET` set, and none of the PR's changed files touch session/env code. Diagnosis posted as a PR comment; the owner added `SESSION_SECRET` to the Preview scope in the Vercel dashboard, the Preview deployment went green, and the owner approved the merge. This likely unblocks every future PR against this repo, not just this one. (Model: Haiku 4.5 — diagnosis only, no code fix needed)
+
+42. ~~Add `loading="lazy"` to below-the-fold public images~~ — done 2026-09-16 (added 2026-09-16, from the UI/UX Improvement Pass above). Gallery (`app/(public)/page.tsx:289`), event (`:250`), and couple (`:218`, `:228`) photos all fetched eagerly on a homepage that's now 7+ sections long. Verified 472/472 tests, lint unchanged, and live end-to-end on a throwaway in-memory server (synthetic admin, seeded `SILVA-001` guest) — all four `<img>` tags confirmed rendering `loading="lazy"` in the real HTML.
+
+43. Decide whether to move admin-uploaded photos onto `next/image` now that Vercel Blob is live (added 2026-09-16). Plain `<img>` was a deliberate call in Next Action 20, specifically to avoid a `next.config.ts` `remotePatterns` change when Blob wasn't configured yet — that reason no longer holds. Would need `remotePatterns` added for the Blob host. (Model: Sonnet 5 — proposed, unconfirmed)
+
+44. Add a skip-to-content link (added 2026-09-16). Phase 6's single-page fold means a keyboard/screen-reader visitor now tabs through all six `SiteHeader` nav links before reaching any content, on every load — a cost that didn't exist before the fold. (Model: Haiku 4.5)
+
+45. Move focus on mobile-nav open/close (added 2026-09-16). `SiteHeader.tsx:85-92`'s Escape handler and the hamburger toggle never move focus — a keyboard user opening or closing the menu loses their place. (Model: Sonnet 5)
+
+46. Add a lightbox/enlarge-on-click to the Gallery section (added 2026-09-16). `app/(public)/page.tsx:285-294` is a fixed 220px grid with no way to view a photo larger — a real feature addition, needs an owner decision on scope before building. (Model: Sonnet 5 — proposed, unconfirmed)
 
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.
