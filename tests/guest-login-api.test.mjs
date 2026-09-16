@@ -99,36 +99,38 @@ test('POST /api/guest/login accepts code and returns a session', async () => {
   });
 });
 
-test('POST /api/guest/login accepts exact name and returns a session', async () => {
+// Name login was removed 2026-09-16 (Next Action 28): an exact name signed the
+// caller in as that guest, and an ambiguous one answered with every matching
+// guest's plaintext invitation code. These two tests assert it stays gone.
+test('POST /api/guest/login ignores a name and refuses to sign anyone in', async () => {
   await withApp(async (port) => {
     const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Nimal Silva' });
 
-    assert.equal(result.statusCode, 200);
-    assert.equal(result.body.success, true);
-    assert.equal(result.body.type, 'exact');
-    assert.ok(result.body.guestId);
+    assert.equal(result.statusCode, 400);
+    assert.equal(result.body.success, false);
+    assert.equal(result.body.reason, 'code_required');
+    assert.ok(!result.headers['set-cookie'], 'must not issue a session for a name');
   });
 });
 
-test('POST /api/guest/login returns candidates for ambiguous name', async () => {
+test('POST /api/guest/login never returns candidate invitation codes', async () => {
   await withApp(async (port) => {
     const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, { name: 'Silva' });
 
-    assert.equal(result.statusCode, 200);
-    assert.equal(result.body.success, false);
-    assert.equal(result.body.type, 'candidates');
-    assert.ok(Array.isArray(result.body.candidates));
-    assert.ok(result.body.candidates.length >= 1);
+    assert.equal(result.statusCode, 400);
+    assert.equal(result.body.type, undefined);
+    assert.equal(result.body.candidates, undefined);
+    assert.ok(!JSON.stringify(result.body).includes('SILVA-'), 'no invitation code may leak in the response');
   });
 });
 
-test('POST /api/guest/login returns 400 when missing code and name', async () => {
+test('POST /api/guest/login returns 400 when the code is missing', async () => {
   await withApp(async (port) => {
     const result = await requestJSON({ hostname: '127.0.0.1', port, path: '/api/guest/login', method: 'POST' }, {});
 
     assert.equal(result.statusCode, 400);
     assert.equal(result.body.success, false);
-    assert.equal(result.body.reason, 'missing_identifier');
+    assert.equal(result.body.reason, 'code_required');
   });
 });
 

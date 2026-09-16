@@ -53,41 +53,11 @@ export async function findGuestById(id) {
   return mapGuestRow(rows[0]);
 }
 
-export async function findGuestByName(name) {
-  if (!useDb) {
-    const needle = String(name).trim().toLowerCase();
-    return (
-      guestStore.find(
-        (g) => String(g.name).toLowerCase() === needle && g.isDeleted !== true
-      ) || null
-    );
-  }
-
-  const needle = String(name).trim().toLowerCase();
-  const { rows } = await query(
-    `SELECT * FROM guests WHERE LOWER(name) = $1 AND is_deleted = false LIMIT 1`,
-    [needle]
-  );
-  return mapGuestRow(rows[0]);
-}
-
-export async function findGuestCandidatesByName(name) {
-  if (!useDb) {
-    const needle = String(name).trim().toLowerCase();
-    return guestStore
-      .filter(
-        (g) => String(g.name).toLowerCase().includes(needle) && g.isDeleted !== true
-      )
-      .map((g) => ({ id: g.id, code: g.code, name: g.name }));
-  }
-
-  const needle = `%${String(name).trim().toLowerCase()}%`;
-  const { rows } = await query(
-    `SELECT id, code, name FROM guests WHERE LOWER(name) LIKE $1 AND is_deleted = false`,
-    [needle]
-  );
-  return rows;
-}
+// findGuestByName / findGuestCandidatesByName were removed 2026-09-16
+// (Next Action 28). They existed only to serve login-by-name, which let an
+// unauthenticated caller sign in as any guest whose name they knew, and whose
+// candidate list returned every partial match's plaintext invitation code.
+// The invitation code is the only credential now — see app/api/guest/login.
 
 export async function findRsvpResponseByGuestId(guestId) {
   if (!useDb) {

@@ -4,7 +4,7 @@ import bodyParser from 'body-parser';
 import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { loginGuestByCode, loginGuestByName } from './guest-auth/index.js';
+import { loginGuestByCode } from './guest-auth/index.js';
 import { signSession, verifySession } from './session.js';
 import { getOrCreateCsrfToken, verifyCsrfToken } from './csrf.js';
 import {
@@ -61,7 +61,7 @@ import {
   ALLOWED_MIME_TYPES,
   ALLOWED_FOLDERS,
 } from './storage/supabaseStorage.js';
-import { clientKey, createGuestLoginLimiter } from './rate-limiter.js';
+import { clientKey, createAdminLoginLimiter, createGuestLoginLimiter } from './rate-limiter.js';
 import { validateImageBuffer } from './image-validator.js';
 
 const ADMIN_SESSION_COOKIE = 'admin_session';
@@ -546,6 +546,7 @@ export function createApp() {
   // Per-app instance, not module-scoped: each createApp() gets its own counter so
   // one test's exhausted limit cannot bleed into the next.
   const guestLoginLimiter = createGuestLoginLimiter();
+  const adminLoginLimiter = createAdminLoginLimiter();
   // Self-hosted webfonts (PRD §4.1 item 4) — served from our own origin so
   // the site never depends on a third-party CDN being reachable.
   app.use('/fonts', express.static(path.join(projectRoot, 'public', 'fonts'), { immutable: true, maxAge: '30d' }));
@@ -747,13 +748,13 @@ export function createApp() {
       <section class="hero-panel">
         <span class="hero-flag">Guest login</span>
         <h1>Access your invitation securely.</h1>
-        <p>Enter your invitation code or full name so we can locate your personalized wedding invitation.</p>
+        <p>Enter your invitation code so we can locate your personalized wedding invitation.</p>
       </section>
       <section class="story-card">
         <form id="login-form" class="responsive-stack">
           <label>
-            Code or Name
-            <input id="identifier" name="identifier" autocomplete="off" placeholder="SILVA-001 or Nimal Silva" />
+            Invitation code
+            <input id="identifier" name="identifier" autocomplete="off" placeholder="SILVA-001" />
           </label>
           <button class="button button-primary" type="submit">Login</button>
         </form>
@@ -790,40 +791,14 @@ export function createApp() {
           event.preventDefault();
           const identifier = document.getElementById('identifier').value.trim();
           if (!identifier) {
-            result.textContent = 'Please enter a code or name.';
+            result.textContent = 'Please enter your invitation code.';
             return;
           }
 
-          const payload = identifier.includes('-') ? { code: identifier } : { name: identifier };
-          const { status, body } = await login(payload);
+          const { status, body } = await login({ code: identifier });
 
           if (status === 200 && body.success) {
             result.innerHTML = '<p>Success! Logged in as ' + (body.guestId || 'guest') + '.</p><p><a href="/invitation/' + body.code + '">Go to your invitation</a></p>';
-            return;
-          }
-
-          if (body.type === 'candidates') {
-            let candidateHtml = '<p>Multiple matches found. Please select your guest record:</p>';
-            candidateHtml += '<ul class="candidates">';
-            candidateHtml += body.candidates
-              .map(function (candidate) {
-                return '<li>' + candidate.name + ' (' + candidate.code + ') <button type="button" data-code="' + candidate.code + '">Select</button></li>';
-              })
-              .join('');
-            candidateHtml += '</ul>';
-            result.innerHTML = candidateHtml;
-
-            result.querySelectorAll('button[data-code]').forEach(function (button) {
-              button.addEventListener('click', async function () {
-                const selectedCode = button.getAttribute('data-code');
-                const selectedResult = await login({ code: selectedCode });
-                if (selectedResult.status === 200 && selectedResult.body.success) {
-                  result.innerHTML = '<p>Selected guest: ' + selectedResult.body.guestId + '</p><p><a href="/invitation/' + selectedCode + '">Go to your invitation</a></p>';
-                } else {
-                  result.textContent = 'Could not select that guest. Please try again.';
-                }
-              });
-            });
             return;
           }
 
@@ -856,43 +831,27 @@ export function createApp() {
         });
     }
 
-    const { code, name } = req.body || {};
+    // Code only, matching app/api/guest/login. Name login was removed here
+    // 2026-09-16 (Next Action 28) — it let anyone who knew a guest's name sign
+    // in as them, and its ambiguous-name fallback answered with every matching
+    // guest's plaintext invitation code.
+    const { code } = req.body || {};
 
-    if (!code && !name) {
-      return res.status(400).json({ success: false, reason: 'missing_identifier' });
+    if (!code) {
+      return res.status(400).json({ success: false, reason: 'code_required' });
     }
 
-    if (code) {
-      const result = await loginGuestByCode(code);
-      if (!result.success) return res.status(404).json(result);
+    const result = await loginGuestByCode(code);
+    if (!result.success) return res.status(404).json(result);
 
-      const signed = signSession(result.sessionId);
-      res.cookie('guest_session', signed, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-      });
-      return res.json(result);
-    }
-
-    const result = await loginGuestByName(name);
-    if (result.success) {
-      const signed = signSession(result.sessionId);
-      res.cookie('guest_session', signed, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-      });
-      return res.json(result);
-    }
-
-    if (result.type === 'candidates') {
-      return res.status(200).json(result);
-    }
-
-    return res.status(404).json(result);
+    const signed = signSession(result.sessionId);
+    res.cookie('guest_session', signed, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    return res.json(result);
   });
 
   // Releases the guest session. Deliberately idempotent: a guest whose cookie
@@ -1211,6 +1170,22 @@ export function createApp() {
       return res.status(403).json({ success: false, reason: 'csrf_invalid', message: 'Invalid CSRF token.' });
     }
 
+    // The admin password is the only thing protecting the whole guest list, and
+    // this route had no limit at all until 2026-09-16 (Next Action 28) — the
+    // limiter existed in src/rate-limiter.js and was simply never called.
+    const rateLimit = adminLoginLimiter.check(clientKey(req));
+    if (!rateLimit.allowed) {
+      const retryAfter = Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000);
+      return res
+        .status(429)
+        .set('Retry-After', String(retryAfter))
+        .json({
+          success: false,
+          reason: 'too_many_attempts',
+          message: 'Too many login attempts. Please wait and try again.',
+        });
+    }
+
     // There is no fallback admin password. When the account is unconfigured,
     // say so plainly rather than returning "incorrect email or password" for
     // credentials that could never have worked.
@@ -1229,6 +1204,10 @@ export function createApp() {
     if (!result.success) {
       return res.status(401).json(result);
     }
+
+    // A successful sign-in clears the counter, so an admin who mistypes a few
+    // times and then gets it right is not left throttled.
+    adminLoginLimiter.reset(clientKey(req));
 
     const signed = signSession(result.adminId);
     res.cookie(ADMIN_SESSION_COOKIE, signed, {

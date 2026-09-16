@@ -91,6 +91,56 @@ test('POST /api/admin/login rejects wrong credentials', async () => {
   });
 });
 
+// Until Next Action 28 this route had no limit at all: the admin password was
+// the only thing protecting the whole guest list, and it could be guessed at
+// unlimited speed. createAdminLoginLimiter() allows 8 attempts per 15 minutes.
+test('POST /api/admin/login throttles repeated wrong passwords with a 429', async () => {
+  await withServer(async (port) => {
+    const cookie = await getCsrfCookie(port);
+    const attempt = () =>
+      requestJSON({
+        options: { hostname: '127.0.0.1', port, path: '/api/admin/login', method: 'POST', headers: { 'x-csrf-token': csrfFromCookie(cookie) } },
+        body: { email: DEFAULT_ADMIN.email, password: 'wrong' },
+        cookie,
+      });
+
+    for (let i = 0; i < 8; i += 1) {
+      const result = await attempt();
+      assert.equal(result.statusCode, 401, `attempt ${i + 1} should still be allowed through`);
+    }
+
+    const blocked = await attempt();
+    assert.equal(blocked.statusCode, 429);
+    assert.equal(blocked.body.reason, 'too_many_attempts');
+    assert.ok(blocked.headers['retry-after'], 'a throttled reply should say when to retry');
+  });
+});
+
+test('a successful admin login clears the throttle counter', async () => {
+  await withServer(async (port) => {
+    const cookie = await getCsrfCookie(port);
+    const post = (body) =>
+      requestJSON({
+        options: { hostname: '127.0.0.1', port, path: '/api/admin/login', method: 'POST', headers: { 'x-csrf-token': csrfFromCookie(cookie) } },
+        body,
+        cookie,
+      });
+
+    for (let i = 0; i < 5; i += 1) {
+      await post({ email: DEFAULT_ADMIN.email, password: 'wrong' });
+    }
+
+    const good = await post(DEFAULT_ADMIN);
+    assert.equal(good.statusCode, 200);
+
+    // Without the reset, five earlier misses plus these would cross the limit.
+    for (let i = 0; i < 6; i += 1) {
+      const result = await post({ email: DEFAULT_ADMIN.email, password: 'wrong' });
+      assert.equal(result.statusCode, 401, 'counter should have restarted after the successful login');
+    }
+  });
+});
+
 test('admin login, theme update, and section CRUD flow', async () => {
   await withServer(async (port) => {
     const csrfCookie = await getCsrfCookie(port);
