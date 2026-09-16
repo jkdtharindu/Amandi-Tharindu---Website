@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Section } from "@/components/admin/SectionManager";
 
 /**
@@ -14,8 +15,14 @@ export default function CustomSections({ sections }: { sections: Section[] }) {
       {visible.map((section) => (
         <article className="story-card" key={section.id}>
           {section.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
-            <img src={section.imageUrl} alt={section.title || ''} className="section-image" />
+            <Image
+              src={section.imageUrl}
+              alt={section.title || ''}
+              className="section-image"
+              width={800}
+              height={320}
+              sizes="100vw"
+            />
           )}
           {section.title && <h3>{section.title}</h3>}
           {section.content && <p>{section.content}</p>}

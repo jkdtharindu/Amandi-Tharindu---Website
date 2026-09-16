@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import Countdown from "@/components/public/Countdown";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
@@ -214,8 +215,13 @@ export default async function HomePage() {
             {settings.brideName && (
               <div className="couple-card">
                 {settings.bridePhotoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
-                  <img src={settings.bridePhotoUrl} alt={settings.brideName} className="couple-photo" loading="lazy" />
+                  <Image
+                    src={settings.bridePhotoUrl}
+                    alt={settings.brideName}
+                    className="couple-photo"
+                    width={160}
+                    height={160}
+                  />
                 )}
                 <h3>{settings.brideName}</h3>
                 {settings.brideBio && <p>{settings.brideBio}</p>}
@@ -224,8 +230,13 @@ export default async function HomePage() {
             {settings.groomName && (
               <div className="couple-card">
                 {settings.groomPhotoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
-                  <img src={settings.groomPhotoUrl} alt={settings.groomName} className="couple-photo" loading="lazy" />
+                  <Image
+                    src={settings.groomPhotoUrl}
+                    alt={settings.groomName}
+                    className="couple-photo"
+                    width={160}
+                    height={160}
+                  />
                 )}
                 <h3>{settings.groomName}</h3>
                 {settings.groomBio && <p>{settings.groomBio}</p>}
@@ -246,8 +257,14 @@ export default async function HomePage() {
         {events.map((event) => (
           <div className="event-card" key={event.id}>
             {event.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx.
-              <img src={event.imageUrl} alt={event.venueName} className="event-image" loading="lazy" />
+              <Image
+                src={event.imageUrl}
+                alt={event.venueName}
+                className="event-image"
+                width={800}
+                height={320}
+                sizes="100vw"
+              />
             )}
             <h3>{event.name}</h3>
             <p>
@@ -285,8 +302,13 @@ export default async function HomePage() {
           <section className="gallery-grid">
             {galleryPhotos.map((photo) => (
               <div key={photo.id} className="gallery-card">
-                {/* eslint-disable-next-line @next/next/no-img-element -- remote, admin-uploaded URL (Vercel Blob); see ImageUploadField.tsx. */}
-                <img src={photo.photoUrl} alt={photo.caption || "Gallery photo"} loading="lazy" />
+                <Image
+                  src={photo.photoUrl}
+                  alt={photo.caption || "Gallery photo"}
+                  width={600}
+                  height={220}
+                  sizes="100vw"
+                />
                 {photo.caption && <p className="gallery-caption">{photo.caption}</p>}
               </div>
             ))}

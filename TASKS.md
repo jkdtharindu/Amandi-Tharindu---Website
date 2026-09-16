@@ -249,13 +249,43 @@ of 2026-09-15, so it's dropped rather than logged as still open.
   via the real admin API, then fetched the guest-facing homepage as the seeded `SILVA-001`
   guest and confirmed all four `<img>` tags render `loading="lazy"` in the actual HTML.
 
-- [ ] **2. Revisit plain `<img>` vs `next/image` for admin-uploaded photos.** MEMORY.md
+- [x] **2. Revisit plain `<img>` vs `next/image` for admin-uploaded photos.** MEMORY.md
   records this was deliberately avoided "to avoid a `next.config.ts` `remotePatterns`
   change" back when Vercel Blob wasn't configured yet (Next Action 20). Blob is live now, so
   that reason no longer holds — adding the Blob host to `remotePatterns` would get automatic
-  `srcset`/sizing/lazy-loading across gallery/event/couple photos for free. Needs an owner
-  yes/no since it revisits a past deliberate call rather than fixing a bug.
-  **Model: Sonnet 5 — proposed, unconfirmed.**
+  `srcset`/sizing/lazy-loading across gallery/event/couple photos for free. **Done
+  2026-09-16, owner confirmed by asking to start on it.** `next.config.ts` gained
+  `images.remotePatterns` for `*.public.blob.vercel-storage.com` (a wildcard, since the Blob
+  store subdomain is account-specific and not fixed in advance — matches Vercel's own
+  documented pattern). Converted every guest-facing admin-uploaded `<img>` to `next/image`:
+  bride/groom photos (`app/(public)/page.tsx`, fixed 160×160), the event-card image (fixed
+  800×320 nominal size + `sizes="100vw"`, matching `.event-image`'s existing
+  `width:100%;max-height:320px;object-fit:cover` CSS, left untouched), the gallery-card image
+  (600×220 + `sizes="100vw"`, matching `.gallery-card img`'s existing fixed `height:220px`),
+  and `CustomSections.tsx`'s `.section-image` (same treatment as the event image — these two
+  were the exact two places named in the original 2026-09-11 decision). **Deliberately left
+  as plain `<img>`:** `ImageUploadField.tsx`'s own upload-preview thumbnail and
+  `GalleryManager.tsx`'s admin reorder-list thumbnails — both are admin-only internal tools,
+  not the guest page-load performance this item was about, and touching them adds risk for
+  no stated benefit. No CSS was changed anywhere — width/height props were chosen to match
+  each element's existing rule exactly, specifically to avoid reopening the cascade-layers
+  class of bug the 2026-09-14 `.gallery-card img` mistake already hit once (MEMORY.md).
+  **Verified:** 472/472 tests, lint unchanged (4 pre-existing problems only), a clean
+  production build (`/` still prerenders static). Live end-to-end on a throwaway in-memory
+  `next dev` instance (synthetic test-only admin, no real data touched): seeded all four spots
+  via the real admin API, confirmed the guest-facing HTML renders real `srcSet`/`sizes`/
+  `loading="lazy"` attributes through `/_next/image`, and fetched that endpoint directly —
+  it returned a genuine resized PNG (confirmed by magic bytes and actual pixel dimensions),
+  proving the `remotePatterns`-gated optimizer path works, not just that the markup looks
+  right. (A temporary second `remotePatterns` entry for a public placeholder-image host stood
+  in for a real Blob upload, since Blob isn't configured in this throwaway env — same
+  limitation prior Blob-dependent sessions already hit; removed before committing, confirmed
+  by a second clean lint/test/build pass against the final Blob-only config.) Browser-rendered
+  screenshots of the live sections were inconclusive (the pane's screenshot tool timed out
+  repeatedly this session) — substituted a JS-level check confirming the bride/groom `<img>`
+  elements actually decoded (`naturalWidth`/`naturalHeight` non-zero via the real fetched
+  image), which is strictly stronger evidence than a screenshot would have been.
+  **Model: Sonnet 5.**
 
 - [ ] **3. Add a skip-to-content link.** Phase 6 folded five separate pages into one
   long-scrolling homepage behind a 6-link nav (`components/public/SiteHeader.tsx`) — a
@@ -371,7 +401,7 @@ of 2026-09-15, so it's dropped rather than logged as still open.
 
 42. ~~Add `loading="lazy"` to below-the-fold public images~~ — done 2026-09-16 (added 2026-09-16, from the UI/UX Improvement Pass above). Gallery (`app/(public)/page.tsx:289`), event (`:250`), and couple (`:218`, `:228`) photos all fetched eagerly on a homepage that's now 7+ sections long. Verified 472/472 tests, lint unchanged, and live end-to-end on a throwaway in-memory server (synthetic admin, seeded `SILVA-001` guest) — all four `<img>` tags confirmed rendering `loading="lazy"` in the real HTML.
 
-43. Decide whether to move admin-uploaded photos onto `next/image` now that Vercel Blob is live (added 2026-09-16). Plain `<img>` was a deliberate call in Next Action 20, specifically to avoid a `next.config.ts` `remotePatterns` change when Blob wasn't configured yet — that reason no longer holds. Would need `remotePatterns` added for the Blob host. (Model: Sonnet 5 — proposed, unconfirmed)
+43. ~~Move admin-uploaded photos onto `next/image` now that Vercel Blob is live~~ — done 2026-09-16 (added 2026-09-16, from the UI/UX Improvement Pass above). Plain `<img>` was a deliberate call in Next Action 20, specifically to avoid a `next.config.ts` `remotePatterns` change when Blob wasn't configured yet — that reason no longer held, so `remotePatterns` was added for the Blob host (`*.public.blob.vercel-storage.com`, wildcarded since the store subdomain is account-specific) and every guest-facing admin-uploaded image (bride/groom, event, gallery, `CustomSections`) converted to `next/image`; admin-only preview thumbnails (`ImageUploadField.tsx`, `GalleryManager.tsx`) deliberately left as plain `<img>`. Verified 472/472 tests, lint unchanged, clean build, and live end-to-end on a throwaway in-memory server — confirmed real `srcSet`/`sizes` markup and a working `/_next/image` optimizer round-trip (a genuine resized PNG back, not just correct-looking HTML). Full detail in item #2 of the UI/UX Improvement Pass above.
 
 44. Add a skip-to-content link (added 2026-09-16). Phase 6's single-page fold means a keyboard/screen-reader visitor now tabs through all six `SiteHeader` nav links before reaching any content, on every load — a cost that didn't exist before the fold. (Model: Haiku 4.5)
 

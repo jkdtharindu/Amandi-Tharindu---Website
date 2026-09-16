@@ -8,6 +8,23 @@ const nextConfig: NextConfig = {
     root: import.meta.dirname,
   },
 
+  // Admin-uploaded photos (Sections/Events/Gallery/Bride & Groom, all via
+  // Vercel Blob -- src/storage/blobStorage.js) render through next/image as
+  // of the UI/UX Improvement Pass (TASKS.md). The store subdomain is
+  // account-specific and not fixed in advance, so this uses the wildcard
+  // pattern Vercel's own docs recommend rather than one hardcoded hostname.
+  // Plain <img> was the deliberate original choice specifically to avoid
+  // this config change (see MEMORY.md's 2026-09-11 image-upload entry) --
+  // revisited now that Blob is actually live, not still hypothetical.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.public.blob.vercel-storage.com",
+      },
+    ],
+  },
+
   // Phase 6 (single-page homepage redesign): pages folded into homepage
   // sections keep their old URL working as a redirect to the matching
   // anchor, per the owner's explicit call that existing links must not
