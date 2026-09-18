@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateSeatingTable, deleteSeatingTable } from '@/src/table-arrangement/tableArrangementRepo.js';
+import {
+  updateSeatingTable,
+  deleteSeatingTable,
+  isUserFacingError,
+} from '@/src/table-arrangement/tableArrangementRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -35,7 +39,14 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
     }
     return NextResponse.json({ success: true, table });
   } catch (error) {
-    return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    if (isUserFacingError(error)) {
+      return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    }
+    console.error('Failed to update seating table:', error);
+    return NextResponse.json(
+      { success: false, message: 'Could not update the table. Please try again.' },
+      { status: 500 }
+    );
   }
 }
 
@@ -56,6 +67,13 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
     await deleteSeatingTable(tableId);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    if (isUserFacingError(error)) {
+      return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    }
+    console.error('Failed to delete seating table:', error);
+    return NextResponse.json(
+      { success: false, message: 'Could not delete the table. Please try again.' },
+      { status: 500 }
+    );
   }
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useToast } from '@/components/Toast';
 
 const LINKS = [
   { href: '/admin/dashboard', label: 'Dashboard' },
@@ -19,12 +20,35 @@ export default function AdminNav({ email }: { email: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const showToast = useToast();
 
+  // Fails loudly rather than silently (Next Action 31): without the res.ok
+  // check a server error redirected as though the sign-out had worked, and
+  // without the catch a network blip left the button stuck on "Signing out…"
+  // forever. The token is fetched right before use rather than on mount —
+  // /api/csrf reuses a still-valid cookie (Action 19a), so this costs one
+  // request per sign-out instead of one per page load.
   async function handleLogout() {
     setLoggingOut(true);
-    await fetch('/api/admin/logout', { method: 'POST' });
-    router.replace('/admin');
-    router.refresh();
+    try {
+      const { token } = await fetch('/api/csrf').then((res) => res.json());
+      const res = await fetch('/api/admin/logout', {
+        method: 'POST',
+        headers: { 'x-csrf-token': token },
+      });
+
+      if (!res.ok) {
+        showToast({ kind: 'error', text: 'Could not sign out. Please try again.' });
+        setLoggingOut(false);
+        return;
+      }
+
+      router.replace('/admin');
+      router.refresh();
+    } catch {
+      showToast({ kind: 'error', text: 'Could not reach the server to sign out.' });
+      setLoggingOut(false);
+    }
   }
 
   return (

@@ -3,31 +3,50 @@ import {
   listSeatingTables,
   createSeatingTable,
   listUnassignedGuests,
+  listAssignedGuests,
   listUnassignedInvitees,
   listUnassignedProbableAttendees,
   getProbableAttendanceSummary,
+  isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
+import { computeRsvpStats } from '@/src/admin/guestQueries.js';
+import { buildDashboardStats } from '@/src/table-arrangement/dashboardStats.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 /**
  * Every seating table with its seats, accepted guests not yet seated (P1-14),
  * accepted individual invitees not yet seated (multi-person invitations,
- * 2026-09), and the ProbableAttendee buffer state (P1-16) — one read
- * endpoint so the client's existing post-action refresh picks up buffer
- * changes for free.
+ * 2026-09), the ProbableAttendee buffer state (P1-16), and the dashboard's
+ * headline numbers — one read endpoint so the client's existing post-action
+ * refresh picks all of it up for free. The stats were added for Next Action
+ * 29: they used to be computed only at page load, so they went stale the
+ * moment an admin seated anyone.
  */
 export async function GET(): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
 
-  const [tables, unassignedGuests, unassignedInvitees, unassignedProbableAttendees, probableAttendanceSummary] =
-    await Promise.all([
-      listSeatingTables(),
-      listUnassignedGuests(),
-      listUnassignedInvitees(),
-      listUnassignedProbableAttendees(),
-      getProbableAttendanceSummary(),
-    ]);
+  const [
+    tables,
+    unassignedGuests,
+    assignedGuests,
+    unassignedInvitees,
+    unassignedProbableAttendees,
+    probableAttendanceSummary,
+    guests,
+    responses,
+  ] = await Promise.all([
+    listSeatingTables(),
+    listUnassignedGuests(),
+    listAssignedGuests(),
+    listUnassignedInvitees(),
+    listUnassignedProbableAttendees(),
+    getProbableAttendanceSummary(),
+    listAllGuests(),
+    listAllRsvpResponses(),
+  ]);
+
   return NextResponse.json({
     success: true,
     tables,
@@ -35,6 +54,13 @@ export async function GET(): Promise<NextResponse> {
     unassignedInvitees,
     unassignedProbableAttendees,
     probableAttendanceSummary,
+    dashboardStats: buildDashboardStats({
+      tables,
+      assignedGuests,
+      unassignedGuests,
+      unassignedInvitees,
+      rsvpStats: computeRsvpStats(guests, responses),
+    }),
   });
 }
 
@@ -76,6 +102,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const table = await createSeatingTable({ tableNumber, tableName, capacity });
     return NextResponse.json({ success: true, table }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    // Domain errors ("that table number is taken") are written for the admin
+    // and pass through; anything else is a fault whose text could carry
+    // Postgres detail, so it is logged and replaced (Next Action 34).
+    if (isUserFacingError(error)) {
+      return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    }
+    console.error('Failed to create seating table:', error);
+    return NextResponse.json(
+      { success: false, message: 'Could not create the table. Please try again.' },
+      { status: 500 }
+    );
   }
 }

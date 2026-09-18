@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { softDeleteGuest, updateGuest } from '@/src/admin/adminRepo.js';
+import {
+  softDeleteGuest,
+  updateGuest,
+  syncGuestSlotCountToInvitees,
+} from '@/src/admin/adminRepo.js';
+import { listApprovedInvitees } from '@/src/invitees/inviteesRepo.js';
 import { validateGuestInput } from '@/src/admin/guestValidation.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
@@ -53,7 +58,21 @@ export async function PATCH(
   }
 
   const guest = await updateGuest(id, value);
-  return guest ? NextResponse.json({ success: true, guest }) : notFound();
+  if (!guest) return notFound();
+
+  // A party with named invitees derives its seat count from that list, so the
+  // body's slotCount is not authoritative here. The edit form disables the
+  // field but submits whatever it held when the form opened, so removing an
+  // invitee and then saving an unrelated field (a phone number, say) used to
+  // write the pre-removal count straight back — reintroducing exactly the
+  // drift Next Action 22 fixed for the removal endpoint (Next Action 32).
+  const approved = await listApprovedInvitees(id);
+  if (approved.length > 0) {
+    const synced = await syncGuestSlotCountToInvitees(id);
+    if (synced) return NextResponse.json({ success: true, guest: synced });
+  }
+
+  return NextResponse.json({ success: true, guest });
 }
 
 /** Soft-deletes a guest, preserving their RSVP history (PRD §7). */

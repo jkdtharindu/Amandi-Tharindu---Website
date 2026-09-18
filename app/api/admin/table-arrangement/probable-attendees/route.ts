@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { setProbableAttendeeBuffer } from '@/src/table-arrangement/tableArrangementRepo.js';
+import {
+  setProbableAttendeeBuffer,
+  isUserFacingError,
+} from '@/src/table-arrangement/tableArrangementRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -34,6 +37,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     const summary = await setProbableAttendeeBuffer(bucket, count);
     return NextResponse.json({ success: true, summary });
   } catch (error) {
-    return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    // "Cannot reduce below the number already seated" is the whole point of
+    // the rejection, so it must survive (Next Action 34).
+    if (isUserFacingError(error)) {
+      return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    }
+    console.error('Failed to set the probable-attendee buffer:', error);
+    return NextResponse.json(
+      { success: false, message: 'Could not update the buffer. Please try again.' },
+      { status: 500 }
+    );
   }
 }

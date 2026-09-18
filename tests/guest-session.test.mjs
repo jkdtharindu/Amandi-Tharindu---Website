@@ -144,7 +144,11 @@ test("SECURITY: a guest cannot read another guest's invitation with a shared cod
 
 test('a tampered or unknown session cookie is rejected, not trusted', async () => {
   await withServer(async (port) => {
-    for (const forged of ['guest-does-not-exist', 'guest-1.deadbeef', '../../etc/passwd', '']) {
+    // 'guest-1' is the live hole Next Action 33 closed, and the reason it
+    // survived this test: every forged value here was one that failed for
+    // another reason (no such guest, bad signature), so none of them noticed
+    // that an unsigned cookie holding a *real* id was accepted verbatim.
+    for (const forged of ['guest-1', 'guest-does-not-exist', 'guest-1.deadbeef', '../../etc/passwd', '']) {
       const page = await request(port, {
         path: '/invitation/SILVA-001',
         headers: { Cookie: `guest_session=${forged}` },

@@ -1,10 +1,31 @@
 import crypto from 'node:crypto';
 
-const secret = process.env.SESSION_SECRET || '';
-const useSignature = Boolean(secret);
-if (!useSignature && process.env.NODE_ENV === 'production') {
+const configuredSecret = process.env.SESSION_SECRET || '';
+
+// Production still refuses to boot without a real secret: an ephemeral one
+// would silently sign every guest out on each restart or new instance.
+if (!configuredSecret && process.env.NODE_ENV === 'production') {
   throw new Error('SESSION_SECRET is required in production');
 }
+
+/**
+ * Sessions are always signed. With no secret configured — a dev run, a test,
+ * `node src/server.js` from a terminal — a random one is generated for the
+ * life of the process.
+ *
+ * There used to be an *unsigned mode* instead, entered whenever SESSION_SECRET
+ * was unset and NODE_ENV was not the exact string 'production'. In that mode
+ * signSession returned the value untouched, so the guest_session cookie was
+ * just the guest's id: `Cookie: guest_session=guest-1` signed you straight in
+ * as the first guest of the fallback store, no code required. Anything that
+ * wasn't literally 'production' qualified — an unset NODE_ENV, a preview
+ * deploy, a typo (Next Action 33).
+ *
+ * Generating a secret removes the mode rather than widening the string
+ * comparison that guarded it. Cookies still work within the process that
+ * issued them, and are worthless anywhere else.
+ */
+const secret = configuredSecret || crypto.randomBytes(32).toString('hex');
 
 const DEFAULT_GUEST_SESSION_DAYS = 30;
 
@@ -21,18 +42,12 @@ export function guestSessionMaxAgeSeconds(days = process.env.GUEST_SESSION_TTL_D
 }
 
 export function signSession(value) {
-  if (!useSignature) {
-    return value;
-  }
   const signature = crypto.createHmac('sha256', secret).update(value).digest('hex');
   return `${value}.${signature}`;
 }
 
 export function verifySession(signedValue) {
   if (!signedValue || typeof signedValue !== 'string') return null;
-  if (!useSignature) {
-    return signedValue;
-  }
   const [value, signature] = signedValue.split('.');
   if (!value || !signature) return null;
   const expected = crypto.createHmac('sha256', secret).update(value).digest('hex');

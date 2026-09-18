@@ -35,6 +35,15 @@ const EMPTY_FORM: FormState = {
   displayOrder: '0',
 };
 
+/**
+ * One past the highest order in use, rather than `events.length` — a list whose
+ * orders are [0, 5] has length 2, so the count would hand back an order that
+ * says nothing about where the event actually lands (Next Action 30).
+ */
+function nextDisplayOrder(list: CelebrationEvent[]): number {
+  return list.reduce((max, event) => Math.max(max, event.displayOrder), -1) + 1;
+}
+
 export default function EventManager({ initialEvents }: { initialEvents: CelebrationEvent[] }) {
   const [events, setEvents] = useState<CelebrationEvent[]>(initialEvents);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -53,10 +62,17 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
     try {
       const res = await fetch('/api/admin/events');
       const data = await res.json();
-      if (data.success) setEvents(data.events);
+      if (data.success) {
+        setEvents(data.events);
+        // Returned as well as stored: `events` in a caller's closure is still
+        // the pre-refresh array even after this resolves, since setEvents only
+        // affects the next render. Callers that need the fresh list use this.
+        return data.events as CelebrationEvent[];
+      }
     } catch {
       showToast({ kind: 'error', text: 'Could not load events.' });
     }
+    return null;
   }, [showToast]);
 
   async function handleAdd(event: React.FormEvent) {
@@ -73,8 +89,14 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
 
       if (res.ok && data.success) {
         showToast({ kind: 'ok', text: 'Event added.' });
-        setForm({ ...EMPTY_FORM, displayOrder: String(events.length) });
-        await load();
+        // Seeded from the refreshed list, not the stale closure: this used to
+        // read `events.length` before load() ran, so adding two events in one
+        // sitting gave both the same order (Next Action 30).
+        const fresh = await load();
+        setForm({
+          ...EMPTY_FORM,
+          displayOrder: String(nextDisplayOrder(fresh ?? events)),
+        });
         return;
       }
       showToast({ kind: 'error', text: data.message || 'Could not add the event.' });

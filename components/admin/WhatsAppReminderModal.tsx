@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_RSVP_REMINDER_TEMPLATE,
   renderTemplate,
@@ -30,6 +30,35 @@ export default function WhatsAppReminderModal({
     renderTemplate(DEFAULT_RSVP_REMINDER_TEMPLATE, { name: guest.name, link, code: guest.code })
   );
   const [error, setError] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // The parent passes an inline arrow, so onClose has a new identity on every
+  // render. Held in a ref so the mount effect below runs exactly once — as a
+  // dependency it would re-run on each parent render, pulling focus back to
+  // the textarea and overwriting the element focus should return to.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Keyboard access (Next Action 48, originally a second "37"): there was no
+  // dialog role, no Escape, and focus never entered the dialog, so a
+  // keyboard-only admin had to tab through the whole page behind it to reach
+  // Cancel. Focus returns to whatever opened the dialog when it closes.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    textareaRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, []);
 
   function resetToDefault() {
     setMessage(
@@ -57,10 +86,13 @@ export default function WhatsAppReminderModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wa-reminder-title"
         className="bg-white rounded-xl border border-slate-200 p-5 max-w-lg w-full"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="font-semibold mb-1">Send RSVP reminder</h2>
+        <h2 id="wa-reminder-title" className="font-semibold mb-1">Send RSVP reminder</h2>
         <p className="text-sm text-slate-500 mb-4">
           To {guest.name} ({guest.code}) &middot; {guest.whatsappNumber ?? 'no number on file'}
         </p>
@@ -69,6 +101,7 @@ export default function WhatsAppReminderModal({
           Message
         </label>
         <textarea
+          ref={textareaRef}
           id="wa-message"
           rows={5}
           value={message}

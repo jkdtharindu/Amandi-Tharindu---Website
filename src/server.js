@@ -40,6 +40,7 @@ import {
 import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js';
 import { VALID_RELATIONSHIP_TYPES } from './guest-auth/validateGuestInput.js';
 import { generateInvitationCode } from './guest-auth/generateInvitationCode.js';
+import { validateParticipantNames } from './invitees/validateInvitees.js';
 import {
   listSeatingTables,
   createSeatingTable,
@@ -52,6 +53,7 @@ import {
   listUnassignedProbableAttendees,
   getProbableAttendanceSummary,
   setProbableAttendeeBuffer,
+  isUserFacingError,
 } from './table-arrangement/tableArrangementRepo.js';
 import { buildTableArrangementExport, buildTableArrangementSummary } from './table-arrangement/tableArrangementExport.js';
 import {
@@ -99,6 +101,19 @@ const SECTION_PAGE_BY_ROUTE = {
 
 async function findAdminByEmail(email) {
   return adminStore.find((a) => a.email.toLowerCase() === String(email).trim().toLowerCase()) || null;
+}
+
+/**
+ * Keeps the admin's own error text ("that table number is taken") while
+ * replacing anything unexpected, whose message could carry Postgres detail.
+ * Mirrors what the Next.js table-arrangement routes do (Next Action 34).
+ */
+function clientSafeTableArrangementError(error) {
+  if (isUserFacingError(error)) {
+    return { success: false, message: error.message };
+  }
+  console.error('Table arrangement request failed:', error);
+  return { success: false, message: 'Something went wrong. Please try again.' };
 }
 
 function getAdminFromRequest(req) {
@@ -897,7 +912,18 @@ export function createApp() {
       });
     }
 
-    const result = await upsertRsvpResponse(guest.id, attending, attending ? participantNames || [] : []);
+    // Same ceilings as the Next.js route (Next Action 35): any valid code
+    // could previously post an arbitrarily large array of names.
+    const names = validateParticipantNames(participantNames);
+    if (!names.valid) {
+      return res.status(400).json({
+        success: false,
+        reason: 'invalid_participant_names',
+        message: names.error,
+      });
+    }
+
+    const result = await upsertRsvpResponse(guest.id, attending, attending ? names.names : []);
     await updateGuestRsvpStatus(guest.id, attending ? 'accepted' : 'declined');
 
     return res.json({ success: true, rsvp: result });
@@ -2118,7 +2144,7 @@ export function createApp() {
       const summary = await setProbableAttendeeBuffer(bucket, count);
       res.json({ success: true, summary });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(400).json(clientSafeTableArrangementError(error));
     }
   });
 
@@ -2141,7 +2167,7 @@ export function createApp() {
       const table = await createSeatingTable({ tableNumber, tableName, capacity });
       res.json({ success: true, table });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(400).json(clientSafeTableArrangementError(error));
     }
   });
 
@@ -2159,7 +2185,7 @@ export function createApp() {
       }
       res.json({ success: true, table });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(400).json(clientSafeTableArrangementError(error));
     }
   });
 
@@ -2172,7 +2198,7 @@ export function createApp() {
       await deleteSeatingTable(req.params.id);
       res.json({ success: true });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(400).json(clientSafeTableArrangementError(error));
     }
   });
 
@@ -2196,7 +2222,7 @@ export function createApp() {
         : await assignGuestToSeat(req.params.seatId, guestId, { dietaryRequirements, specialNotes });
       res.json({ success: true, seat });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(400).json(clientSafeTableArrangementError(error));
     }
   });
 
@@ -2209,7 +2235,7 @@ export function createApp() {
       const seat = await unassignGuestFromSeat(req.params.seatId);
       res.json({ success: true, seat });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(400).json(clientSafeTableArrangementError(error));
     }
   });
 

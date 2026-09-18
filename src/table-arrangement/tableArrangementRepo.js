@@ -13,6 +13,30 @@ const GUEST_ALREADY_SEATED = 'Guest is already assigned to another seat';
 const PROBABLE_ALREADY_SEATED = 'This probable attendee is already assigned to another seat';
 const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat';
 const BUFFER_BELOW_SEATED = 'Cannot reduce below the number already seated — unassign them first';
+const INVALID_BUFFER_COUNT = 'Count must be a non-negative whole number';
+
+/**
+ * The errors above are written *for the admin reading the screen* — "that
+ * table number is taken", "unassign them first". Everything else this module
+ * can throw is a database or programming fault whose text (Postgres detail
+ * lines, constraint names, column types) should never reach a client.
+ *
+ * Routes use this set to tell the two apart; see isUserFacingError below and
+ * Next Action 34, which found six routes forwarding `error.message` verbatim.
+ */
+const USER_FACING_ERRORS = new Set([
+  DUPLICATE_TABLE_NUMBER,
+  GUEST_ALREADY_SEATED,
+  PROBABLE_ALREADY_SEATED,
+  INVITEE_ALREADY_SEATED,
+  BUFFER_BELOW_SEATED,
+  INVALID_BUFFER_COUNT,
+]);
+
+/** True when `error`'s message was written to be shown to an admin. */
+export function isUserFacingError(error) {
+  return USER_FACING_ERRORS.has(error?.message);
+}
 
 const PROBABLE_BUCKETS = ['declined', 'pending'];
 
@@ -641,7 +665,7 @@ export async function setProbableAttendeeBuffer(bucket, count) {
   }
   const targetCount = Number(count);
   if (!Number.isInteger(targetCount) || targetCount < 0) {
-    throw new Error('Count must be a non-negative whole number');
+    throw new Error(INVALID_BUFFER_COUNT);
   }
 
   if (!useDb) {

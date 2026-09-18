@@ -60,15 +60,20 @@ export default function TableArrangement({
   initialUnassignedInvitees,
   initialUnassignedProbableAttendees,
   initialProbableAttendanceSummary,
-  dashboardStats,
+  initialDashboardStats,
 }: {
   initialTables: SeatingTable[];
   initialUnassignedGuests: UnassignedGuest[];
   initialUnassignedInvitees: UnassignedInvitee[];
   initialUnassignedProbableAttendees: UnassignedProbableAttendee[];
   initialProbableAttendanceSummary: ProbableAttendanceSummaryRow[];
-  dashboardStats: TableArrangementDashboardStats;
+  initialDashboardStats: TableArrangementDashboardStats;
 }) {
+  // State, not a prop, so load() can refresh it after every action. It was a
+  // one-time server prop until Next Action 29, so the stat cards stayed at
+  // their page-load values however many guests the admin seated.
+  const [dashboardStats, setDashboardStats] =
+    useState<TableArrangementDashboardStats>(initialDashboardStats);
   const [tables, setTables] = useState<SeatingTable[]>(initialTables);
   const [unassignedGuests, setUnassignedGuests] = useState<UnassignedGuest[]>(initialUnassignedGuests);
   const [unassignedInvitees, setUnassignedInvitees] = useState<UnassignedInvitee[]>(initialUnassignedInvitees);
@@ -100,6 +105,7 @@ export default function TableArrangement({
         setUnassignedInvitees(data.unassignedInvitees);
         setUnassignedProbableAttendees(data.unassignedProbableAttendees);
         setProbableAttendanceSummary(data.probableAttendanceSummary);
+        setDashboardStats(data.dashboardStats);
       }
     } catch {
       showToast({ kind: 'error', text: 'Could not load the seating plan.' });

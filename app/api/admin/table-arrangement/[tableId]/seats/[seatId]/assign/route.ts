@@ -3,6 +3,7 @@ import {
   assignGuestToSeat,
   assignProbableAttendeeToSeat,
   assignInviteeToSeat,
+  isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     }
     return NextResponse.json({ success: true, seat });
   } catch (error) {
-    return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    // "already assigned to another seat" is the admin's answer; a constraint
+    // violation's raw text is not (Next Action 34).
+    if (isUserFacingError(error)) {
+      return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    }
+    console.error('Failed to assign seat:', error);
+    return NextResponse.json(
+      { success: false, message: 'Could not assign that seat. Please try again.' },
+      { status: 500 }
+    );
   }
 }

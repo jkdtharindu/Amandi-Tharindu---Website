@@ -14,7 +14,11 @@ import {
   deleteInvitee,
   getInviteeById,
 } from '../src/invitees/inviteesRepo.js';
-import { validateInviteeNames, validateRequestedInviteeName } from '../src/invitees/validateInvitees.js';
+import {
+  validateInviteeNames,
+  validateRequestedInviteeName,
+  validateParticipantNames,
+} from '../src/invitees/validateInvitees.js';
 import { invitees } from '../src/data/inviteesStore.js';
 
 beforeEach(() => {
@@ -39,6 +43,33 @@ test('validateInviteeNames trims and accepts a valid list', () => {
 
 test('validateRequestedInviteeName rejects blank input', () => {
   assert.equal(validateRequestedInviteeName('   ').valid, false);
+});
+
+// Next Action 35: the legacy whole-party RSVP path had no limits at all, so
+// any printed invitation code could post an array of any size or length.
+test('validateParticipantNames allows an empty or absent list', () => {
+  assert.deepEqual(validateParticipantNames(undefined), { valid: true, names: [] });
+  assert.deepEqual(validateParticipantNames([]), { valid: true, names: [] });
+});
+
+test('validateParticipantNames rejects a non-array', () => {
+  assert.equal(validateParticipantNames('Nimal').valid, false);
+});
+
+test('validateParticipantNames caps the number of names at 99', () => {
+  assert.equal(validateParticipantNames(Array(99).fill('Guest')).valid, true);
+  assert.equal(validateParticipantNames(Array(100).fill('Guest')).valid, false);
+});
+
+test('validateParticipantNames caps the length of a single name at 200', () => {
+  assert.equal(validateParticipantNames(['x'.repeat(200)]).valid, true);
+  assert.equal(validateParticipantNames(['x'.repeat(201)]).valid, false);
+});
+
+test('validateParticipantNames trims and drops blanks', () => {
+  const result = validateParticipantNames([' Nimal ', '  ', 'Kumara']);
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.names, ['Nimal', 'Kumara']);
 });
 
 test('validateRequestedInviteeName trims and accepts a name', () => {

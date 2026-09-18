@@ -9,6 +9,7 @@ import {
   updateInviteeRsvpStatuses,
   deriveGuestRsvpStatus,
 } from '@/src/invitees/inviteesRepo.js';
+import { validateParticipantNames } from '@/src/invitees/validateInvitees.js';
 import { authorizeRsvp } from '@/src/guest-auth/authorizeRsvp.js';
 import { verifySession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
@@ -97,10 +98,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Currently they're separate DB calls (not in a transaction). For now, catch
     // failures from both and treat the RSVP response as the source of truth, so at
     // least that part never silently fails.
+    const names = validateParticipantNames(participantNames);
+    if (!names.valid) {
+      return NextResponse.json(
+        { success: false, reason: 'invalid_participant_names', message: names.error },
+        { status: 400 }
+      );
+    }
+
     const result = await upsertRsvpResponse(
       guest.id,
       attending,
-      attending ? participantNames || [] : []
+      attending ? names.names : []
     );
     try {
       await updateGuestRsvpStatus(guest.id, attending ? 'accepted' : 'declined');

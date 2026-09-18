@@ -11,6 +11,7 @@ import {
 } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
 import { computeRsvpStats } from '@/src/admin/guestQueries.js';
+import { buildDashboardStats } from '@/src/table-arrangement/dashboardStats.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,20 +37,13 @@ export default async function AdminTableArrangementPage() {
     listAllRsvpResponses(),
   ]);
 
-  const rsvpStats = computeRsvpStats(guests, responses);
-  // Seated invitees (individuals from a multi-person invitation) count
-  // toward "Table Arranged" the same as seated guest parties do.
-  const seatedInviteeCount = tables.reduce(
-    (total: number, table: { seats: { inviteeId: string | null }[] }) =>
-      total + table.seats.filter((seat) => seat.inviteeId).length,
-    0
-  );
-  // "Table Arranged" only counts Guests who are both seated AND still
-  // RSVP-accepted — a seated Guest who later changes their answer to
-  // declined stops counting here without needing to be auto-unseated.
-  const tableArrangedCount =
-    assignedGuests.filter((guest: { rsvpStatus: string }) => guest.rsvpStatus === 'accepted').length +
-    seatedInviteeCount;
+  const dashboardStats = buildDashboardStats({
+    tables,
+    assignedGuests,
+    unassignedGuests,
+    unassignedInvitees,
+    rsvpStats: computeRsvpStats(guests, responses),
+  });
 
   return (
     <>
@@ -78,13 +72,7 @@ export default async function AdminTableArrangementPage() {
           initialUnassignedInvitees={unassignedInvitees}
           initialUnassignedProbableAttendees={unassignedProbableAttendees}
           initialProbableAttendanceSummary={probableAttendanceSummary}
-          dashboardStats={{
-            accepted: rsvpStats.accepted,
-            tableArranged: tableArrangedCount,
-            balanceToArrange: unassignedGuests.length + unassignedInvitees.length,
-            declined: rsvpStats.declined,
-            pending: rsvpStats.pending,
-          }}
+          initialDashboardStats={dashboardStats}
         />
       </main>
     </>

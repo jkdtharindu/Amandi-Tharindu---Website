@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { unassignGuestFromSeat } from '@/src/table-arrangement/tableArrangementRepo.js';
+import {
+  unassignGuestFromSeat,
+  isUserFacingError,
+} from '@/src/table-arrangement/tableArrangementRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -22,6 +25,13 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     const seat = await unassignGuestFromSeat(seatId);
     return NextResponse.json({ success: true, seat });
   } catch (error) {
-    return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    if (isUserFacingError(error)) {
+      return NextResponse.json({ success: false, message: (error as Error).message }, { status: 400 });
+    }
+    console.error('Failed to unassign seat:', error);
+    return NextResponse.json(
+      { success: false, message: 'Could not free that seat. Please try again.' },
+      { status: 500 }
+    );
   }
 }

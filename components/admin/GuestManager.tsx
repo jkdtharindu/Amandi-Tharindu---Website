@@ -177,6 +177,13 @@ export default function GuestManager({
     };
     if (!editing && trimmedInviteeNames.length > 0) {
       payload.inviteeNames = trimmedInviteeNames;
+    } else if (editing && existingInvitees.length > 0) {
+      // The Seats field is disabled for a party with named invitees and shows
+      // the live count, but form.slotCount is frozen at whatever it held when
+      // the form opened — so removing someone and then saving an unrelated
+      // field submitted the pre-removal number (Next Action 32). Send the live
+      // count; the server re-derives it from the invitee list regardless.
+      payload.slotCount = existingInvitees.length;
     } else {
       payload.slotCount = Number(form.slotCount);
     }
