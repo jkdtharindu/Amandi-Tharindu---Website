@@ -58,21 +58,22 @@ These can't be tested without logging in for real:
 - [ ] Open a WhatsApp reminder from `/admin/guests` and confirm the link starts with the real site address, not `localhost`.
 
 ### 3c. Known bugs to fix
-- [ ] `/api/csrf` hands out a new token on every call instead of reusing a valid one — this has already caused a real bug (two admin panels racing on the same page). Fix at the source instead of patching each symptom.
-- [ ] Add a `[Code]` placeholder to the `reminder_2` WhatsApp template before it's sent to anyone (guests need their code to get back in).
+- [x] `/api/csrf` handed out a new token on every call instead of reusing a valid one *(fixed 2026-09-13, commit `9f38a0b`; confirmed against `app/api/csrf/route.ts` on 2026-09-20)* — this has already caused a real bug (two admin panels racing on the same page). Fix at the source instead of patching each symptom.
+- [ ] Add a `[Code]` placeholder to the `reminder_2` WhatsApp template before it's sent to anyone (guests need their code to get back in). *Written as migration 017; owner must run `npm run migrate` — no record of it being applied yet.*
 - [ ] Decide what to do with 5 test guests still using the old code format (`SURNAME-NNN` instead of the current format) — they still work, but are inconsistent. Regenerate them or accept as-is.
-- [ ] Delete the legacy auth-bypass login-by-name code in `src/server.js` — leaks every matching guest's plaintext invitation code (Next Action 28).
-- [ ] Table Arrangement dashboard stats go stale after seat/table changes until a hard reload (Next Action 29).
-- [ ] `EventManager.tsx` can write duplicate `displayOrder` values when adding two events back-to-back (Next Action 30).
-- [ ] Both logout buttons (admin + guest) fail silently on a network error instead of showing one (Next Action 31).
-- [ ] Editing a guest's other details can silently overwrite a correct seat count with a stale one (Next Action 32).
-- [ ] `SESSION_SECRET`'s production guard only triggers on an exact `NODE_ENV=production` match, and the dev/no-database fallback uses guessable sequential guest IDs (Next Action 33).
-- [ ] Six Table Arrangement admin routes leak raw Postgres error text to the client (Next Action 34).
-- [ ] Guest RSVP `participantNames` has no size limit (Next Action 35).
-- [ ] Admin and guest logout routes skip CSRF verification, unlike every other state-changing route (Next Action 36).
-- [ ] `WhatsAppReminderModal` has no keyboard accessibility — no Escape-to-close, no focus trap (Next Action 37).
-- [ ] Decide on a fail-closed `DATABASE_URL` guard for the 10 data stores that don't have one yet (Next Action 38).
-- [ ] `message_logs.guest_id` has no `ON DELETE` clause, unlike the equivalent columns elsewhere (Next Action 39).
+*Items below marked done are built and committed locally but **not yet pushed or deployed** as of 2026-09-20 — they are not live on the site until the owner approves the push.*
+- [x] Delete the legacy auth-bypass login-by-name code in `src/server.js` — leaks every matching guest's plaintext invitation code (Next Action 28). *Done 2026-09-16.*
+- [x] Table Arrangement dashboard stats go stale after seat/table changes until a hard reload (Next Action 29). *Done 2026-09-18.*
+- [x] `EventManager.tsx` can write duplicate `displayOrder` values when adding two events back-to-back (Next Action 30). *Done 2026-09-18.*
+- [x] Both logout buttons (admin + guest) fail silently on a network error instead of showing one (Next Action 31). *Done 2026-09-18.*
+- [x] Editing a guest's other details can silently overwrite a correct seat count with a stale one (Next Action 32). *Code landed 2026-09-18 — no automated test, not click-tested.*
+- [x] `SESSION_SECRET`'s production guard only triggers on an exact `NODE_ENV=production` match, and the dev/no-database fallback uses guessable sequential guest IDs (Next Action 33). *Done 2026-09-18 — sessions are now always signed.*
+- [x] Six Table Arrangement admin routes leak raw Postgres error text to the client (Next Action 34). *Done 2026-09-18.*
+- [x] Guest RSVP `participantNames` has no size limit (Next Action 35). *Done 2026-09-18, with tests.*
+- [x] Admin and guest logout routes skip CSRF verification, unlike every other state-changing route (Next Action 36). *Done 2026-09-19.*
+- [x] `WhatsAppReminderModal` has no keyboard accessibility — no Escape-to-close, no focus trap (Next Action 38). *Escape and focus handling landed 2026-09-18; there is still no focus trap, and it was not click-tested.*
+- [ ] Decide on a fail-closed `DATABASE_URL` guard for the 10 data stores that don't have one yet (Next Action 39).
+- [ ] `message_logs.guest_id` has no `ON DELETE` clause, unlike the equivalent columns elsewhere (Next Action 40). *Migration 018 is written and committed but not applied — owner must run `npm run migrate`.*
 
 ### 3d. Content & final polish
 - [ ] Fill in real content: photos, Our Story timeline, final wording on all public pages (currently placeholder/test data in places).
