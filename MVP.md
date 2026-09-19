@@ -59,9 +59,9 @@ These can't be tested without logging in for real:
 
 ### 3c. Known bugs to fix
 - [x] `/api/csrf` handed out a new token on every call instead of reusing a valid one *(fixed 2026-09-13, commit `9f38a0b`; confirmed against `app/api/csrf/route.ts` on 2026-09-20)* — this has already caused a real bug (two admin panels racing on the same page). Fix at the source instead of patching each symptom.
-- [ ] Add a `[Code]` placeholder to the `reminder_2` WhatsApp template before it's sent to anyone (guests need their code to get back in). *Written as migration 017; owner must run `npm run migrate` — no record of it being applied yet.*
+- [x] Add a `[Code]` placeholder to the `reminder_2` WhatsApp template before it's sent to anyone (guests need their code to get back in). *Written as migration 017; the owner reported running `npm run migrate` on 2026-09-20 — not independently verified. Worth a glance at the template in `/admin/messages` before the first real send.*
 - [ ] Decide what to do with 5 test guests still using the old code format (`SURNAME-NNN` instead of the current format) — they still work, but are inconsistent. Regenerate them or accept as-is.
-*Items below marked done are built and committed locally but **not yet pushed or deployed** as of 2026-09-20 — they are not live on the site until the owner approves the push.*
+*Items below marked done were pushed to `main` on 2026-09-20 (`2d3cb2e`). The Vercel deploy has not been confirmed, and none of the UI/route changes has been exercised in a browser yet.*
 - [x] Delete the legacy auth-bypass login-by-name code in `src/server.js` — leaks every matching guest's plaintext invitation code (Next Action 28). *Done 2026-09-16.*
 - [x] Table Arrangement dashboard stats go stale after seat/table changes until a hard reload (Next Action 29). *Done 2026-09-18.*
 - [x] `EventManager.tsx` can write duplicate `displayOrder` values when adding two events back-to-back (Next Action 30). *Done 2026-09-18.*
@@ -73,7 +73,7 @@ These can't be tested without logging in for real:
 - [x] Admin and guest logout routes skip CSRF verification, unlike every other state-changing route (Next Action 36). *Done 2026-09-19.*
 - [x] `WhatsAppReminderModal` has no keyboard accessibility — no Escape-to-close, no focus trap (Next Action 38). *Escape and focus handling landed 2026-09-18; there is still no focus trap, and it was not click-tested.*
 - [ ] Decide on a fail-closed `DATABASE_URL` guard for the 10 data stores that don't have one yet (Next Action 39).
-- [ ] `message_logs.guest_id` has no `ON DELETE` clause, unlike the equivalent columns elsewhere (Next Action 40). *Migration 018 is written and committed but not applied — owner must run `npm run migrate`.*
+- [x] `message_logs.guest_id` has no `ON DELETE` clause, unlike the equivalent columns elsewhere (Next Action 40). *Migration 018 written 2026-09-17; the owner reported applying it on 2026-09-20 — not independently verified.*
 
 ### 3d. Content & final polish
 - [ ] Fill in real content: photos, Our Story timeline, final wording on all public pages (currently placeholder/test data in places).
