@@ -43,7 +43,7 @@ The good news: **almost everything in P0 and P1 is already built.** What's left 
 | Backups & restore | ✅ Done and rehearsed for real |
 | Deployed to Vercel | ✅ Done (2026-09-10) |
 
-Test suite: 499/499 passing as of 2026-09-20.
+Test suite: 515/515 passing as of 2026-09-20 (the last 16 are Action 50's, not yet deployed).
 
 ---
 
@@ -61,6 +61,7 @@ These can't be tested without logging in for real:
 - [ ] Confirm the admin guest list or dashboard shows the 2026-09-20 test RSVP's status (accepted or declined, not pending) — the exact bug the all-or-nothing save fixed.
 - [ ] Try admin logout and guest logout on the live site — both were changed on 2026-09-18/19 and neither has been clicked through in a browser.
 - [ ] Look at the `reminder_2` template in `/admin/messages` and confirm it contains `[Code]` before the first real send.
+- [ ] After Action 50 is deployed: on a test party with two or more people (one of them seated, if you can), remove one person and confirm the list, the party's status, the headcount and the seat all update. Then try removing the last person and confirm you get a message instead of a removal.
 
 ### 3c. Known bugs to fix
 - [x] `/api/csrf` handed out a new token on every call instead of reusing a valid one *(fixed 2026-09-13, commit `9f38a0b`; confirmed against `app/api/csrf/route.ts` on 2026-09-20)* — this has already caused a real bug (two admin panels racing on the same page). Fix at the source instead of patching each symptom.
@@ -80,7 +81,8 @@ These can't be tested without logging in for real:
 - [ ] Decide on a fail-closed `DATABASE_URL` guard for the 10 data stores that don't have one yet (Next Action 39).
 - [x] `message_logs.guest_id` has no `ON DELETE` clause, unlike the equivalent columns elsewhere (Next Action 40). *Migration 018 written 2026-09-17; the owner reported applying it on 2026-09-20 — not independently verified.*
 - [x] A guest's RSVP was saved in separate steps, so a failure in the middle could tell the guest "saved" while the admin still saw "pending" (Next Action 49). *Done 2026-09-20 — now all-or-nothing; a live test RSVP worked (owner-reported).*
-- [ ] The admin's remove-one-person route has the same half-saved risk on the RSVP status it re-derives (Next Action 50).
+- [x] The admin's remove-one-person route had the same half-saved risk on the RSVP status it re-derives (Next Action 50). *Code and tests done 2026-09-20: the removal is now all-or-nothing, and removing the last person in a party is refused (use Remove on the guest's row). Not yet deployed or click-tested — see 3b.*
+- [ ] The admin's approve-request route has the same half-saved risk: it approves the person, then adds one to the headcount, as two separate writes (Next Action 55, found 2026-09-20).
 
 ### 3d. Content & final polish
 - [ ] Fill in real content: photos, Our Story timeline, final wording on all public pages (currently placeholder/test data in places).
@@ -89,7 +91,7 @@ These can't be tested without logging in for real:
 ### 3e. Process (lower urgency, doesn't block launch)
 - [ ] The HITL safety-check script (`npm run hitl:migrate`) only covers database migrations today. Deploys, sending messages, secrets changes, and pushes to `main` are still unguarded by any automated check.
 - [ ] CI runs only one check — the docs-consistency gate (`.github/workflows/docs-check.yml`). Tests, the build and lint are not run in CI, so a broken change could merge if nobody runs them by hand.
-- [ ] UI/UX polish backlog, none of it launch-blocking: a skip-to-content link (Next Action 45), focus handling for the mobile menu (46), a Gallery enlarge-on-click (47 — needs a scope decision), and whether to keep the old Express prototype at all (48).
+- [ ] UI/UX polish backlog, none of it launch-blocking: focus handling for the mobile menu (46), a Gallery enlarge-on-click (47 — needs a scope decision), and whether to keep the old Express prototype at all (48). (The skip-to-content link, Next Action 45, shipped 2026-09-20 and is live.)
 
 ---
 

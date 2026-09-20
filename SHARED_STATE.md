@@ -91,7 +91,7 @@ Every mutation is a plain REST call (GET/POST/PATCH/DELETE) guarded by CSRF toke
 | Trigger | Route | What it updates | Also busts static cache? |
 |---|---|---|---|
 | Admin creates/edits/deletes a guest | `POST` / `PATCH` / `DELETE` `/api/admin/guests[/id]` | `guests` (delete is soft: `isDeleted = true`) | No |
-| Admin removes one invitee from a party | `DELETE /api/admin/guests/[id]/invitees/[inviteeId]` | Deletes the `Invitee`, frees their seat, re-derives the party's `rsvpStatus` and `slotCount` | No |
+| Admin removes one invitee from a party | `DELETE /api/admin/guests/[id]/invitees/[inviteeId]` | **One transaction** (`src/invitees/removeInvitee.js`): frees their seat (person link, dietary requirements and notes), deletes the `Invitee`, re-derives the party's `rsvpStatus` and saves the response, and re-syncs `slotCount` — if any step fails none are kept and the admin gets a 500. Refuses to remove the last approved person (409); the admin removes the whole party instead | No |
 | Guest submits their RSVP | `POST /api/guest/rsvp` | `rsvp_responses` upsert, `guests.rsvp_status`, and (if the party has named Invitees) each Invitee's own `rsvpStatus` — **all in one transaction** (`src/rsvp/saveRsvp.js`): if any write fails none are kept and the guest sees an error, so the response row and `rsvp_status` never disagree | No |
 | Guest asks to add another person | `POST /api/guest/invitees/request` | New `Invitee` row, `approvalStatus: 'pending_approval'` | No |
 | Admin approves/rejects a pending invitee request | `POST /api/admin/invitee-requests/[id]/approve` \| `reject` | Approve sets `approvalStatus: 'approved'` and increments the guest's `slotCount`; reject sets `'rejected'` | No |
