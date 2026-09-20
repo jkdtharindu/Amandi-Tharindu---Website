@@ -103,6 +103,10 @@ Open, unconfirmed readings: "maiden name" taken as first name; "others at the ta
 Reason: it read `git status` as an answer to "is this mine and where is it" when it only says "is it different from HEAD"; `git log -- <file>` was the check.
 Correction: confirmed today with `git log -- docs/amandi-tharindu-wedding-PRD.md` (`987bea3` and `67cb04e` touch it). Lesson, as in the entries above: when a file looks clean after being edited, find the commit that holds the edit before writing where it is.
 
+[2026-09-21] Decision: a git worktree that has to build gets its own `npm ci`, not a link to the main folder's `node_modules`.
+Reason: to move Actions 55 and 58 to a clean branch without disturbing a folder other sessions were editing, a worktree was cut from `origin/main`. Tests ran with no install (Node finds `node_modules` by walking up to the main folder), but `npm run build` failed: Turbopack will not build without its own `node_modules`, and a directory junction to the main one is rejected outright ("Symlink [project]/node_modules is invalid, it points out of the filesystem root"). Removing the junction was safe — it deletes only the link — and a real `npm ci` in the worktree then built cleanly with the same bundler Vercel runs.
+Alternative considered: `next build --webpack` against the junction (rejected — a different bundler from the one Vercel uses, so a pass would prove less); copying `node_modules` (rejected — slower and larger than `npm ci`). A worktree used only for tests needs no install; one that must build does. After the branch merges, remove the worktree (check `git status` inside it first, per STARTUP_PROMPT.md Step 3).
+
 2) Technology choices and why alternatives were rejected
 
 [2026-09-12] Decision: every store in `src/data/*.js` (`themeStore`, `guestStore`, `rsvpStore`, `adminStore`, `sectionsStore`, `tableArrangementStore`, `messageLogStore`, `messageTemplatesStore`, `probableAttendeesStore`, `celebrationEventsStore`, `inviteesStore`) backs its exported singleton with `globalThis` (e.g. `globalThis.__themeSettings ??= {...defaults}`) instead of a plain top-level `const`/object literal.
