@@ -99,7 +99,7 @@ Every mutation is a plain REST call (GET/POST/PATCH/DELETE) guarded by CSRF toke
 | Admin edits a page section | `POST` / `PATCH` / `DELETE` `/api/admin/sections[/id]` | `site_sections` | **Yes** |
 | Admin edits a celebration event | `POST` / `PATCH` / `DELETE` `/api/admin/events[/id]` | `celebration_events` | **Yes** |
 | Admin adds/edits/deletes a gallery photo | `POST /api/admin/gallery`, `PUT` / `DELETE /api/admin/gallery/[id]` | `gallery_photos` | **Yes** |
-| Admin assigns/unassigns a seat | `POST /api/admin/table-arrangement/[tableId]/seats/[seatId]/assign` \| `unassign` | `table_seats` | No |
+| Admin assigns/unassigns a seat | `POST /api/admin/table-arrangement/[tableId]/seats/[seatId]/assign` \| `unassign` | `table_seats`. Assign is **refused (400)** if the seat already holds a *different* person — the seat has to be emptied first; re-assigning the seat's own occupant is allowed and is how their dietary notes are saved. Unassign is never refused and wipes the seat's notes | No |
 | Admin logs a sent message | `POST /api/admin/messages/log` | `message_logs` | No |
 
 **CSRF, on every mutation above:** the client first `GET`s `/api/csrf` to get a token, then sends it back as an `x-csrf-token` header, which the server checks against a matching cookie (double-submit pattern). As of this session's fix, `/api/csrf` reuses a still-valid cookie instead of minting a new one on every call — the old behavior (always issuing a fresh token) meant two admin components fetching it on the same page could invalidate each other's token and cause a real "Invalid CSRF token" failure on Approve/Reject. `admin/logout` and `guest/logout` currently skip the CSRF check entirely — a known, tracked gap, not by design.

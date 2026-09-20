@@ -43,7 +43,7 @@ The good news: **almost everything in P0 and P1 is already built.** What's left 
 | Backups & restore | ✅ Done and rehearsed for real |
 | Deployed to Vercel | ✅ Done (2026-09-10) |
 
-Test suite: 528/528 passing as of 2026-09-20 (everything through Action 56 is deployed; the last 3 are Action 57's, not yet deployed).
+Test suite: 555/555 passing as of 2026-09-20 (everything through Action 57 is deployed, and Action 59's repository change went live inside commit `fb86121`; the last 27 tests are Actions 59-60's and are not committed).
 
 ---
 
@@ -63,7 +63,8 @@ These can't be tested without logging in for real:
 - [ ] Look at the `reminder_2` template in `/admin/messages` and confirm it contains `[Code]` before the first real send.
 - [ ] Action 50 (deployed): on a test party with two or more people (one of them seated, if you can), remove one person and confirm the list, the party's status, the headcount and the seat all update. Then try removing the last person and confirm you get a message instead of a removal.
 - [ ] Action 56 (deployed): remove a test guest whose people are seated (the Remove on the guest's row) and confirm every one of their seats becomes open in the table window. Also unassign Napoleon's seat on Table 3 by hand — it was left behind before the fix.
-- [ ] After Action 57 is deployed: open Table Arrangement and confirm the names of removed guests (Pall, Sinesy and the colleagues family) are gone from the Accepted invitees list, and that Balance to Arrange no longer counts them. If Pall or Sinesy still show, send a screenshot of the list.
+- [ ] Action 57 (deployed): open Table Arrangement and confirm the names of removed guests (Pall, Sinesy and the colleagues family) are gone from the Accepted invitees list, and that Balance to Arrange no longer counts them. If Pall or Sinesy still show, send a screenshot of the list.
+- [ ] **Do this now** (Action 59's seat rule is already live; Action 60 follows when it is pushed; both touch every seat assignment): on Table Arrangement, seat one person on an empty seat — it must work. Type a dietary note for them and click Save, click Remove, then seat a *different* person on that same seat: their dietary box must be empty. Then open the page in two tabs, seat someone in tab 1, and try to seat a different person on the same seat in tab 2: you should see "That seat already has someone on it." and the plan should refresh.
 
 ### 3c. Known bugs to fix
 - [x] `/api/csrf` handed out a new token on every call instead of reusing a valid one *(fixed 2026-09-13, commit `9f38a0b`; confirmed against `app/api/csrf/route.ts` on 2026-09-20)* — this has already caused a real bug (two admin panels racing on the same page). Fix at the source instead of patching each symptom.
@@ -85,8 +86,12 @@ These can't be tested without logging in for real:
 - [x] A guest's RSVP was saved in separate steps, so a failure in the middle could tell the guest "saved" while the admin still saw "pending" (Next Action 49). *Done 2026-09-20 — now all-or-nothing; a live test RSVP worked (owner-reported).*
 - [x] The admin's remove-one-person route had the same half-saved risk on the RSVP status it re-derives (Next Action 50). *Deployed 2026-09-20 (`22a2e6a`): the removal is now all-or-nothing, and removing the last person in a party is refused (use Remove on the guest's row). Not yet confirmed by a click-through — see 3b.*
 - [x] Removing a whole guest left them, and their people, showing on their table seats (Next Action 56, found by the owner on the live site 2026-09-20). *Deployed 2026-09-20 (`b5f3910`); the owner reported it working. It does not fix seats already stuck from earlier removals — unassign those by hand in the table window.*
-- [x] A removed guest's people stayed on the table window's "Balance to Arrange" list and count (Next Action 57, found by the owner 2026-09-20). *Code and tests done 2026-09-20; not yet deployed. The report that people removed one at a time also stayed on the list did not reproduce — see TASKS.md.*
+- [x] A removed guest's people stayed on the table window's "Balance to Arrange" list and count (Next Action 57, found by the owner 2026-09-20). *Deployed 2026-09-20 (`c7136ec`); the owner's re-check is pending. The report that people removed one at a time also stayed on the list did not reproduce — see TASKS.md.*
 - [ ] Pending "add another person" requests from a removed guest still show for approval (Next Action 58, found 2026-09-20; read from the code, not yet reproduced or fixed).
+- [x] A seat could be silently taken over: a second person seated on an occupied seat quietly unseated the first (Next Action 59, Table Arrangement review 2026-09-20). *Code and tests done. **The repository change is already live** (swept into someone else's commit `fb86121`); its tests and the screen change are not committed. The database rule has not been run against real Postgres — seat one person on the live site now, see 3b.*
+- [x] Old dietary notes could stay on a seat when the person changed (Next Action 60). *Code done; the key logic and its use are tested, but the screen was never rendered in a test. Not yet deployed — see 3b.*
+- [ ] Remaining Table Arrangement review findings — mismatched units on the top cards, a seated person who later declines, the spreadsheet download, small items (Next Action 61).
+- [ ] **Live now: commit `9632cc7`** (made outside this chat, already pushed and deployed): it stops edits to a guest who has named people from saving, and adds an endpoint that can zero legacy headcounts and skips the CSRF check (Next Action 62).
 - [ ] The admin's approve-request route has the same half-saved risk: it approves the person, then adds one to the headcount, as two separate writes (Next Action 55, found 2026-09-20).
 
 ### 3d. Content & final polish
