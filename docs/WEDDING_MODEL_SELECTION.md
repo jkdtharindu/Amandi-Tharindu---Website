@@ -163,6 +163,93 @@ Wait for confirmation before proceeding.
   existing pattern (`themeRepo`, `buildStyles`).
 - **Claude MUST check:** "Have you verified Sonnet 5 is selected?"
 
+#### **Multi-Admin Frontend Integration (P1-14B through P1-14H, 2026-09-20)** → **SONNET 5 recommended**
+
+The backend (auth, party filtering, message events) is complete. Frontend needs to wire the UI.
+
+##### **Next Action 65: Guest List UI** → **SONNET 5**
+- **What:** React component showing guests with party badge (bride/groom). Filter by party, RSVP status, relationship. Show per-party stats + overall total.
+- **Why Sonnet 5:** List filtering + stats aggregation are established patterns. No novel business logic. Routes already built and tested.
+- **Subtasks & models:**
+  - Guest list component + party filtering: Sonnet 5
+  - Stats display (per-party + overall): Sonnet 5
+  - Party badge styling: Haiku 4.5
+  - Component tests: Sonnet 5
+
+**⚠️ MANDATORY BEFORE START:**
+Claude announces: "This is Next Action 65 (Guest List UI). Recommended model: **Sonnet 5**. Have you verified Sonnet 5 is selected?"
+Wait for confirmation before proceeding.
+
+##### **Next Action 66: Table Arrangement UI** → **SONNET 5**
+- **What:** React component showing only logged-in party's tables and unassigned guests. Drag-to-assign interface. Party ownership enforced at API level (403 on cross-party attempts).
+- **Why Sonnet 5:** Established list-to-table mapping pattern. API already prevents cross-party access. UI is wiring, not novel logic.
+- **Subtasks & models:**
+  - Table list + guest assignment UI: Sonnet 5
+  - Drag-and-drop if supported: Sonnet 5 (ReactDnD is established)
+  - Party-scoped filtering: Sonnet 5
+  - Component tests: Sonnet 5
+
+**⚠️ MANDATORY BEFORE START:**
+Claude announces: "This is Next Action 66 (Table Arrangement UI). Recommended model: **Sonnet 5**. Have you verified Sonnet 5 is selected?"
+Also confirm: "This depends on Next Action 65. Has the guest list UI been completed?"
+Wait for both confirmations before proceeding.
+
+##### **Next Action 67: Messages UI** → **SONNET 5**
+- **What:** React component with template dropdown → preview → "Send via WhatsApp" button → checkbox to mark event completed. GET message history per guest.
+- **Why Sonnet 5:** Message selection + preview are UI wiring. POST/GET routes already exist. No messaging engine changes.
+- **Subtasks & models:**
+  - Template dropdown + message preview: Sonnet 5
+  - Send button (opens wa.me link): Sonnet 5
+  - Message event completion tracking (POST /api/admin/messages/events): Sonnet 5
+  - Message history display: Sonnet 5
+  - Component tests: Sonnet 5
+
+**⚠️ MANDATORY BEFORE START:**
+Claude announces: "This is Next Action 67 (Messages UI). Recommended model: **Sonnet 5**. Have you verified Sonnet 5 is selected?"
+Wait for confirmation before proceeding.
+
+##### **Next Action 68: Dashboard Redesign** → **SONNET 5**
+- **What:** Update dashboard to show per-party stats (invited, accepted, declined, pending) + collective total in a clear, side-by-side layout. GET /api/admin/guests already returns both.
+- **Why Sonnet 5:** Layout + aggregation display. Data is already provided by API. Pure presentation work.
+- **Subtasks & models:**
+  - Per-party stats cards: Sonnet 5
+  - Overall total card: Sonnet 5
+  - Chart updates for per-party view: Sonnet 5
+  - Responsive layout: Sonnet 5
+
+**⚠️ MANDATORY BEFORE START:**
+Claude announces: "This is Next Action 68 (Dashboard Redesign). Recommended model: **Sonnet 5**. Have you verified Sonnet 5 is selected?"
+Wait for confirmation before proceeding.
+
+##### **Next Action 69: Invitee Routes Party Validation** → **SONNET 5**
+- **What:** Verify /api/admin/guests/[id]/invitees respects party ownership. Likely inherits from guest's party, but needs testing.
+- **Why Sonnet 5:** Code review + route validation. Likely no changes needed, but good to confirm.
+- **Estimated effort:** 1 hour.
+
+**⚠️ MANDATORY BEFORE START:**
+Claude announces: "This is Next Action 69 (Invitee Routes Party Validation). Recommended model: **Sonnet 5**. Have you verified Sonnet 5 is selected?"
+Wait for confirmation before proceeding.
+
+##### **Next Action 70: E2E Testing (Multi-Admin)** → **OPUS 5**
+- **What:** Full flow test as both bride and groom: guest creation → RSVP → table assignment → message sending. Verify party isolation (no cross-party leaks).
+- **Why Opus 5:** Multi-constraint validation (two admins, party boundaries, concurrent operations). High-stakes (go-live readiness). Regression risk across 5+ features.
+- **Estimated effort:** 3 hours.
+
+**⚠️ MANDATORY BEFORE START:**
+Claude announces: "This is Next Action 70 (E2E Testing). **Recommended model: OPUS 5**. Have you verified Opus 5 is selected?"
+Also confirm: "All UI features (Actions 65-68) must be complete before E2E testing."
+Wait for both confirmations before proceeding.
+
+##### **Next Action 71: Deployment & Go-Live** → **SONNET 5 + HITL**
+- **What:** Run migrations 020-022 in production, set BRIDE_EMAIL/BRIDE_PASSWORD_HASH/GROOM_EMAIL/GROOM_PASSWORD_HASH env vars, deploy to Vercel, smoke test both admin accounts.
+- **Why Sonnet 5:** Infrastructure + env config. Standard deployment process.
+- **HITL:** Required. Owner approval before live. See HITL_NOTES for multi-admin context.
+- **Estimated effort:** 1 hour (after HITL approval).
+
+**⚠️ MANDATORY BEFORE START:**
+Claude announces: "This is Next Action 71 (Deployment & Go-Live). This requires explicit owner approval via HITL before any production changes. Confirm you've read HITL_NOTES and have owner sign-off."
+Wait for HITL approval before proceeding.
+
 ---
 
 ## How Claude Should Behave
@@ -200,8 +287,8 @@ Wait for confirmation before proceeding.
 
 ## Summary Table (Quick Reference)
 
-| Slice | Task | Model | Status |
-|-------|------|-------|--------|
+| Slice / Action | Task | Model | Status |
+|--------|------|-------|--------|
 | 1 | Guest login by code | Sonnet 5 | ✅ Done |
 | 2 | Guest login by name | Sonnet 5 | ✅ Done |
 | 3 | Ambiguous-name recovery | Sonnet 5 | ✅ Done |
@@ -212,9 +299,17 @@ Wait for confirmation before proceeding.
 | 8 | Admin Theme Editor | Opus 5 (hindsight) | ✅ Done, shipped write-only, fixed same day |
 | 9 | Admin Section Manager | Sonnet 5 | ✅ Done, shipped write-only, fixed same day |
 | — | ThemePalette / FontChoice picker | Sonnet 5 | 🟠 Not built |
-| 10 | Guest Management (P0-07) | **Opus 5** | ❌ Top priority, not started |
-| 11 | RSVP Dashboard (P0-08) | Sonnet 5 | ❌ Not started |
-| 12 | Admin Messaging Center (P1-06/07/08) | **Opus 5** + HITL | ❌ Not started |
+| 10 | Guest Management (P0-07) | **Opus 5** | ✅ Done (P1-14D multi-admin) |
+| 11 | RSVP Dashboard (P0-08) | Sonnet 5 | 🟠 Partial (API built, UI pending) |
+| 12 | Admin Messaging Center (P1-06/07/08) | **Opus 5** + HITL | 🟠 Partial (API built, UI pending) |
+| — | **Multi-Admin Backend (P1-14B through P1-14H)** | — | ✅ **Done 2026-09-20** |
+| 65 | Guest List UI | Sonnet 5 | ❌ Frontend, pending |
+| 66 | Table Arrangement UI | Sonnet 5 | ❌ Frontend, pending (depends on 65) |
+| 67 | Messages UI | Sonnet 5 | ❌ Frontend, pending |
+| 68 | Dashboard Redesign (per-party + overall) | Sonnet 5 | ❌ Frontend, pending |
+| 69 | Invitee Routes Party Validation | Sonnet 5 | ❌ Backend validation, pending |
+| 70 | E2E Testing (Multi-Admin) | **Opus 5** | ❌ Testing, pending (depends on 65-68) |
+| 71 | Deployment & Go-Live | Sonnet 5 + HITL | ❌ Infra, pending HITL (depends on 70) |
 
 ---
 

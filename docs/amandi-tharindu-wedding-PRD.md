@@ -842,6 +842,71 @@ ALTER TABLE theme_settings
 
 ---
 
+## 18. Homepage Background Image Enhancement (Grill Me session 2026-09-20)
+
+Replace the current solid-color background with a refined, photorealistic image. The admin can upload custom backgrounds and/or select from a curated set. The overlay color adapts dynamically based on the image's dominant color for optimal text contrast.
+
+### Grill Me session — 2026-09-20 (owner answers)
+
+| Question | Answer |
+|---|---|
+| Scope of "background" | Hero/homepage background (currently solid color) |
+| Image source & upload | Both: (1) custom upload, (2) curated set of refined backgrounds |
+| Overlay treatment | Vary overlay opacity/color based on image's dominant color for text readability |
+| Responsive behavior | Same image scaled down for mobile; prioritize quality over file size optimization |
+
+### Acceptance Criteria
+- [ ] `/admin/theme` gains a "Homepage Background" upload field reusing the existing `ImageUploadField`/Vercel Blob pattern
+- [ ] Backend extracts the dominant color from uploaded images (via a library like `node-vibrant` or similar)
+- [ ] The overlay (`rgba(0,0,0,X)`) opacity/color adjusts based on dominant color: light images get darker overlay, dark images get lighter overlay
+- [ ] `.hero-panel--photo` is updated to apply the new background image with adaptive overlay
+- [ ] Mobile: image is scaled down but maintains aspect ratio and quality (no aggressive compression)
+- [ ] The curated set is configurable via a list in code or admin UI (owner decision on scope)
+
+### Proposed Schema Changes
+```sql
+-- Migration 020 (proposed), additive only.
+ALTER TABLE theme_settings
+  ADD COLUMN IF NOT EXISTS background_image_url text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS background_dominant_color text DEFAULT '';
+```
+
+---
+
+## 19. Invitation Page Envelope Animation (Grill Me session 2026-09-20)
+
+A photorealistic 3D envelope animation plays when the guest first views their invitation card. The envelope flips open (showing the flap), then the invitation card slides out. Combines 3D flip + particle burst (confetti/envelope pieces) for visual polish. Full HD quality, canvas-based for realism.
+
+### Grill Me session — 2026-09-20 (owner answers)
+
+| Question | Answer |
+|---|---|
+| Context & trigger | On the invitation page when guest first views their card |
+| Animation style | 3D flip to show open flap, then card slides out. If complexity is high, fallback to flip + particles (no full card slide). |
+| Particle system | Both flip + particles; if 3D flip is too complex, simplify to flip + confetti burst. Decide based on implementation complexity. |
+| Visual style | Photorealistic (detailed paper texture, shadows, realistic envelope) |
+| Mobile behavior | Same animation (no simplification) |
+| User control | Auto-play on page load; guest can replay animation on demand |
+| Quality target | Full HD level animation, high polish, smooth performance |
+
+### Acceptance Criteria
+- [ ] Canvas-based animation (for realism and performance control)
+- [ ] Envelope flips open (3D rotation) → flap reveals → invitation card slides out from inside
+- [ ] Particle burst on open: confetti/envelope pieces scatter (optional enhancement if flip is simple enough)
+- [ ] Auto-plays when guest lands on `/invitation/[code]` page
+- [ ] Replay button available below the animation for guests to re-trigger it
+- [ ] Photorealistic envelope: paper texture, subtle shadows, burgundy/gold or neutral envelope color (owner decides)
+- [ ] Performance: smooth 60fps animation on desktop; acceptable to be 30fps on mobile, but no dropped frames
+- [ ] Fallback: if full 3D flip becomes too complex during implementation, pivot to 2D flip + particle burst (simpler, still visually impressive)
+- [ ] Full HD quality: crisp, smooth curves, no pixelation or jank
+
+### Technical Considerations
+- **Canvas library options:** Babylon.js (3D), Three.js (3D), Lottie (SVG-based, simpler), or custom Canvas API
+- **File size:** keep animation data ≤500KB including any textures/sprites
+- **Browser compatibility:** ES2020+ minimum (no IE11 support needed)
+
+---
+
 *Document version: 1.0 | Created: August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*

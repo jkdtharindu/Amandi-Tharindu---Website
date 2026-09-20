@@ -3,8 +3,14 @@
 This file tracks the implementation plan for the Amandi & Tharindu wedding website.
 
 ## Project Status
-- Status: Scoping / Initial implementation started
-- Current focus (updated 2026-08-30, latest): **Slices 18 and 19 are both done**, including
+- Status: Backend implementation phase (Multi-Admin now complete)
+- Current focus (updated 2026-09-20, latest): **Multi-admin backend features (P1-14B through P1-14H) complete**. 
+  - ✅ Bride & groom separate logins with party-scoped guests, tables, and messaging
+  - ✅ Database migrations applied (020-022): party assignment fields, message_events table
+  - ✅ API routes updated for party filtering: /api/admin/guests, /api/admin/table-arrangement, /api/admin/messages/events
+  - ✅ Comprehensive user manual created with coordination workflows
+  - 🟠 **Frontend integration pending**: Guest list UI, table arrangement UI, messages UI, dashboard redesign
+- Previous status (updated 2026-08-30): **Slices 18 and 19 are both done**, including
   Postgres persistence — Neon Postgres is configured (`.env` present, `DATABASE_URL` set), all
   8 migrations are applied (001–007 same-day, 008 added and applied same-day for the
   couple-name-ordering fix below), and the app now persists guests/RSVPs/theme/sections instead
@@ -91,10 +97,25 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres). **Live as of 2026-08-23** — values render site-wide as CSS custom properties.
 - [x] Section manager — `/admin/sections`: add/edit/toggle-visibility/delete custom content blocks per public page, persisted via `sectionsRepo` (dual-mode). **Live as of 2026-08-23** — visible sections render on their public page.
 
-### Phase 5 — Polish & Launch
-- [ ] Mobile responsiveness review
+### Phase 5 — Multi-Admin Frontend Integration (NEW, 2026-09-20)
+- [ ] **Next Action 65: Guest List UI** — Show party label badge, filter by party, display per-party + overall stats
+      Status: Routes built, UI pending. Blocks table assignment UI. Est. 4-6 hours. Owner: [Frontend].
+- [ ] **Next Action 66: Table Arrangement UI** — Show only logged-in party's tables/guests. Party ownership enforced at API.
+      Status: Routes built, UI pending. Depends on Next Action 65. Est. 4 hours. Owner: [Frontend].
+- [ ] **Next Action 67: Messages UI** — Template dropdown → preview → "send via WhatsApp" → checkbox for completion tracking.
+      Status: Routes built (including /api/admin/messages/events), UI pending. Est. 3 hours. Owner: [Frontend].
+- [ ] **Next Action 68: Dashboard Redesign** — Display per-party stats (invited, accepted, declined, pending) + collective total side-by-side.
+      Status: API returns both party + overall stats. UI redesign pending. Est. 2 hours. Owner: [Frontend/Design].
+- [ ] **Next Action 69: Invitee Routes Party Filtering** — Verify /api/admin/guests/[id]/invitees respects party ownership.
+      Status: Needs validation. Est. 1 hour. Owner: [Backend].
+- [ ] **Next Action 70: E2E Testing** — Test full flow as both bride and groom (guest creation, RSVP, table assignment, messaging).
+      Status: Not started. Depends on Actions 65-68. Est. 3 hours. Owner: [QA].
+- [ ] **Next Action 71: Deployment & Go-Live** — Run migrations 020-022, set BRIDE_EMAIL/GROOM_EMAIL env vars, deploy to Vercel (HITL required).
+      Status: Not started. Depends on Actions 65-70. Est. HITL + 1 hour. Owner: [DevOps/Owner].
+
+### Phase 6 — Polish & Launch
+- [ ] Mobile responsiveness review (multi-admin context)
 - [ ] Content fill-in and final copy
-- [ ] Deployment to Vercel (HITL required)
 - [ ] Final QA and launch readiness
 
 ---

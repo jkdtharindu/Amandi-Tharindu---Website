@@ -34,27 +34,35 @@ and AI conversations. Do not introduce alternate names for the same concept.
   separate database rows — they are stored as a `text[]` array on `rsvp_responses`.
 - **Never:** `attendee`, `member`, `guest` (Guest is the invitation unit, not the individual).
 
+### Party (2026-09-20: Multi-Admin Support)
+- **Canonical name:** `party`
+- **Values:** `bride` | `groom`
+- **Definition:** Indicates which side of the wedding a guest is invited by, or which admin is logged in. Used for access control and filtering across guests, tables, messages, and sessions.
+- **Field locations:**
+  - `guests.assigned_to_party` — set at guest creation, immutable
+  - `seating_tables.assigned_to_party` — set at table creation, immutable
+  - `message_events.sent_by_party` — records which party's admin sent a message
+  - `admin_session.party` — stored in session token (bride or groom based on login email)
+- **Never:** `side`, `owner`, `creator`, `type`.
+
 ### Groom Admin
-- **Canonical name:** `GroomAdmin`
-- **Role value:** `groom` (on `admin_users.role`)
-- **Definition:** Tharindu Jayanetti. Super admin — full access to all site content, both
-  guest lists, all admin features, and admin account management.
+- **Canonical name:** `GroomAdmin` or **Groom Admin**
+- **Party value:** `groom`
+- **Definition:** Tharindu Jayanetti. Logs in with `GROOM_EMAIL`/`GROOM_PASSWORD_HASH`. Sees only guests/tables tagged `assigned_to_party = 'groom'`. Can send WhatsApps from his number only.
 - **Never:** `superuser`, `owner`, `admin1`.
 
 ### Bride Admin
-- **Canonical name:** `BrideAdmin`
-- **Role value:** `bride` (on `admin_users.role`)
-- **Definition:** Amandi Wijesundara. Second admin — full access to her own `GuestPartition`
-  and all site content. Cannot edit or view Groom's guest records.
+- **Canonical name:** `BrideAdmin` or **Bride Admin**
+- **Party value:** `bride`
+- **Definition:** Amandi Wijesundara. Logs in with `BRIDE_EMAIL`/`BRIDE_PASSWORD_HASH`. Sees only guests/tables tagged `assigned_to_party = 'bride'`. Can send WhatsApps from her number only.
 - **Never:** `admin2`, `secondary admin`.
 
-### InvitedBy
-- **Canonical name:** `InvitedBy`
-- **Field:** `guests.invited_by` (enum: `groom` | `bride`)
-- **Definition:** Which admin added this Guest. Auto-set to the logged-in admin's role at
-  creation time — never editable after creation. Determines which admin's WhatsApp number
-  is shown in the `WhatsAppConfirmationButton` after RSVP.
-- **Never:** `added_by`, `owner`, `source`.
+### AssignedToParty (replaces InvitedBy, 2026-09-20)
+- **Canonical name:** `AssignedToParty`
+- **Field:** `guests.assigned_to_party` (enum: `groom` | `bride`)
+- **Definition:** Which party this guest is assigned to. Auto-set to the logged-in admin's party at creation time — never editable after creation. Determines visibility: only the matching party's admin can see/edit/delete this guest. Also used as the `sent_by_party` in message_events.
+- **Legacy name:** Previously `invited_by` — renamed for clarity in multi-admin context.
+- **Never:** `added_by`, `owner`, `source`, `invited_by` (deprecated).
 
 ---
 
