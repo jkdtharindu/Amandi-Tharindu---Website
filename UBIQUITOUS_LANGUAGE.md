@@ -54,6 +54,7 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `participant` (see that entry's doc-drift flag above), `guest`, `member`, `attendee`
 - Example: A Guest with three named Invitees sees a per-person accept/decline checklist instead of one whole-party RSVP; removing an Invitee frees any `SeatAssignment` they held and recomputes the party's `SlotCount` from the remaining approved Invitees.
 - Note: Built 2026-09 (migration 012, `src/invitees/inviteesRepo.js`). Single-person Guests never get an Invitee row — their RSVP/seating behavior is unchanged. Individual removal (deleting one Invitee, not the whole party) shipped 2026-09-12.
+- Note (2026-09-20, Actions 55 and 58): approving a Guest's request to add a person is one transaction — mark the Invitee approved, add one to the party's `SlotCount`, re-derive the party's status. Only a request still `pending_approval` can be approved, so approving twice does nothing; a removed Guest's requests are hidden from the approval list and refused.
 
 ### AgeCategory
 - Canonical name: `AgeCategory`
@@ -78,6 +79,7 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Definition: The couple’s privileged account used to manage content, guests, messages, and site settings.
 - Do not call it: `owner`, `staff`, `manager`, `editor`
 - Example: The admin logs in through Supabase Auth and accesses `/admin/*` routes.
+- Note (2026-09-20, unpushed multi-admin work): each Admin gets a **side**, bride or groom, stored in code as `assigned_to_party`. In this glossary "party" already means one Guest's group of people (see Invitee), so say "side" in prose and keep `assigned_to_party` only where the code uses it.
 
 ### CelebrationEvent
 - Canonical name: `CelebrationEvent`
@@ -160,6 +162,7 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `booking`, `placement`, `allocation`, `chair`
 - Example: A SeatAssignment places Nimal Silva at seat 3 of Table 4.
 - Note: Planned for P2-06. The user-facing word may be "chair", but the code term is `SeatAssignment`.
+- Note (2026-09-20, Action 63): the Table Arrangement screen shows a seated Invitee as "Name (Guest name)" — `seatOccupantLabel` in `src/table-arrangement/seatLabel.js` — so two people with the same name from different parties can be told apart; a whole-Guest seat shows the Guest's name only. The seat cards no longer carry dietary requirements or notes (the database columns and the spreadsheet export still do).
 
 ### ProbableAttendee
 - Canonical name: `ProbableAttendee`

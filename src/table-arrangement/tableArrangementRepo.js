@@ -976,4 +976,3 @@ export async function listAssignedGuestsByParty(party) {
     slotCount: row.slot_count,
   }));
 }
-}
