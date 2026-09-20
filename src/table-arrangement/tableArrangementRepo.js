@@ -563,19 +563,28 @@ export async function listUnassignedGuests() {
 
 /**
  * Individually accepted invitees (approved + accepted) with no seat yet —
- * feeds the "Accepted invitees" seat-assignment picker.
+ * feeds the "Accepted invitees" seat-assignment picker and the Balance to
+ * Arrange count. People belonging to a removed (soft-deleted) guest are left
+ * out: their records are kept for RSVP history, but they are no longer coming,
+ * so they must not be offered for a seat or counted as still to arrange
+ * (Next Action 57 — the guest list side of this, listUnassignedGuests, has
+ * always skipped removed guests).
  */
 export async function listUnassignedInvitees() {
   if (!useDb) {
     const seated = new Set(
       seatingTables.flatMap((table) => table.seats.map((seat) => seat.inviteeId).filter(Boolean))
     );
+    const removedGuestIds = new Set(
+      guestStore.filter((guest) => guest.isDeleted === true).map((guest) => guest.id)
+    );
     return invitees
       .filter(
         (invitee) =>
           invitee.approvalStatus === 'approved' &&
           invitee.rsvpStatus === 'accepted' &&
-          !seated.has(invitee.id)
+          !seated.has(invitee.id) &&
+          !removedGuestIds.has(invitee.guestId)
       )
       .map((invitee) => ({
         id: invitee.id,
@@ -592,6 +601,7 @@ export async function listUnassignedInvitees() {
     JOIN guests g ON g.id = i.guest_id
     WHERE i.approval_status = 'approved'
       AND i.rsvp_status = 'accepted'
+      AND g.is_deleted = false
       AND NOT EXISTS (SELECT 1 FROM table_seats ts WHERE ts.invitee_id = i.id)
     ORDER BY g.name, i.name
   `);

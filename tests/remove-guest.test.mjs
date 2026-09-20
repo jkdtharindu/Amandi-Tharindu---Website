@@ -2,13 +2,17 @@ import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { removeGuest } from '../src/admin/removeGuest.js';
+import { removeInviteeFromParty } from '../src/invitees/removeInvitee.js';
 import {
   createSeatingTable,
   assignGuestToSeat,
   assignInviteeToSeat,
   listSeatingTables,
+  listUnassignedGuests,
+  listUnassignedInvitees,
 } from '../src/table-arrangement/tableArrangementRepo.js';
-import { createInviteesForGuest, listInviteesForGuest } from '../src/invitees/inviteesRepo.js';
+import { buildDashboardStats } from '../src/table-arrangement/dashboardStats.js';
+import { createInviteesForGuest, listInviteesForGuest, updateInviteeRsvpStatuses } from '../src/invitees/inviteesRepo.js';
 import { seatingTables } from '../src/data/tableArrangementStore.js';
 import { guestStore } from '../src/data/guestStore.js';
 import { invitees } from '../src/data/inviteesStore.js';
@@ -209,4 +213,74 @@ test('removing an unknown guest returns null and changes no seat', async () => {
 
   const [after] = await listSeatingTables();
   assert.equal(after.seats[0].guestId, 'g1');
+});
+
+// --- the seating pool and the Balance to Arrange count ---------------------------
+//
+// The table window's "Accepted invitees" picker and its Balance to Arrange card
+// both come from listUnassignedInvitees. It used to skip nothing: a removed
+// guest's people, accepted but no longer seated, stayed on it and in the count
+// (Next Action 57). Freeing their seats on removal made that visible.
+
+async function acceptAll(guestId, people) {
+  await updateInviteeRsvpStatuses(
+    guestId,
+    people.map((person) => ({ id: person.id, attending: true }))
+  );
+}
+
+async function balanceToArrange() {
+  return buildDashboardStats({
+    tables: await listSeatingTables(),
+    assignedGuests: [],
+    unassignedGuests: await listUnassignedGuests(),
+    unassignedInvitees: await listUnassignedInvitees(),
+    rsvpStats: { accepted: 0, declined: 0, pending: 0 },
+  }).balanceToArrange;
+}
+
+const unassignedNames = async () => (await listUnassignedInvitees()).map((invitee) => invitee.name);
+
+test('removing a whole party takes all of its people out of the unassigned list and the count, seated or not', async () => {
+  guestStore.find((guest) => guest.id === 'g1').rsvpStatus = 'pending';
+  const people = await createInviteesForGuest('g2', ['Pall', 'Sinesy', 'Kamal', 'Nimal']);
+  await acceptAll('g2', people);
+  const table = await createSeatingTable({ tableNumber: 3, capacity: 4 });
+  await assignInviteeToSeat(table.seats[0].id, people[0].id);
+  await assignInviteeToSeat(table.seats[1].id, people[1].id);
+  await assignInviteeToSeat(table.seats[2].id, people[2].id);
+  assert.deepEqual(await unassignedNames(), ['Nimal'], 'before removal only the unseated person is waiting');
+
+  await removeGuest('g2');
+
+  assert.deepEqual(await unassignedNames(), []);
+  assert.equal(await balanceToArrange(), 0);
+});
+
+test("a removed party's people leave the list, but another party's unseated people still count", async () => {
+  const anula = await createInviteesForGuest('g1', ['Anula']);
+  const elvis = await createInviteesForGuest('g2', ['Napoleon', 'Sirosena']);
+  await acceptAll('g1', anula);
+  await acceptAll('g2', elvis);
+  assert.equal(await balanceToArrange(), 3);
+
+  await removeGuest('g2');
+
+  assert.deepEqual(await unassignedNames(), ['Anula']);
+  assert.equal(await balanceToArrange(), 1);
+});
+
+test('removing people one at a time leaves them out of the list and the count', async () => {
+  guestStore.find((guest) => guest.id === 'g1').rsvpStatus = 'pending';
+  const people = await createInviteesForGuest('g2', ['Pall', 'Sinesy', 'Kamal']);
+  await acceptAll('g2', people);
+  const table = await createSeatingTable({ tableNumber: 3, capacity: 3 });
+  await assignInviteeToSeat(table.seats[0].id, people[0].id);
+  await assignInviteeToSeat(table.seats[1].id, people[1].id);
+
+  await removeInviteeFromParty('g2', people[0].id);
+  await removeInviteeFromParty('g2', people[1].id);
+
+  assert.deepEqual(await unassignedNames(), ['Kamal']);
+  assert.equal(await balanceToArrange(), 1);
 });
