@@ -12,6 +12,7 @@ const DUPLICATE_TABLE_NUMBER = 'A table with that number already exists';
 const GUEST_ALREADY_SEATED = 'Guest is already assigned to another seat';
 const PROBABLE_ALREADY_SEATED = 'This probable attendee is already assigned to another seat';
 const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat';
+const SEAT_ALREADY_TAKEN = 'That seat already has someone on it.';
 const BUFFER_BELOW_SEATED = 'Cannot reduce below the number already seated — unassign them first';
 const INVALID_BUFFER_COUNT = 'Count must be a non-negative whole number';
 
@@ -29,6 +30,7 @@ const USER_FACING_ERRORS = new Set([
   GUEST_ALREADY_SEATED,
   PROBABLE_ALREADY_SEATED,
   INVITEE_ALREADY_SEATED,
+  SEAT_ALREADY_TAKEN,
   BUFFER_BELOW_SEATED,
   INVALID_BUFFER_COUNT,
 ]);
@@ -135,6 +137,33 @@ function findMemorySeat(seatId) {
     const seat = table.seats.find((entry) => entry.id === seatId);
     if (seat) return { table, seat };
   }
+  return null;
+}
+
+/**
+ * A seat holds one occupant. Putting a *different* person on an occupied seat
+ * used to succeed and silently unseat whoever was there — reachable from a stale
+ * page or a second tab, because the screen has no live refresh (Next Action 59).
+ * A write is allowed onto an empty seat, or onto the seat this same occupant
+ * already holds (re-saving their dietary notes). Clearing a seat, which passes no
+ * occupant, is never guarded.
+ */
+function seatHeldByAnother(seat, field, id) {
+  const occupied = Boolean(seat.guestId || seat.probableAttendeeId || seat.inviteeId);
+  return occupied && seat[field] !== id;
+}
+
+// The same rule as one predicate on the UPDATE, so the database decides it and
+// two simultaneous assignments cannot both pass. `column` is one of our own
+// constants, never user input; the occupant's id is always parameter $2.
+const seatFreeOrHeldBy = (column) =>
+  `AND ((guest_id IS NULL AND probable_attendee_id IS NULL AND invitee_id IS NULL) OR ${column} = $2)`;
+
+// For a guarded UPDATE that changed no row: the seat either does not exist
+// (null, as before) or is held by someone else.
+async function seatTakenOrMissing(run, seatId) {
+  const { rows } = await run('SELECT id FROM table_seats WHERE id = $1', [seatId]);
+  if (rows[0]) throw new Error(SEAT_ALREADY_TAKEN);
   return null;
 }
 
@@ -273,12 +302,19 @@ export async function deleteSeatingTable(tableId) {
  * Assign a guest to a specific seat.
  *
  * Uniqueness is enforced by a partial unique index on table_seats(guest_id),
- * so two concurrent assignments cannot both succeed.
+ * so two concurrent assignments cannot both succeed. A seat that already holds a
+ * different person is refused (SEAT_ALREADY_TAKEN); guestId null clears the seat.
+ * `exec` (optional, last) is a query function, used by tests; production omits it.
  */
-export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, specialNotes } = {}) {
-  if (!useDb) {
+export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, specialNotes } = {}, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const found = findMemorySeat(seatId);
     if (!found) return null;
+
+    if (guestId && seatHeldByAnother(found.seat, 'guestId', guestId)) {
+      throw new Error(SEAT_ALREADY_TAKEN);
+    }
 
     if (guestId) {
       const clash = seatingTables.some((table) =>
@@ -299,7 +335,7 @@ export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, 
   }
 
   try {
-    const { rows } = await query(`
+    const { rows } = await run(`
       UPDATE table_seats
       SET guest_id = $2,
           probable_attendee_id = NULL,
@@ -308,10 +344,12 @@ export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, 
           special_notes = $4,
           updated_at = now()
       WHERE id = $1
+        ${guestId ? seatFreeOrHeldBy('guest_id') : ''}
       RETURNING id, seat_number, guest_id
     `, [seatId, guestId || null, dietaryRequirements || null, specialNotes || null]);
 
-    return rows[0] || null;
+    if (rows[0]) return rows[0];
+    return guestId ? await seatTakenOrMissing(run, seatId) : null;
   } catch (error) {
     if (error.code === UNIQUE_VIOLATION) {
       throw new Error(GUEST_ALREADY_SEATED);
@@ -332,12 +370,18 @@ export async function unassignGuestFromSeat(seatId) {
 /**
  * Assign a ProbableAttendee placeholder to a seat. Mirrors assignGuestToSeat:
  * same concurrency-safe partial-unique-index pattern, same clash handling,
- * but for the anonymous buffer pool instead of a real Guest.
+ * but for the anonymous buffer pool instead of a real Guest. A seat that already
+ * holds a different occupant is refused (SEAT_ALREADY_TAKEN).
  */
-export async function assignProbableAttendeeToSeat(seatId, probableAttendeeId, { dietaryRequirements, specialNotes } = {}) {
-  if (!useDb) {
+export async function assignProbableAttendeeToSeat(seatId, probableAttendeeId, { dietaryRequirements, specialNotes } = {}, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const found = findMemorySeat(seatId);
     if (!found) return null;
+
+    if (probableAttendeeId && seatHeldByAnother(found.seat, 'probableAttendeeId', probableAttendeeId)) {
+      throw new Error(SEAT_ALREADY_TAKEN);
+    }
 
     if (probableAttendeeId) {
       const clash = seatingTables.some((table) =>
@@ -357,7 +401,7 @@ export async function assignProbableAttendeeToSeat(seatId, probableAttendeeId, {
   }
 
   try {
-    const { rows } = await query(`
+    const { rows } = await run(`
       UPDATE table_seats
       SET probable_attendee_id = $2,
           guest_id = NULL,
@@ -366,10 +410,12 @@ export async function assignProbableAttendeeToSeat(seatId, probableAttendeeId, {
           special_notes = $4,
           updated_at = now()
       WHERE id = $1
+        ${probableAttendeeId ? seatFreeOrHeldBy('probable_attendee_id') : ''}
       RETURNING id, seat_number, probable_attendee_id
     `, [seatId, probableAttendeeId || null, dietaryRequirements || null, specialNotes || null]);
 
-    return rows[0] || null;
+    if (rows[0]) return rows[0];
+    return probableAttendeeId ? await seatTakenOrMissing(run, seatId) : null;
   } catch (error) {
     if (error.code === UNIQUE_VIOLATION) {
       throw new Error(PROBABLE_ALREADY_SEATED);
@@ -389,12 +435,18 @@ export async function unassignProbableAttendeeFromSeat(seatId) {
 /**
  * Assign an individual Invitee (a named person from a multi-person
  * invitation) to a seat. Mirrors assignGuestToSeat/assignProbableAttendeeToSeat:
- * same concurrency-safe partial-unique-index pattern.
+ * same concurrency-safe partial-unique-index pattern. A seat that already holds
+ * a different occupant is refused (SEAT_ALREADY_TAKEN).
  */
-export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequirements, specialNotes } = {}) {
-  if (!useDb) {
+export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequirements, specialNotes } = {}, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const found = findMemorySeat(seatId);
     if (!found) return null;
+
+    if (inviteeId && seatHeldByAnother(found.seat, 'inviteeId', inviteeId)) {
+      throw new Error(SEAT_ALREADY_TAKEN);
+    }
 
     if (inviteeId) {
       const clash = seatingTables.some((table) =>
@@ -414,7 +466,7 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
   }
 
   try {
-    const { rows } = await query(`
+    const { rows } = await run(`
       UPDATE table_seats
       SET invitee_id = $2,
           guest_id = NULL,
@@ -423,10 +475,12 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
           special_notes = $4,
           updated_at = now()
       WHERE id = $1
+        ${inviteeId ? seatFreeOrHeldBy('invitee_id') : ''}
       RETURNING id, seat_number, invitee_id
     `, [seatId, inviteeId || null, dietaryRequirements || null, specialNotes || null]);
 
-    return rows[0] || null;
+    if (rows[0]) return rows[0];
+    return inviteeId ? await seatTakenOrMissing(run, seatId) : null;
   } catch (error) {
     if (error.code === UNIQUE_VIOLATION) {
       throw new Error(INVITEE_ALREADY_SEATED);

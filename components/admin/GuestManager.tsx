@@ -61,6 +61,7 @@ export default function GuestManager({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [existingInvitees, setExistingInvitees] = useState<ExistingInvitee[]>([]);
   const [removingInviteeId, setRemovingInviteeId] = useState<string | null>(null);
+  const [newInviteeNames, setNewInviteeNames] = useState<string[]>([]);
 
   const [busy, setBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
@@ -102,6 +103,7 @@ export default function GuestManager({
     setForm(EMPTY_FORM);
     setFieldErrors({});
     setExistingInvitees([]);
+    setNewInviteeNames([]);
     setShowForm(true);
   }
 
@@ -126,6 +128,7 @@ export default function GuestManager({
     });
     setFieldErrors({});
     setExistingInvitees([]);
+    setNewInviteeNames([]);
     void loadExistingInvitees(guest.id);
     setShowForm(true);
   }
@@ -160,6 +163,42 @@ export default function GuestManager({
       showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setRemovingInviteeId(null);
+    }
+  }
+
+  async function handleAddNewInvitees() {
+    if (!editing || newInviteeNames.length === 0) return;
+
+    const trimmedNames = newInviteeNames.map((n) => n.trim()).filter(Boolean);
+    if (trimmedNames.length === 0) {
+      showToast({ kind: 'error', text: 'Please enter at least one name.' });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/guests/' + editing.id + '/invitees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ names: trimmedNames }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setExistingInvitees(data.invitees);
+        setNewInviteeNames([]);
+        showToast({
+          kind: 'ok',
+          text: `Added ${trimmedNames.length} person${trimmedNames.length === 1 ? '' : 's'}.`,
+        });
+        await load();
+      } else {
+        showToast({ kind: 'error', text: data.message || 'Could not add people.' });
+      }
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -470,9 +509,56 @@ export default function GuestManager({
               </div>
               <p className="mt-2 text-xs text-slate-500">
                 Removing someone here deletes their invitation permanently and frees their seat
-                if they had one. To add a new person instead, the guest can request it from their
-                invitation page for your approval above.
+                if they had one.
               </p>
+
+              <div className="mt-4">
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Add more people to this party
+                </label>
+                <div className="space-y-2">
+                  {newInviteeNames.map((name, index) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        value={name}
+                        onChange={(e) => {
+                          const next = [...newInviteeNames];
+                          next[index] = e.target.value;
+                          setNewInviteeNames(next);
+                        }}
+                        placeholder={`Person ${existingInvitees.length + index + 1}`}
+                        className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewInviteeNames(newInviteeNames.filter((_, i) => i !== index))
+                        }
+                        className="px-3 py-2 rounded-lg border border-slate-300 text-sm text-rose-600 hover:bg-rose-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewInviteeNames([...newInviteeNames, ''])}
+                  className="mt-2 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold hover:bg-slate-100"
+                >
+                  + Add a person
+                </button>
+                {newInviteeNames.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleAddNewInvitees}
+                    disabled={busy}
+                    className="mt-2 ml-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {busy ? 'Adding...' : 'Add these people'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
