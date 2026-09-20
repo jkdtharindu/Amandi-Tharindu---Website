@@ -100,6 +100,13 @@ These can't be tested without logging in for real:
 - **Event icon picker** — deferred. Venue photo upload *is* built (Vercel Blob); the event manager covers name/date/time/venue/address/photo.
 - **A guest-written wishes wall with admin approval (PRD P1-05)** — decided 2026-09-13 (owner, in a Grill Me session): the Wishes section is a closing message with a "View Your Invitation" button instead.
 - **P2 features:** nearby-hotels section, scheduled message campaigns, Sinhala language support. (The FAQ shipped on 2026-09-13 as a homepage section.)
+- **Auto thank-you email (PRD P1-08)** — dropped 2026-09-20 (owner). Thank-yous stay on WhatsApp; see the after-launch list below.
+
+**After launch (agreed 2026-09-20 — planned, not started, not part of the MVP):**
+- Childhood photo carousels, Bride's and Groom's (PRD P1-02, Next Action 51).
+- An admin show/hide switch for every area of the website, and a way to add new areas later (Next Action 52).
+- A WhatsApp thank-you prompt for accepted RSVPs, plus more WhatsApp improvements still to be scoped (Next Action 53).
+- The toast pop-up moved to the centre of the screen (Next Action 54).
 
 ---
 
