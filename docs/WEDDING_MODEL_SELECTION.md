@@ -165,6 +165,8 @@ Wait for confirmation before proceeding.
 
 #### **Multi-Admin Frontend Integration (P1-14B through P1-14H, 2026-09-20)** → **SONNET 5 recommended**
 
+> **Correction, 2026-09-20 (session-end pass):** the "Next Action 65-71" numbers in this section and in the summary table clash with the real Next Actions in root `TASKS.md`. The real entries are **69** (make the work pushable, Opus 5 proposed) and **73** (build what was scoped, Sonnet 5 proposed; Opus 5 for the side-scoping item). "Backend complete" was written before the tests were run; 9 tests fail.
+
 The backend (auth, party filtering, message events) is complete. Frontend needs to wire the UI.
 
 ##### **Next Action 65: Guest List UI** → **SONNET 5**

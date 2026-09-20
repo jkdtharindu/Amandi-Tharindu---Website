@@ -1,4 +1,6 @@
 # Frontend Integration Checklist — Multi-Admin Features
+
+> **Correction, 2026-09-20 (session-end pass): do not rely on this file.** Its "backend complete" claim was made before the tests and build were run (9 tests fail; see `TASKS.md` Action 69). Its task numbers 65-71 clash with the real Next Actions 65-71 in `TASKS.md`; the real numbers for this work are **69** (make it pushable) and **73** (build the screens, message drop-down, dashboard split and route scoping). Removal of this file is filed as Action 71.
 **Date:** 2026-09-20  
 **Features:** P1-14B through P1-14H (Bride & Groom Multi-Admin)  
 **Status:** Backend complete. Frontend UI pending.

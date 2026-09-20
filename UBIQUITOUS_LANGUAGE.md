@@ -156,6 +156,20 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Example: A SeatingTable named "Table 4" seats eight Guests, assigned by the Admin on `/admin/table-arrangement`.
 - Note: Built 2026-09-04 (`seating_tables`/`table_seats`, migrations 007–008). Scoped down from the per-Participant, AgeCategory/RelationshipType-filtered vision proposed 2026-09-03 (see `Participant`'s note above and PRD §14) — the built version assigns whole Guests to seats, not individual Participants, and the admin UI has no AgeCategory or RelationshipType filter. Revisit if per-participant seating is still wanted; until then, `SeatAssignment` below still describes the unbuilt finer-grained version.
 
+### TableSide
+- Canonical name: `TableSide`
+- Definition: Which side a SeatingTable belongs to — `bride`, `groom` or `common` — chosen when the Admin creates the table. Only people from that side can be seated at a bride or groom table; a `common` table takes people from both sides.
+- Do not call it: `party` (already means one Guest's group of people — see Invitee), `team`, `camp`, `owner`
+- Example: A bride Admin creates "Rose Table" as "My side" (bride); a groom person cannot be seated there. The couple's leftovers go to a table created as "Common".
+- Note: Proposed 2026-09-20 (Grill Me session) — not yet built. See PRD §20 and TASKS.md Action 68. Stored in code in `seating_tables.assigned_to_party`, which today holds only `bride` or `groom` (migration 022) and would gain `common` in migration 023. A person's side is their Guest's side (`guests.assigned_to_party`). A table's side can change only while it is empty.
+
+### CommonTable
+- Canonical name: `CommonTable`
+- Definition: A SeatingTable with TableSide `common`, where the bride-side and groom-side guests left over after each side has filled its own tables sit together. Both Admins see every CommonTable and who sits there; each Admin seats and removes only their own side's people on it.
+- Do not call it: `mixed table`, `shared table`, `leftover table`, `joint table`
+- Example: Bride side has 3 people left and groom side has 4; the leftover summary shows 7 and about one CommonTable still needed at 10 seats.
+- Note: Proposed 2026-09-20 (Grill Me session) — not yet built. See PRD §20 and Action 68. Numbered on its own line (Common 1, 2, 3…); guests see its required, unique table name, never its number.
+
 ### SeatAssignment
 - Canonical name: `SeatAssignment`
 - Definition: The link between one Participant and one seat number at a SeatingTable.

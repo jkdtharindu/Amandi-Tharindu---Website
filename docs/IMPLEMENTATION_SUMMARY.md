@@ -1,4 +1,6 @@
 # Multi-Admin Implementation Summary
+
+> **Correction, 2026-09-20 (session-end pass): this summary overstates the work. Do not rely on it.** Written before the tests and build were run. The real state: 9 tests fail, migrations 020-022 are not applied, nothing is pushed, and the screens, message drop-down, dashboard split and most route scoping were never built. See `TASKS.md` Actions 69 (fix and ship) and 73 (finish), and `MEMORY.md` (2026-09-20 Mistake entries). Removal of this file is filed as Action 71.
 **Date:** 2026-09-20  
 **Features:** P1-14B through P1-14H (Multi-Admin & Party-Scoped Operations)
 

@@ -97,6 +97,8 @@ This file tracks the implementation plan for the Amandi & Tharindu wedding websi
 - [x] Theme editor — `/admin/theme`: one form per element group (Hero Image, Invitation Template + name-overlay config, Colors, Typography, Wedding Info, Venue), each with its own Save button; validated (hex colors, date format) and persisted via `themeRepo` (dual-mode: in-memory or Postgres). **Live as of 2026-08-23** — values render site-wide as CSS custom properties.
 - [x] Section manager — `/admin/sections`: add/edit/toggle-visibility/delete custom content blocks per public page, persisted via `sectionsRepo` (dual-mode). **Live as of 2026-08-23** — visible sections render on their public page.
 
+> **Correction, 2026-09-20 (session-end pass): this file is a stale duplicate; the real list is root `TASKS.md`.** The "Next Action 65-71" numbers below clash with the real ones (65-68 are other work), and "backend complete" was written before the tests were run. The real entries are root Actions **69** (make the multi-admin work pushable) and **73** (build what was scoped and not built).
+
 ### Phase 5 — Multi-Admin Frontend Integration (NEW, 2026-09-20)
 - [ ] **Next Action 65: Guest List UI** — Show party label badge, filter by party, display per-party + overall stats
       Status: Routes built, UI pending. Blocks table assignment UI. Est. 4-6 hours. Owner: [Frontend].

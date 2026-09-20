@@ -138,7 +138,8 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-14E | Party-Filtered RSVP Dashboard | Dashboard shows bride stats, groom stats, and collective total. Each admin sees their own party counts + grand total. Message event tracking per guest (checkboxes for: RSVP Reminder, Thank You, Table Details, Final Reminder). Admin ticks boxes after sending to track pending tasks. |
 | P1-14F | Shared Message Templates with Personal Details | One template set (not per-party). Templates have placeholders: `[Name]`, `[Code]`, `[TableNumber]`, `[EventDate]`, `[EventTime]`, `[Venue]`, `[Link]`, `[Deadline]`, `[Greeting]`. At send time, placeholders fill with guest's personal info + sender's party greeting. |
 | P1-14G | WhatsApp Send + Event Completion Tracking | Dropdown menu on guest card: select template → preview message → click "Send via WhatsApp" → opens `wa.me` link with pre-filled message. Admin sends manually in WhatsApp. After sending, admin ticks checkbox in dashboard: "✓ RSVP Reminder sent". Dashboard filters by completion status (pending vs completed). |
-| P1-14H | Party-Specific Table Assignment | Bride admin `/admin/table-arrangement` shows only bride guests & bride tables. Groom admin sees only groom guests & groom tables. Cannot assign a bride guest to a table via groom's session (403 Forbidden). Table headcount shows only assigned guests from that party. |
+| P1-14H | Party-Specific Table Assignment | Bride admin `/admin/table-arrangement` shows only bride guests & bride tables. Groom admin sees only groom guests & groom tables. Cannot assign a bride guest to a table via groom's session (403 Forbidden). Table headcount shows only assigned guests from that party. **Note 2026-09-21: the 403 on seat assignment was never built — the assign route does not check the side, and the invitee and placeholder pickers are not filtered by side. See §20 and TASKS.md Action 68.** |
+| P1-14I | Table Sides & Common Tables | Each table is created with a side — the logged-in admin's own side, or **Common** — and only that side's people can be seated there. Common tables hold the bride-side and groom-side leftovers after each side has filled its own tables; both admins see them, each seats only their own side's people. Table names become required and unique; guests see the name. **Grill Me session 2026-09-20.** Full spec in §20. |
 | P1-15 | Pre-Login Site Gate & Invitation Reveal | Unauthenticated visitors see only a full-screen landing state (couple names, gold divider, invitation-code input — no nav, no content, no countdown). A valid code plays a ~2s envelope-opening animation before revealing the invitation and unlocking the full site (nav, all public pages, countdown, sticky RSVP bar). **Owner-confirmed 2026-08-29 — not yet built; rediscovered and logged 2026-09-05, see MEMORY.md.** Full spec in §15. |
 
 ---
@@ -904,6 +905,65 @@ A photorealistic 3D envelope animation plays when the guest first views their in
 - **Canvas library options:** Babylon.js (3D), Three.js (3D), Lottie (SVG-based, simpler), or custom Canvas API
 - **File size:** keep animation data ≤500KB including any textures/sprites
 - **Browser compatibility:** ES2020+ minimum (no IE11 support needed)
+
+---
+
+## 20. Table Sides & Common Tables (Grill Me session 2026-09-20)
+
+Every table has a **side** — bride, groom or common. The side is chosen when the table is created, and only people from that side can be seated there. A **Common** table exists for the leftovers: after each side has filled its own tables, the bride-side and groom-side guests who remain (too few to fill a table of their own) sit together at Common tables.
+
+### What was true before this work (found while preparing the session)
+- Tables already carry `assigned_to_party` (migration 022), but it is set from the logged-in admin's session, never chosen in a form, and there is no `common` value.
+- **Nothing enforces the side when seating.** The assign route (`.../seats/[seatId]/assign`) never checks it; the "403 for the wrong side" in P1-14H is not built. `listUnassignedInvitees()` and `listUnassignedProbableAttendees()` are not filtered by side, so a bride table can hold groom people today.
+- Table numbers are unique per side, so "Table 1" can exist twice, while the guest's invitation page shows only "Table N".
+
+### Grill Me session — 2026-09-20 (owner answers)
+
+| Question | Answer |
+|---|---|
+| Who decides a table's side at creation? | The form offers **My side** (locked to whoever is logged in) **or Common**. Each admin can create only their own side's tables plus Common tables — the "each admin manages only their own tables" rule (P1-14B) stays. |
+| Who can see and seat people at a Common table? | **Both admins see every Common table and who sits there. Each admin seats and removes only their own side's people on it.** Each side's full guest list stays private. |
+| When are leftovers handled? | **Anytime**, with a **leftover summary** panel (each side's unseated count, free seats, the combined total and roughly how many Common tables are still needed). No locked "final step". |
+| Table numbering | **Separate numbers per side** — bride 1, 2, 3…; groom 1, 2, 3…; Common 1, 2, 3…. |
+| Table label for guests and the export | **Table names are required and unique** (e.g. "Rose Table"). Guests see the name; the side stays admin-only. |
+| Probable-attendance placeholders (Declined/Pending buffer) | **One shared pool.** Either admin can place a placeholder on their own side's tables or on a Common table. |
+| Can a table's side be changed after creation? | **Only while the table is empty.** Once anyone is seated the side is locked. |
+| Existing data | **Only test data exists** — no backfill or retagging needed. |
+
+### Assumptions made without asking (owner can overrule)
+- A person's side is their party's side (`guests.assigned_to_party`); an invitee inherits it through `guest_id`.
+- The table **number** stays as an admin-facing ordering only; guests never see it.
+- A table name must be unique across the whole venue, compared without regard to capital letters. Existing tables with no name are left alone; the guest page falls back to "Table N" for them.
+- The message placeholder `[TableNumber]` fills with the table **name** (the placeholder itself stays, so saved templates keep working).
+- Deleting: an admin deletes their own side's tables as today; a Common table can be deleted only while empty (either admin).
+- The leftover summary shows **counts only** — never the other side's names.
+- The spreadsheet export shows each table's side and name.
+
+### Acceptance Criteria
+- [ ] The create-table form asks for a **name** (required), the size, and the side: "My side" or "Common". `POST /api/admin/table-arrangement` refuses a missing name and a duplicate name (400).
+- [ ] `GET /api/admin/table-arrangement` returns the admin's own side's tables plus all Common tables, each labelled with its side. The other side's tables are never returned.
+- [ ] **The server enforces the seating rule**, not just the picker: a person can be seated only on a table of their own side or a Common table, otherwise 403. A bride admin cannot seat anyone on a groom table or seat a groom person anywhere. Probable placeholders can go only on own-side or Common tables.
+- [ ] The unassigned guests and unassigned invitees lists are filtered to the admin's own side (this fixes the current unfiltered invitee list).
+- [ ] On a Common table each admin sees everyone seated but can remove only their own side's people.
+- [ ] A **leftover summary** panel shows each side's unseated count and free seats, the combined leftover, the free seats on Common tables, and the rough number of Common tables still needed.
+- [ ] A table's side can change only while it is empty (own side ↔ Common); a table with anyone seated refuses (409).
+- [ ] Table headcount and dashboard stats count each admin's own-side people, including their own people seated at Common tables.
+- [ ] The guest's `/invitation/[code]` page shows the table **name** (falling back to "Table N" for an unnamed table); the "with …" line is unchanged.
+- [ ] `[TableNumber]` in message templates fills with the table name; the export shows side and name.
+- [ ] Tests cover both sides and Common, and every rule is watched failing with the rule removed.
+
+### Proposed Schema Changes
+```sql
+-- Migration 023 (proposed), additive only. The owner runs `npm run migrate`; push code after it has run.
+ALTER TABLE seating_tables
+  ADD CONSTRAINT seating_tables_side_check CHECK (assigned_to_party IN ('bride', 'groom', 'common'));
+
+-- Unique table names, ignoring capital letters; tables with no name are exempt.
+-- If this fails because two test tables share a name, rename or delete one first.
+CREATE UNIQUE INDEX IF NOT EXISTS seating_tables_name_unique
+  ON seating_tables (lower(table_name)) WHERE table_name IS NOT NULL;
+```
+The existing `UNIQUE (table_number, assigned_to_party)` from migration 022 already gives separate numbering per side, and Common becomes a third numbering line with no further change.
 
 ---
 

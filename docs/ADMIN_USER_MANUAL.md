@@ -1,5 +1,7 @@
 # Admin User Manual — Amandi & Tharindu Wedding Website
 
+> **Draft, 2026-09-20 (session-end pass): this describes the intended flow, not the site today.** CSV import, "Forgot password", the WhatsApp drop-down with ticking a message as sent, layout locking, and the per-side dashboard are not built (`TASKS.md` Action 73), and the multi-admin logins themselves are unpushed and their migrations unapplied (Action 69). Keep this until the work ships, then correct it.
+
 **Last updated:** 2026-09-20
 
 ---
