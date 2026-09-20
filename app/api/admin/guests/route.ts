@@ -63,6 +63,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    // When creating with inviteeNames, the slotCount is derived from inviteeNames.length
+    // by validateGuestInput, so the guest will always be consistent from creation.
     const guest = await createGuest(value);
     return NextResponse.json({ success: true, guest }, { status: 201 });
   } catch (error) {

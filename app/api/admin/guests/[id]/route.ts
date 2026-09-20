@@ -54,20 +54,19 @@ export async function PATCH(
     );
   }
 
-  const guest = await updateGuest(id, value);
-  if (!guest) return notFound();
-
   // A party with named invitees derives its seat count from that list, so the
-  // body's slotCount is not authoritative here. The edit form disables the
-  // field but submits whatever it held when the form opened, so removing an
-  // invitee and then saving an unrelated field (a phone number, say) used to
-  // write the pre-removal count straight back — reintroducing exactly the
-  // drift Next Action 22 fixed for the removal endpoint (Next Action 32).
+  // body's slotCount is not authoritative here. Always sync to the actual count
+  // of approved invitees, not the submitted value.
   const approved = await listApprovedInvitees(id);
   if (approved.length > 0) {
+    // If there are named invitees, derive slotCount from them, ignoring the submitted value
     const synced = await syncGuestSlotCountToInvitees(id);
     if (synced) return NextResponse.json({ success: true, guest: synced });
   }
+
+  // Only update guest if no named invitees (headcount-only invitation)
+  const guest = await updateGuest(id, value);
+  if (!guest) return notFound();
 
   return NextResponse.json({ success: true, guest });
 }
