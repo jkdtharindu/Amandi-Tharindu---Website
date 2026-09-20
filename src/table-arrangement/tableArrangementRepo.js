@@ -479,6 +479,52 @@ export async function unassignSeatByInviteeId(inviteeId, exec) {
 }
 
 /**
+ * Frees every seat held by a guest, or by any of that guest's invitees, and
+ * wipes the dietary requirements and notes on them — the same end state as
+ * assignGuestToSeat(seatId, null) leaves. Used when a whole guest is removed:
+ * the table window reads seats with no is_deleted filter, so a removed guest
+ * whose seats were never freed keeps showing on them. Returns how many seats
+ * were freed.
+ *
+ * `exec` (optional) is the open transaction's query function.
+ */
+export async function unassignSeatsForGuest(guestId, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
+    const inviteeIds = new Set(
+      invitees.filter((entry) => entry.guestId === guestId).map((entry) => entry.id)
+    );
+    let freed = 0;
+    for (const table of seatingTables) {
+      for (const seat of table.seats) {
+        if (seat.guestId === guestId || (seat.inviteeId && inviteeIds.has(seat.inviteeId))) {
+          seat.guestId = null;
+          seat.inviteeId = null;
+          seat.dietaryRequirements = null;
+          seat.specialNotes = null;
+          freed += 1;
+        }
+      }
+    }
+    return freed;
+  }
+
+  const { rows } = await run(
+    `UPDATE table_seats
+     SET guest_id = NULL,
+         invitee_id = NULL,
+         dietary_requirements = NULL,
+         special_notes = NULL,
+         updated_at = now()
+     WHERE guest_id = $1
+        OR invitee_id IN (SELECT id FROM invitees WHERE guest_id = $1)
+     RETURNING id`,
+    [guestId]
+  );
+  return rows.length;
+}
+
+/**
  * Get all accepted guests who are not yet seated. A guest that has any
  * invitee rows is seated individually instead (see listUnassignedInvitees),
  * so it's excluded here even if the party itself shows 'accepted'.

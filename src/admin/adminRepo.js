@@ -161,17 +161,20 @@ export async function syncGuestSlotCountToInvitees(id, exec) {
 
 /**
  * Soft-deletes a guest: hidden from the guest-facing site, but the record and
- * its RSVP history are preserved (PRD §7 — guest soft delete).
+ * its RSVP history are preserved (PRD §7 — guest soft delete). This only marks
+ * the guest; freeing their table seats is removeGuest.js's job, in the same
+ * transaction. `exec` (optional) is the open transaction's query function.
  */
-export async function softDeleteGuest(id) {
-  if (!isDbEnabled()) {
+export async function softDeleteGuest(id, exec) {
+  const run = exec ?? (isDbEnabled() ? query : null);
+  if (!run) {
     const guest = guestStore.find((entry) => entry.id === id);
     if (!guest) return null;
     guest.isDeleted = true;
     return guest;
   }
 
-  const { rows } = await query(
+  const { rows } = await run(
     `UPDATE guests SET is_deleted = true WHERE id = $1 AND is_deleted = false RETURNING *`,
     [id]
   );

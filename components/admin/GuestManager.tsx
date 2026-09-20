@@ -225,6 +225,7 @@ export default function GuestManager({
         ' (' +
         guest.code +
         ') from the guest list?\n\n' +
+        'Any table seats they hold become open again.\n\n' +
         'Their RSVP history is kept in the database and can be restored.'
     );
     if (!confirmed) return;

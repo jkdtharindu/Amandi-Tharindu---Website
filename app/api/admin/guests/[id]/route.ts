@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  softDeleteGuest,
-  updateGuest,
-  syncGuestSlotCountToInvitees,
-} from '@/src/admin/adminRepo.js';
+import { updateGuest, syncGuestSlotCountToInvitees } from '@/src/admin/adminRepo.js';
+import { removeGuest } from '@/src/admin/removeGuest.js';
 import { listApprovedInvitees } from '@/src/invitees/inviteesRepo.js';
 import { validateGuestInput } from '@/src/admin/guestValidation.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
@@ -75,7 +72,11 @@ export async function PATCH(
   return NextResponse.json({ success: true, guest });
 }
 
-/** Soft-deletes a guest, preserving their RSVP history (PRD §7). */
+/**
+ * Soft-deletes a guest, preserving their RSVP history (PRD §7), and frees every
+ * table seat the guest or any of their people held — in one transaction, so a
+ * removed guest can never stay on a seat (Next Action 56).
+ */
 export async function DELETE(
   request: NextRequest,
   context: RouteContext
@@ -90,6 +91,21 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
-  const guest = await softDeleteGuest(id);
+
+  let guest;
+  try {
+    guest = await removeGuest(id);
+  } catch (error) {
+    console.error('Removing a guest failed; nothing was changed:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        reason: 'remove_failed',
+        message: 'Could not remove the guest. Nothing was changed — please try again.',
+      },
+      { status: 500 }
+    );
+  }
+
   return guest ? NextResponse.json({ success: true, guest }) : notFound();
 }
