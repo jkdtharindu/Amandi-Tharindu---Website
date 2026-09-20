@@ -54,6 +54,7 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `participant` (see that entry's doc-drift flag above), `guest`, `member`, `attendee`
 - Example: A Guest with three named Invitees sees a per-person accept/decline checklist instead of one whole-party RSVP; removing an Invitee frees any `SeatAssignment` they held and recomputes the party's `SlotCount` from the remaining approved Invitees.
 - Note: Built 2026-09 (migration 012, `src/invitees/inviteesRepo.js`). Single-person Guests never get an Invitee row — their RSVP/seating behavior is unchanged. Individual removal (deleting one Invitee, not the whole party) shipped 2026-09-12.
+- Note (2026-09-20, Actions 55 and 58): approving a Guest's request to add a person is one transaction — mark the Invitee approved, add one to the party's `SlotCount`, re-derive the party's status. Only a request still `pending_approval` can be approved, so approving twice does nothing; a removed Guest's requests are hidden from the approval list and refused.
 
 ### AgeCategory
 - Canonical name: `AgeCategory`

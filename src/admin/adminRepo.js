@@ -115,16 +115,18 @@ export async function updateGuest(id, { name, relationship, slotCount, whatsappN
  * guest's own "add another person" request, so slot_count (read by CSV
  * export, the guest list, and WhatsApp templates) stays accurate without
  * those readers needing to switch to counting invitee rows themselves.
+ * `exec` (optional) is the open transaction's query function; see approveInviteeRequest.js.
  */
-export async function incrementGuestSlotCount(id) {
-  if (!isDbEnabled()) {
+export async function incrementGuestSlotCount(id, exec) {
+  const run = exec ?? (isDbEnabled() ? query : null);
+  if (!run) {
     const guest = guestStore.find((entry) => entry.id === id);
     if (!guest) return null;
     guest.slotCount = (guest.slotCount || 0) + 1;
     return guest;
   }
 
-  const { rows } = await query(
+  const { rows } = await run(
     `UPDATE guests SET slot_count = slot_count + 1 WHERE id = $1 RETURNING *`,
     [id]
   );
