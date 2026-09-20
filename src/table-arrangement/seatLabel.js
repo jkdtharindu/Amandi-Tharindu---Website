@@ -12,7 +12,8 @@
 export function seatOccupantLabel(seat) {
   if (seat.guestName) return seat.guestName;
   if (seat.inviteeName) {
-    return seat.inviteeGuestName ? `${seat.inviteeName} (${seat.inviteeGuestName})` : seat.inviteeName;
+    const sameAsParty = !seat.inviteeGuestName || seat.inviteeGuestName === seat.inviteeName;
+    return sameAsParty ? seat.inviteeName : `${seat.inviteeName} (${seat.inviteeGuestName})`;
   }
   return seat.probableAttendeeLabel ?? null;
 }

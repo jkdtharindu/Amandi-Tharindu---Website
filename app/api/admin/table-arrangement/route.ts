@@ -56,7 +56,7 @@ export async function GET(): Promise<NextResponse> {
   ]);
 
   const partyStats = await getPartyStats(session.party);
-  const overallStats = computeRsvpStats(allGuests.filter((g) => !g.isDeleted), responses);
+  const overallStats = computeRsvpStats(allGuests.filter((g: { isDeleted?: boolean }) => !g.isDeleted), responses);
 
   return NextResponse.json({
     success: true,

@@ -520,7 +520,7 @@ function SeatCard({
             <optgroup label="Accepted invitees">
               {unassignedInvitees.map((invitee) => (
                 <option key={invitee.id} value={`invitee:${invitee.id}`}>
-                  {invitee.name} ({invitee.guestName})
+                  {invitee.name === invitee.guestName ? invitee.name : `${invitee.name} (${invitee.guestName})`}
                 </option>
               ))}
             </optgroup>

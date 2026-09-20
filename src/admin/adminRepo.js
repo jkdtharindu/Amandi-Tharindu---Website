@@ -252,7 +252,12 @@ export async function getGuestIfPartyOwner(id, party) {
   return rows.length > 0 ? mapGuestRow(rows[0]) : null;
 }
 
-/** Create a guest assigned to a specific party. */
+/**
+ * Create a guest assigned to a specific party.
+ *
+ * @param {string} party
+ * @param {GuestInput & { inviteeNames?: string[] }} input
+ */
 export async function createGuestForParty(party, { name, relationship, slotCount, whatsappNumber = null, inviteeNames }) {
   const existing = await listAllGuests();
   const code = generateGuestCode(name, relationship, existing.map((guest) => guest.code));

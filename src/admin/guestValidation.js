@@ -22,8 +22,14 @@ const MAX_SLOT_COUNT = 99;
  * overwritten with inviteeNames.length rather than trusted from the form, so
  * the two can never disagree. Omitting inviteeNames keeps today's
  * headcount-only invitation (a single free-text RSVP for the whole party).
+ *
+ * `requirePeople` is for creating a guest. Every seat must belong to a named
+ * person, or the party never appears in Table Arrangement's picker: a party of
+ * two or more with no names is refused, and a party of one is saved as one
+ * person carrying the guest's own name. Editing leaves it off, because guests
+ * created before this rule are still headcount-only.
  */
-export function validateGuestInput(input = {}) {
+export function validateGuestInput(input = {}, { requirePeople = false } = {}) {
   const errors = {};
 
   const name = String(input.name ?? '').trim();
@@ -38,12 +44,22 @@ export function validateGuestInput(input = {}) {
   }
 
   let inviteeNames;
-  if (input.inviteeNames !== undefined) {
+  const namesGiven = Array.isArray(input.inviteeNames) && input.inviteeNames.length > 0;
+  if (input.inviteeNames !== undefined && (namesGiven || !requirePeople)) {
     const namesResult = validateInviteeNames(input.inviteeNames);
     if (!namesResult.valid) {
       errors.inviteeNames = namesResult.error;
     } else {
       inviteeNames = namesResult.names;
+    }
+  }
+
+  if (requirePeople && !inviteeNames && !errors.inviteeNames) {
+    const headcount = Number(input.slotCount);
+    if (headcount === 1) {
+      if (name) inviteeNames = [name];
+    } else {
+      errors.inviteeNames = 'Add the name of each person in this party.';
     }
   }
 

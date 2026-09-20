@@ -64,7 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const result = verifyAdminCredentials(body?.email, body?.password);
-  if (!result.success) {
+  if (!('party' in result)) {
     return NextResponse.json(result, {
       status: result.reason === 'admin_not_configured' ? 500 : 401,
     });

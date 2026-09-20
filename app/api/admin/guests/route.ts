@@ -21,7 +21,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Compute stats for this party and overall
   const partyStats = await getPartyStats(session.party);
-  const overallStats = computeRsvpStats(allGuests.filter((g) => !g.isDeleted), responses);
+  const overallStats = computeRsvpStats(allGuests.filter((g: { isDeleted?: boolean }) => !g.isDeleted), responses);
 
   return NextResponse.json({
     success: true,
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const validation = validateGuestInput(body);
+  const validation = validateGuestInput(body, { requirePeople: true });
   const value = validation.value;
   if (!validation.valid || !value) {
     return NextResponse.json(

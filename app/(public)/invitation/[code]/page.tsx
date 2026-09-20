@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { findGuestById, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
 import { listInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
+import { getGuestTableView } from '@/src/table-arrangement/guestTableView.js';
 import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
@@ -47,6 +48,15 @@ export default async function InvitationPage({
     invitees = [];
   }
 
+  // Where the admin has seated this party. Never throws, so a seating hiccup
+  // only hides the table line instead of taking the invitation down.
+  let tableViews: { tableNumber: number; tableName: string | null; mates: string[] }[] = [];
+  try {
+    tableViews = await getGuestTableView(guest.id);
+  } catch (error) {
+    console.error('getGuestTableView failed, hiding the table line:', error);
+  }
+
   // getThemeSettings() hits the DB on every request; this must never throw,
   // or a transient DB hiccup takes down every page on the site.
   let settings;
@@ -73,9 +83,25 @@ export default async function InvitationPage({
         <div className="space-y-6">
           {/* Guest Info Card */}
           <div className="bg-white rounded-3xl shadow-lg p-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-900">
+            <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
               Invitation for {guest.name}
             </h1>
+
+            {tableViews.length > 0 && (
+              <div className="mb-6" data-testid="table-assignment">
+                {tableViews.map((view) => (
+                  <p key={view.tableNumber} className="text-gray-700">
+                    <span className="text-lg font-semibold text-gray-900">
+                      Table {view.tableNumber}
+                      {view.tableName ? ` · ${view.tableName}` : ''}
+                    </span>
+                    {view.mates.length > 0 && (
+                      <span className="text-sm text-gray-600"> — with {view.mates.join(', ')}</span>
+                    )}
+                  </p>
+                ))}
+              </div>
+            )}
 
             <div className="grid md:grid-cols-2 gap-4 mb-6 text-gray-700">
               <div>

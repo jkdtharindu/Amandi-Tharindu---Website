@@ -80,3 +80,11 @@ test('the chart data carries the party name for a seated invitee and none for a 
   assert.equal(listed.seats[1].inviteeGuestName, null);
   assert.equal(listed.seats[1].guestName, 'Colleagues');
 });
+
+test('a person who is their own party (a party of one) is not repeated in brackets', async () => {
+  const { seatOccupantLabel } = await import('../src/table-arrangement/seatLabel.js');
+  assert.equal(
+    seatOccupantLabel({ inviteeName: 'Ruwan Solo', inviteeGuestName: 'Ruwan Solo' }),
+    'Ruwan Solo'
+  );
+});
