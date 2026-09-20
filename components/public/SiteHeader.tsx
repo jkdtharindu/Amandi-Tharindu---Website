@@ -93,6 +93,9 @@ export default function SiteHeader({
 
   return (
     <header className="site-header">
+      <a href="#home" className="skip-to-content">
+        Skip to content
+      </a>
       <div className="site-header-row">
         <div className="site-brand">{coupleNames}</div>
         <button
