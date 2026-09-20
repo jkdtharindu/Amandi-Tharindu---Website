@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   listSeatingTables,
+  listSeatingTablesByParty,
   createSeatingTable,
   listUnassignedGuests,
+  listUnassignedGuestsByParty,
   listAssignedGuests,
+  listAssignedGuestsByParty,
   listUnassignedInvitees,
   listUnassignedProbableAttendees,
   getProbableAttendanceSummary,
   isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
-import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
+import { listAllGuests, listAllRsvpResponses, listGuestsByParty, getPartyStats } from '@/src/admin/adminRepo.js';
 import { computeRsvpStats } from '@/src/admin/guestQueries.js';
 import { buildDashboardStats } from '@/src/table-arrangement/dashboardStats.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
@@ -23,9 +26,12 @@ import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
  * refresh picks all of it up for free. The stats were added for Next Action
  * 29: they used to be computed only at page load, so they went stale the
  * moment an admin seated anyone.
+ *
+ * Updated 2026-09-20: Filtered by party (bride or groom) for multi-admin support (P1-14H).
  */
 export async function GET(): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   const [
     tables,
@@ -34,18 +40,23 @@ export async function GET(): Promise<NextResponse> {
     unassignedInvitees,
     unassignedProbableAttendees,
     probableAttendanceSummary,
-    guests,
+    allGuests,
+    partyGuests,
     responses,
   ] = await Promise.all([
-    listSeatingTables(),
-    listUnassignedGuests(),
-    listAssignedGuests(),
+    listSeatingTablesByParty(session.party),
+    listUnassignedGuestsByParty(session.party),
+    listAssignedGuestsByParty(session.party),
     listUnassignedInvitees(),
     listUnassignedProbableAttendees(),
     getProbableAttendanceSummary(),
     listAllGuests(),
+    listGuestsByParty(session.party),
     listAllRsvpResponses(),
   ]);
+
+  const partyStats = await getPartyStats(session.party);
+  const overallStats = computeRsvpStats(allGuests.filter((g) => !g.isDeleted), responses);
 
   return NextResponse.json({
     success: true,
@@ -59,14 +70,20 @@ export async function GET(): Promise<NextResponse> {
       assignedGuests,
       unassignedGuests,
       unassignedInvitees,
-      rsvpStats: computeRsvpStats(guests, responses),
+      rsvpStats: partyStats,
     }),
+    stats: {
+      party: partyStats,
+      overall: overallStats,
+    },
+    party: session.party,
   });
 }
 
-/** Creates a seating table with `capacity` empty seats (P1-14). */
+/** Creates a seating table with `capacity` empty seats for the logged-in admin's party (P1-14, P1-14H). */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -99,7 +116,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const table = await createSeatingTable({ tableNumber, tableName, capacity });
+    const table = await createSeatingTable({ tableNumber, tableName, capacity, party: session.party });
     return NextResponse.json({ success: true, table }, { status: 201 });
   } catch (error) {
     // Domain errors ("that table number is taken") are written for the admin

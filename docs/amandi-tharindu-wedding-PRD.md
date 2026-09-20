@@ -133,6 +133,12 @@ Use the prototype for local validation and UI polish; follow `HITL.md` for any a
 | P1-12 | Sticky Navigation | Navigation bar fixed at top on all pages. Links: Home, Our Story, The Celebration, Gallery, Invitation, Wishes. Elegant font. Mobile hamburger menu. |
 | P1-13 | Mobile Responsiveness | Full functionality on iOS and Android mobile browsers. All pages, forms, admin panel, and RSVP flow work on screens ≥ 320px wide. |
 | P1-14 | Table Planning & Guest Categorization | Each Participant's Age Category (elder/adult/youth/child) is captured at RSVP time. Admin assigns individual Participants — not whole Guest family units — to numbered seating Tables, filterable by Age Category and RelationshipType, so people of a matching generation from different families/colleagues can be seated together. **Proposed 2026-09-03 — not yet built.** Full spec in §14. |
+| P1-14B | Multi-Admin Accounts (Bride & Groom) | Two separate login accounts: bride (BRIDE_EMAIL + BRIDE_PASSWORD_HASH) and groom (GROOM_EMAIL + GROOM_PASSWORD_HASH). Each admin sees only their own invitees, manages only their own tables, sends WhatsApps from their own phone numbers. Session stores `party: 'bride'` or `party: 'groom'`. **Grill Me session 2026-09-20.** Acceptance criteria in this document. |
+| P1-14D | Party-Specific Guest Management | Guests tagged `assigned_to_party` (bride\|groom) at creation. Each admin's `/admin/guests` list is auto-filtered by their party. Cannot reassign party after creation. Bulk import auto-tags guests with importing admin's party. Unique constraint: `(code, assigned_to_party)` — one family invited by only one party. |
+| P1-14E | Party-Filtered RSVP Dashboard | Dashboard shows bride stats, groom stats, and collective total. Each admin sees their own party counts + grand total. Message event tracking per guest (checkboxes for: RSVP Reminder, Thank You, Table Details, Final Reminder). Admin ticks boxes after sending to track pending tasks. |
+| P1-14F | Shared Message Templates with Personal Details | One template set (not per-party). Templates have placeholders: `[Name]`, `[Code]`, `[TableNumber]`, `[EventDate]`, `[EventTime]`, `[Venue]`, `[Link]`, `[Deadline]`, `[Greeting]`. At send time, placeholders fill with guest's personal info + sender's party greeting. |
+| P1-14G | WhatsApp Send + Event Completion Tracking | Dropdown menu on guest card: select template → preview message → click "Send via WhatsApp" → opens `wa.me` link with pre-filled message. Admin sends manually in WhatsApp. After sending, admin ticks checkbox in dashboard: "✓ RSVP Reminder sent". Dashboard filters by completion status (pending vs completed). |
+| P1-14H | Party-Specific Table Assignment | Bride admin `/admin/table-arrangement` shows only bride guests & bride tables. Groom admin sees only groom guests & groom tables. Cannot assign a bride guest to a table via groom's session (403 Forbidden). Table headcount shows only assigned guests from that party. |
 | P1-15 | Pre-Login Site Gate & Invitation Reveal | Unauthenticated visitors see only a full-screen landing state (couple names, gold divider, invitation-code input — no nav, no content, no countdown). A valid code plays a ~2s envelope-opening animation before revealing the invitation and unlocking the full site (nav, all public pages, countdown, sticky RSVP bar). **Owner-confirmed 2026-08-29 — not yet built; rediscovered and logged 2026-09-05, see MEMORY.md.** Full spec in §15. |
 
 ---
@@ -158,7 +164,6 @@ The following are explicitly NOT being built:
 - Photo booth or live photo upload by guests
 - Google Sheets / Airtable integration
 - Native mobile app (iOS or Android)
-- Multi-admin accounts (only one admin: the couple)
 - Public-facing RSVP without code/name verification (open RSVPs)
 - Automated RSVP reminders on a schedule (P2 — manual sends only at launch)
 - Multi-language support at launch (Sinhala — P2 only)
@@ -187,7 +192,7 @@ File Storage:  Supabase Storage (invitation templates, venue images, gallery pho
 - **Budget:** Near-zero running cost. All services on free tiers where possible.
 - **Guest scale:** ~350 family units. Not expected to exceed 500 total individual RSVPs.
 - **Timeline:** 35 days to production. No scope creep permitted until after launch.
-- **Admin count:** Exactly one admin account. No multi-user admin system needed.
+- **Admin accounts:** Two separate accounts (bride and groom). Each has independent email, password, session. No shared admin account. Auth via environment variables: `BRIDE_EMAIL`, `BRIDE_PASSWORD_HASH`, `GROOM_EMAIL`, `GROOM_PASSWORD_HASH`. (**Added 2026-09-20** — originally scoped as one account; multi-admin added per Grill Me session.)
 - **Invitation personalization:** Name overlay is DOM/CSS only — no server-side image generation. Admin configures overlay position/font/size via theme editor.
 - **Physical cards:** Couple prints and distributes physical cards manually. Website generates unique codes only.
 - **WhatsApp API:** No Twilio/WhatsApp Business API (decided against 2026-09-05 — costs money). Messaging uses `wa.me` deep links instead: no template pre-approval needed, but every send requires the admin to manually press Send inside WhatsApp — no bulk auto-send is possible.
@@ -212,16 +217,18 @@ File Storage:  Supabase Storage (invitation templates, venue images, gallery pho
 -- Guests (one record per family unit / invited party)
 guests (
   id uuid PRIMARY KEY,
-  code text UNIQUE NOT NULL,           -- e.g., SILVA-001, auto-generated
+  code text NOT NULL,                  -- e.g., SILVA-001, auto-generated
   name text NOT NULL,                  -- Primary contact name
   relationship text NOT NULL,          -- Relations | Colleagues | Neighbours | Friends
+  assigned_to_party text NOT NULL DEFAULT 'bride',  -- bride | groom (2026-09-20)
   slot_count integer NOT NULL,         -- Max participants allowed
   whatsapp_number text,                -- Captured on first visit (optional)
   email text,
   has_visited boolean DEFAULT false,
   rsvp_status text DEFAULT 'pending',  -- pending | accepted | declined
   is_deleted boolean DEFAULT false,    -- Soft delete
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (code, assigned_to_party)     -- One family invited by only one party
 )
 
 -- RSVP Responses
@@ -301,6 +308,16 @@ message_logs (
   channel text NOT NULL,
   sent_at timestamptz,
   status text NOT NULL                 -- sent | failed | pending
+)
+
+-- Message Event Tracking (2026-09-20)
+message_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  guest_id uuid NOT NULL REFERENCES guests(id),
+  event_name text NOT NULL,            -- e.g., "RSVP Reminder", "Thank You", "Table Details", "Final Reminder"
+  sent_by_party text NOT NULL,         -- bride | groom
+  sent_at timestamptz DEFAULT now(),
+  is_completed boolean DEFAULT false
 )
 
 -- Global Theme Settings (single row)

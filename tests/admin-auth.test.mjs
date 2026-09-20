@@ -4,9 +4,19 @@ import assert from 'node:assert/strict';
 import { hashAdminPassword, verifyAdminCredentials } from '../src/admin/adminAuth.js';
 
 const PASSWORD = 'correct horse battery staple';
-const CONFIG = {
+const BRIDE_PASSWORD = 'bride-password-123';
+const GROOM_PASSWORD = 'groom-password-456';
+
+const LEGACY_CONFIG = {
   adminEmail: 'admin@example.com',
   passwordHash: hashAdminPassword(PASSWORD),
+};
+
+const BRIDE_GROOM_CONFIG = {
+  brideEmail: 'bride@example.com',
+  bridePasswordHash: hashAdminPassword(BRIDE_PASSWORD),
+  groomEmail: 'groom@example.com',
+  groomPasswordHash: hashAdminPassword(GROOM_PASSWORD),
 };
 
 test('hashAdminPassword produces a salt:key pair in the stored format', () => {
@@ -22,42 +32,67 @@ test('hashAdminPassword salts each hash so two hashes of one password differ', (
   assert.notEqual(hashAdminPassword(PASSWORD), hashAdminPassword(PASSWORD));
 });
 
-test('accepts the correct email and password', () => {
-  const result = verifyAdminCredentials('admin@example.com', PASSWORD, CONFIG);
+// Legacy single-admin tests
+test('accepts the correct legacy email and password', () => {
+  const result = verifyAdminCredentials('admin@example.com', PASSWORD, LEGACY_CONFIG);
+  assert.equal(result.success, true);
+  assert.equal(result.party, 'bride', 'legacy account defaults to bride party');
+});
+
+test('accepts the email case-insensitively and ignores surrounding whitespace (legacy)', () => {
+  const result = verifyAdminCredentials('  ADMIN@Example.COM  ', PASSWORD, LEGACY_CONFIG);
   assert.equal(result.success, true);
 });
 
-test('accepts the email case-insensitively and ignores surrounding whitespace', () => {
-  const result = verifyAdminCredentials('  ADMIN@Example.COM  ', PASSWORD, CONFIG);
+// Bride/Groom multi-admin tests (2026-09-20)
+test('accepts the correct bride email and password', () => {
+  const result = verifyAdminCredentials('bride@example.com', BRIDE_PASSWORD, BRIDE_GROOM_CONFIG);
   assert.equal(result.success, true);
+  assert.equal(result.party, 'bride');
 });
 
-test('rejects a wrong password', () => {
-  const result = verifyAdminCredentials('admin@example.com', 'wrong-password', CONFIG);
+test('accepts the correct groom email and password', () => {
+  const result = verifyAdminCredentials('groom@example.com', GROOM_PASSWORD, BRIDE_GROOM_CONFIG);
+  assert.equal(result.success, true);
+  assert.equal(result.party, 'groom');
+});
+
+test('rejects a wrong password (bride)', () => {
+  const result = verifyAdminCredentials('bride@example.com', 'wrong-password', BRIDE_GROOM_CONFIG);
+  assert.equal(result.success, false);
+  assert.equal(result.reason, 'invalid_credentials');
+});
+
+test('rejects a wrong password (groom)', () => {
+  const result = verifyAdminCredentials('groom@example.com', 'wrong-password', BRIDE_GROOM_CONFIG);
   assert.equal(result.success, false);
   assert.equal(result.reason, 'invalid_credentials');
 });
 
 test('rejects an unknown email', () => {
-  const result = verifyAdminCredentials('someone@else.com', PASSWORD, CONFIG);
+  const result = verifyAdminCredentials('unknown@example.com', BRIDE_PASSWORD, BRIDE_GROOM_CONFIG);
   assert.equal(result.success, false);
   assert.equal(result.reason, 'invalid_credentials');
 });
 
 test('does not reveal whether the email or the password was wrong', () => {
-  const badEmail = verifyAdminCredentials('someone@else.com', PASSWORD, CONFIG);
-  const badPassword = verifyAdminCredentials('admin@example.com', 'nope', CONFIG);
+  const badEmail = verifyAdminCredentials('unknown@example.com', BRIDE_PASSWORD, BRIDE_GROOM_CONFIG);
+  const badPassword = verifyAdminCredentials('bride@example.com', 'nope', BRIDE_GROOM_CONFIG);
   assert.equal(badEmail.reason, badPassword.reason);
 });
 
 test('rejects missing credentials without throwing', () => {
-  assert.equal(verifyAdminCredentials('', PASSWORD, CONFIG).success, false);
-  assert.equal(verifyAdminCredentials('admin@example.com', '', CONFIG).success, false);
-  assert.equal(verifyAdminCredentials(null, null, CONFIG).success, false);
+  assert.equal(verifyAdminCredentials('', BRIDE_PASSWORD, BRIDE_GROOM_CONFIG).success, false);
+  assert.equal(verifyAdminCredentials('bride@example.com', '', BRIDE_GROOM_CONFIG).success, false);
+  assert.equal(verifyAdminCredentials(null, null, BRIDE_GROOM_CONFIG).success, false);
 });
 
-test('reports when the admin account is not configured', () => {
-  const result = verifyAdminCredentials('admin@example.com', PASSWORD, {
+test('reports when no admin accounts are configured', () => {
+  const result = verifyAdminCredentials('anyone@example.com', 'anypassword', {
+    brideEmail: '',
+    bridePasswordHash: '',
+    groomEmail: '',
+    groomPasswordHash: '',
     adminEmail: '',
     passwordHash: '',
   });
@@ -65,11 +100,11 @@ test('reports when the admin account is not configured', () => {
   assert.equal(result.reason, 'admin_not_configured');
 });
 
-test('rejects a malformed stored hash instead of crashing', () => {
-  const result = verifyAdminCredentials('admin@example.com', PASSWORD, {
-    adminEmail: 'admin@example.com',
-    passwordHash: 'not-a-valid-hash',
+test('rejects a malformed stored hash instead of crashing (bride)', () => {
+  const result = verifyAdminCredentials('bride@example.com', BRIDE_PASSWORD, {
+    brideEmail: 'bride@example.com',
+    bridePasswordHash: 'not-a-valid-hash',
   });
   assert.equal(result.success, false);
-  assert.equal(result.reason, 'admin_not_configured');
+  assert.equal(result.reason, 'invalid_credentials');
 });

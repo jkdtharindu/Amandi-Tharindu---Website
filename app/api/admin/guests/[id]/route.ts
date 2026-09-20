@@ -13,12 +13,15 @@ const notFound = () =>
     { status: 404 }
   );
 
-/** Edits a guest's details. The invitation code is immutable (P0-07). */
+/** Edits a guest's details. The invitation code is immutable (P0-07, P1-14D).
+ *  Updated 2026-09-20: Verifies the guest belongs to the requesting admin's party.
+ */
 export async function PATCH(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -53,7 +56,7 @@ export async function PATCH(
     );
   }
 
-  const guest = await updateGuestDetails(id, value);
+  const guest = await updateGuestDetails(id, value, session.party);
   if (!guest) return notFound();
 
   return NextResponse.json({ success: true, guest });
@@ -62,13 +65,14 @@ export async function PATCH(
 /**
  * Soft-deletes a guest, preserving their RSVP history (PRD §7), and frees every
  * table seat the guest or any of their people held — in one transaction, so a
- * removed guest can never stay on a seat (Next Action 56).
+ * removed guest can never stay on a seat (Next Action 56). Verifies party ownership (P1-14D).
  */
 export async function DELETE(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -81,7 +85,7 @@ export async function DELETE(
 
   let guest;
   try {
-    guest = await removeGuest(id);
+    guest = await removeGuest(id, { party: session.party });
   } catch (error) {
     console.error('Removing a guest failed; nothing was changed:', error);
     return NextResponse.json(

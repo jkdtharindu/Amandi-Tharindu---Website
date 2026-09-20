@@ -1,4 +1,4 @@
-import { updateGuest } from './adminRepo.js';
+import { updateGuest, updateGuestIfPartyOwner } from './adminRepo.js';
 import { listApprovedInvitees } from '../invitees/inviteesRepo.js';
 
 /**
@@ -15,6 +15,7 @@ import { listApprovedInvitees } from '../invitees/inviteesRepo.js';
  * place it can come from.
  *
  * Resolves to the saved guest, or null when there is no such active guest.
+ * If party is provided, verifies the guest belongs to that party (P1-14D).
  *
  * Known limit: the count is read before the write rather than derived inside
  * it, so an invitee approved in the same instant leaves the headcount one
@@ -23,10 +24,17 @@ import { listApprovedInvitees } from '../invitees/inviteesRepo.js';
  *
  * @param {string} id
  * @param {{ name: string, relationship: string, slotCount: number, whatsappNumber: string | null }} value
+ * @param {string} [party] - Optional: 'bride' or 'groom'. If provided, enforces party ownership.
  */
-export async function updateGuestDetails(id, value) {
+export async function updateGuestDetails(id, value, party = null) {
   const approved = await listApprovedInvitees(id);
   const slotCount = approved.length > 0 ? approved.length : value.slotCount;
 
+  // Use party-aware version if party is provided (P1-14D)
+  if (party) {
+    return updateGuestIfPartyOwner(id, party, { ...value, slotCount });
+  }
+
+  // Fallback to non-party version for backwards compatibility
   return updateGuest(id, { ...value, slotCount });
 }

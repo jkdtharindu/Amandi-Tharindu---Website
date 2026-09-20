@@ -1,5 +1,5 @@
 import { runInRsvpTransaction, lockGuest } from '../rsvp/saveRsvp.js';
-import { softDeleteGuest } from './adminRepo.js';
+import { softDeleteGuest, softDeleteGuestIfPartyOwner } from './adminRepo.js';
 import { unassignSeatsForGuest } from '../table-arrangement/tableArrangementRepo.js';
 
 /**
@@ -15,17 +15,23 @@ import { unassignSeatsForGuest } from '../table-arrangement/tableArrangementRepo
  * Resolves to the deleted guest, or null when there is no such active guest — in
  * which case no seat is touched.
  *
+ * If party is provided, verifies the guest belongs to that party before deletion (P1-14D).
+ *
  * `transaction` is injectable so tests can observe the statements and the
  * BEGIN/COMMIT/ROLLBACK around them; production always uses the default.
  *
  * @param {string} guestId
- * @param {{ transaction?: typeof runInRsvpTransaction }} [options]
+ * @param {{ transaction?: typeof runInRsvpTransaction, party?: string }} [options]
  */
-export function removeGuest(guestId, { transaction = runInRsvpTransaction } = {}) {
+export function removeGuest(guestId, { transaction = runInRsvpTransaction, party = null } = {}) {
   return transaction(async (exec) => {
     await lockGuest(exec, guestId);
 
-    const guest = await softDeleteGuest(guestId, exec);
+    // Use party-aware version if party is provided (P1-14D)
+    const guest = party
+      ? await softDeleteGuestIfPartyOwner(guestId, party, exec)
+      : await softDeleteGuest(guestId, exec);
+
     if (!guest) return null;
 
     await unassignSeatsForGuest(guestId, exec);

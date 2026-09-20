@@ -1,13 +1,16 @@
 import crypto from 'node:crypto';
 
 /**
- * Signed admin session tokens (PRD P0-09).
+ * Signed admin session tokens (PRD P0-09, P1-14B).
  *
  * Format: `<base64url payload>.<hex hmac>`. The payload is base64url so it
  * never contains a `.` of its own, which keeps the split unambiguous.
  *
  * This is deliberately separate from `src/session.js` (guest sessions): admin
  * sessions carry an expiry and are signed over a structured payload.
+ *
+ * Updated 2026-09-20: Payload now includes `party: 'bride' | 'groom'` to support
+ * separate bride/groom admin accounts (P1-14B).
  */
 
 const DEFAULT_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
@@ -23,15 +26,15 @@ function sign(payload, secret) {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 
-/** Issues a signed session token for the given admin email. */
-export function createAdminSession(email, config = {}) {
+/** Issues a signed session token for the given admin email and party. */
+export function createAdminSession(email, party = 'bride', config = {}) {
   const { secret, ttlMs } = resolve(config);
   if (!secret) {
     throw new Error('session_secret_missing');
   }
 
   const payload = Buffer.from(
-    JSON.stringify({ sub: String(email), exp: Date.now() + ttlMs })
+    JSON.stringify({ sub: String(email), party: String(party), exp: Date.now() + ttlMs })
   ).toString('base64url');
 
   return `${payload}.${sign(payload, secret)}`;
@@ -40,9 +43,11 @@ export function createAdminSession(email, config = {}) {
 /**
  * Verifies a session token.
  *
- * Returns `{ email, expiresAt }` when the signature is valid and the token has
+ * Returns `{ email, party, expiresAt }` when the signature is valid and the token has
  * not expired, and `null` for every other case — tampering, a wrong secret, a
  * malformed token, or a missing server secret.
+ *
+ * For legacy tokens (before 2026-09-20) without a party field, returns `party: 'bride'`.
  */
 export function verifyAdminSession(token, config = {}) {
   const { secret } = resolve(config);
@@ -70,7 +75,8 @@ export function verifyAdminSession(token, config = {}) {
   if (!claims || typeof claims.sub !== 'string') return null;
   if (typeof claims.exp !== 'number' || claims.exp <= Date.now()) return null;
 
-  return { email: claims.sub, expiresAt: claims.exp };
+  const party = claims.party ?? 'bride'; // Default to bride for legacy tokens
+  return { email: claims.sub, party, expiresAt: claims.exp };
 }
 
 export const ADMIN_COOKIE_NAME = 'admin_session';

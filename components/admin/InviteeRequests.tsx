@@ -56,6 +56,8 @@ export default function InviteeRequests() {
         await load();
       } else {
         showToast({ kind: 'error', text: data.message || 'Could not update that request.' });
+        // A refusal usually means this list is out of date, so show it as it is now.
+        await load();
       }
     } catch {
       showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });

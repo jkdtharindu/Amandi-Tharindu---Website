@@ -3,9 +3,11 @@ import { redirect } from 'next/navigation';
 import { NextResponse } from 'next/server';
 import { ADMIN_COOKIE_NAME, verifyAdminSession } from '@/src/admin/adminSession.js';
 
-export type AdminSession = { email: string; expiresAt: number };
+export type AdminSession = { email: string; party: 'bride' | 'groom'; expiresAt: number };
 
-/** Reads and verifies the admin session cookie, or returns null. */
+/** Reads and verifies the admin session cookie, or returns null.
+ *  Updated 2026-09-20: now includes party (bride | groom) for multi-admin support.
+ */
 export async function getAdminSession(): Promise<AdminSession | null> {
   const store = await cookies();
   return verifyAdminSession(store.get(ADMIN_COOKIE_NAME)?.value);

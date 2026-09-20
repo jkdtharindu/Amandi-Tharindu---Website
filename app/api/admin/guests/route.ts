@@ -1,35 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGuest, listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
+import { createGuestForParty, listAllGuests, listAllRsvpResponses, listGuestsByParty, getPartyStats } from '@/src/admin/adminRepo.js';
 import { computeRsvpStats, filterGuests } from '@/src/admin/guestQueries.js';
 import { validateGuestInput } from '@/src/admin/guestValidation.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
-/** Guest list with the dashboard stats for the current filter (P0-07, P0-08). */
+/** Guest list for the logged-in admin's party with stats (P0-07, P0-08, P1-14D).
+ *  Updated 2026-09-20: Filtered by party (bride or groom).
+ */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   const params = request.nextUrl.searchParams;
-  const [guests, responses] = await Promise.all([
+  const [partyGuests, allGuests, responses] = await Promise.all([
+    listGuestsByParty(session.party),
     listAllGuests(),
     listAllRsvpResponses(),
   ]);
 
+  // Compute stats for this party and overall
+  const partyStats = await getPartyStats(session.party);
+  const overallStats = computeRsvpStats(allGuests.filter((g) => !g.isDeleted), responses);
+
   return NextResponse.json({
     success: true,
-    guests: filterGuests(guests, {
+    guests: filterGuests(partyGuests, {
       status: params.get('status'),
       relationship: params.get('relationship'),
       search: params.get('search'),
     }),
-    // Stats always describe the whole guest list, not the current filter.
-    stats: computeRsvpStats(guests, responses),
+    stats: {
+      party: partyStats,
+      overall: overallStats,
+    },
+    party: session.party,
   });
 }
 
-/** Creates a guest and auto-generates their invitation code (P0-07). */
+/** Creates a guest for the logged-in admin's party (P0-07, P1-14D).
+ *  Updated 2026-09-20: Guest is auto-assigned to the requesting admin's party.
+ */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -65,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // When creating with inviteeNames, the slotCount is derived from inviteeNames.length
     // by validateGuestInput, so the guest will always be consistent from creation.
-    const guest = await createGuest(value);
+    const guest = await createGuestForParty(session.party, value);
     return NextResponse.json({ success: true, guest }, { status: 201 });
   } catch (error) {
     const reason = (error as Error).message;
@@ -82,7 +96,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 }
       );
     }
-    console.error('createGuest failed:', error);
+    console.error('createGuestForParty failed:', error);
     return NextResponse.json(
       { success: false, reason: 'server_error', message: 'Could not create the guest.' },
       { status: 500 }

@@ -216,12 +216,12 @@ export async function getSeatingTableById(tableId) {
  * The SQL path does both inserts in one statement so a table can never be
  * left behind with a partial seat set.
  */
-export async function createSeatingTable({ tableNumber, tableName, capacity = 10 }) {
+export async function createSeatingTable({ tableNumber, tableName, capacity = 10, party = 'bride' }) {
   const number = Number(tableNumber);
   const seatCount = Number(capacity);
 
   if (!useDb) {
-    if (seatingTables.some((table) => table.table_number === number)) {
+    if (seatingTables.some((table) => table.table_number === number && (table.assignedToParty ?? 'bride') === party)) {
       throw new Error(DUPLICATE_TABLE_NUMBER);
     }
 
@@ -229,6 +229,7 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
       id: crypto.randomUUID(),
       table_number: number,
       table_name: tableName || null,
+      assignedToParty: party,
       capacity: seatCount,
       seats: Array.from({ length: seatCount }, (_, index) => ({
         id: crypto.randomUUID(),
@@ -249,15 +250,15 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
   try {
     const { rows } = await query(`
       WITH new_table AS (
-        INSERT INTO seating_tables (table_number, table_name, capacity)
-        VALUES ($1, $2, $3)
+        INSERT INTO seating_tables (table_number, table_name, capacity, assigned_to_party)
+        VALUES ($1, $2, $3, $4)
         RETURNING id
       ), new_seats AS (
         INSERT INTO table_seats (seating_table_id, seat_number)
         SELECT id, generate_series(1, $3) FROM new_table
       )
       SELECT id FROM new_table
-    `, [number, tableName || null, seatCount]);
+    `, [number, tableName || null, seatCount, party]);
     created = rows[0];
   } catch (error) {
     if (error.code === UNIQUE_VIOLATION) {
@@ -899,4 +900,80 @@ export async function listUnassignedProbableAttendees() {
     ORDER BY pa.rsvp_bucket, pa.slot_index
   `);
   return rows.map((row) => ({ ...row, label: probableAttendeeLabel(row.bucket, row.slotIndex) }));
+}
+
+/**
+ * PARTY-AWARE FUNCTIONS (2026-09-20, P1-14H)
+ * Filter table arrangement data by party (bride or groom).
+ */
+
+/** Get all seating tables for a specific party. */
+export async function listSeatingTablesByParty(party) {
+  if (!useDb) {
+    return [...seatingTables]
+      .filter((t) => (t.assignedToParty ?? 'bride') === party)
+      .sort((a, b) => a.table_number - b.table_number)
+      .map(hydrateMemoryTable);
+  }
+
+  const { rows } = await query(`
+    ${TABLE_SELECT}
+    WHERE st.assigned_to_party = $1
+    GROUP BY st.id, st.table_number, st.table_name, st.capacity
+    ORDER BY st.table_number
+  `, [party]);
+  return rows;
+}
+
+/** Get unassigned guests for a specific party. */
+export async function listUnassignedGuestsByParty(party) {
+  if (!useDb) {
+    const seatedIds = memorySeatedGuestIds();
+    return [...guestStore]
+      .filter((g) => (g.assignedToParty ?? 'bride') === party && g.rsvpStatus === 'accepted' && !seatedIds.has(g.id) && !g.isDeleted)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  const { rows } = await query(`
+    SELECT g.id, g.name, g.code, g.relationship, g.slot_count
+    FROM guests g
+    WHERE g.assigned_to_party = $1
+      AND g.rsvp_status = 'accepted'
+      AND NOT EXISTS (SELECT 1 FROM table_seats ts WHERE ts.guest_id = g.id)
+      AND g.is_deleted = false
+    ORDER BY g.created_at DESC
+  `, [party]);
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    code: row.code,
+    relationship: row.relationship,
+    slotCount: row.slot_count,
+  }));
+}
+
+/** Get assigned guests for a specific party. */
+export async function listAssignedGuestsByParty(party) {
+  if (!useDb) {
+    const seatedIds = memorySeatedGuestIds();
+    return [...guestStore]
+      .filter((g) => (g.assignedToParty ?? 'bride') === party && seatedIds.has(g.id) && !g.isDeleted)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  const { rows } = await query(`
+    SELECT DISTINCT g.id, g.name, g.code, g.relationship, g.slot_count
+    FROM guests g
+    INNER JOIN table_seats ts ON g.id = ts.guest_id
+    WHERE g.assigned_to_party = $1 AND g.is_deleted = false
+    ORDER BY g.created_at DESC
+  `, [party]);
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    code: row.code,
+    relationship: row.relationship,
+    slotCount: row.slot_count,
+  }));
+}
 }
