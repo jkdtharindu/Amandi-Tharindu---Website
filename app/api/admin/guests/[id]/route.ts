@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateGuest, syncGuestSlotCountToInvitees } from '@/src/admin/adminRepo.js';
+import { updateGuestDetails } from '@/src/admin/updateGuestDetails.js';
 import { removeGuest } from '@/src/admin/removeGuest.js';
-import { listApprovedInvitees } from '@/src/invitees/inviteesRepo.js';
 import { validateGuestInput } from '@/src/admin/guestValidation.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
@@ -54,18 +53,7 @@ export async function PATCH(
     );
   }
 
-  // A party with named invitees derives its seat count from that list, so the
-  // body's slotCount is not authoritative here. Always sync to the actual count
-  // of approved invitees, not the submitted value.
-  const approved = await listApprovedInvitees(id);
-  if (approved.length > 0) {
-    // If there are named invitees, derive slotCount from them, ignoring the submitted value
-    const synced = await syncGuestSlotCountToInvitees(id);
-    if (synced) return NextResponse.json({ success: true, guest: synced });
-  }
-
-  // Only update guest if no named invitees (headcount-only invitation)
-  const guest = await updateGuest(id, value);
+  const guest = await updateGuestDetails(id, value);
   if (!guest) return notFound();
 
   return NextResponse.json({ success: true, guest });
