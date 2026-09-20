@@ -149,8 +149,13 @@ export async function getInviteeById(id) {
   }
 }
 
-export async function approveInvitee(id) {
-  if (!useDb) {
+/**
+ * `exec` (optional) is the open transaction's query function; see approveInviteeRequest.js.
+ * Supplying it also selects the SQL branch, as in the other transactional repo functions.
+ */
+export async function approveInvitee(id, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const invitee = invitees.find((entry) => entry.id === id);
     if (!invitee) return { success: false, reason: 'invitee_not_found' };
     invitee.approvalStatus = 'approved';
@@ -158,7 +163,7 @@ export async function approveInvitee(id) {
     return { success: true, invitee: { ...invitee } };
   }
 
-  const { rows } = await query(
+  const { rows } = await run(
     `UPDATE invitees SET approval_status = 'approved', updated_at = now() WHERE id = $1 RETURNING *`,
     [id]
   );
