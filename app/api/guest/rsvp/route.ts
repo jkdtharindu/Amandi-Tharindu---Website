@@ -1,45 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  findGuestById,
-  updateGuestRsvpStatus,
-  upsertRsvpResponse,
-} from '@/src/guest-auth/guestRepo.js';
-import {
-  listApprovedInvitees,
-  updateInviteeRsvpStatuses,
-  deriveGuestRsvpStatus,
-} from '@/src/invitees/inviteesRepo.js';
+import { findGuestById } from '@/src/guest-auth/guestRepo.js';
+import { listApprovedInvitees } from '@/src/invitees/inviteesRepo.js';
 import { validateParticipantNames } from '@/src/invitees/validateInvitees.js';
+import { saveInviteeRsvp, saveWholePartyRsvp } from '@/src/rsvp/saveRsvp.js';
 import { authorizeRsvp } from '@/src/guest-auth/authorizeRsvp.js';
 import { verifySession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 
 type InviteeResponse = { id: string; attending: boolean };
-
-/**
- * A guest with named invitees (multi-person invitation, 2026-09) accepts or
- * declines per person instead of one status for the whole party. The party's
- * own rsvp_status is then derived from those, and mirrored into
- * rsvp_responses so every existing reader (CSV export, dashboard stats) keeps
- * working without changes.
- */
-type InviteeRow = { id: string; name: string; rsvpStatus: string; approvalStatus: string };
-
-async function handleInviteeRsvp(guestId: string, inviteeResponses: InviteeResponse[]) {
-  const updated: InviteeRow[] = await updateInviteeRsvpStatuses(guestId, inviteeResponses);
-  const status = deriveGuestRsvpStatus(updated);
-
-  const acceptedNames = updated.filter((i) => i.rsvpStatus === 'accepted').map((i) => i.name);
-  const result = await upsertRsvpResponse(guestId, status === 'accepted', acceptedNames);
-
-  try {
-    await updateGuestRsvpStatus(guestId, status);
-  } catch (statusError) {
-    console.error('RSVP status update failed after response was saved:', statusError);
-  }
-
-  return result;
-}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -89,15 +57,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const valid = (inviteeResponses as InviteeResponse[]).filter(
         (entry) => entry && typeof entry.attending === 'boolean' && approvedIds.has(entry.id)
       );
-      const result = await handleInviteeRsvp(guest.id, valid);
+      // A party with named invitees answers per person; see saveInviteeRsvp().
+      // Everything it writes is one transaction — if any part fails it throws,
+      // and the guest gets the error below rather than a false "saved".
+      const result = await saveInviteeRsvp(guest.id, valid);
       return NextResponse.json({ success: true, rsvp: result });
     }
 
     // Legacy path: one accept/decline for the whole party, free-text names.
-    // Both calls together: if one fails, the guest's RSVP is inconsistent.
-    // Currently they're separate DB calls (not in a transaction). For now, catch
-    // failures from both and treat the RSVP response as the source of truth, so at
-    // least that part never silently fails.
     const names = validateParticipantNames(participantNames);
     if (!names.valid) {
       return NextResponse.json(
@@ -106,18 +73,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const result = await upsertRsvpResponse(
-      guest.id,
+    const result = await saveWholePartyRsvp(guest.id, {
       attending,
-      attending ? names.names : []
-    );
-    try {
-      await updateGuestRsvpStatus(guest.id, attending ? 'accepted' : 'declined');
-    } catch (statusError) {
-      console.error('RSVP status update failed after response was saved:', statusError);
-      // Response is saved, status update failed. Log it but don't fail the request,
-      // since the guest's attendance/participants are already recorded.
-    }
+      participantNames: names.names,
+    });
 
     return NextResponse.json({ success: true, rsvp: result });
   } catch (error) {

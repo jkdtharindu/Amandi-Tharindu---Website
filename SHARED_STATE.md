@@ -92,7 +92,7 @@ Every mutation is a plain REST call (GET/POST/PATCH/DELETE) guarded by CSRF toke
 |---|---|---|---|
 | Admin creates/edits/deletes a guest | `POST` / `PATCH` / `DELETE` `/api/admin/guests[/id]` | `guests` (delete is soft: `isDeleted = true`) | No |
 | Admin removes one invitee from a party | `DELETE /api/admin/guests/[id]/invitees/[inviteeId]` | Deletes the `Invitee`, frees their seat, re-derives the party's `rsvpStatus` and `slotCount` | No |
-| Guest submits their RSVP | `POST /api/guest/rsvp` | `rsvp_responses` upsert, `guests.rsvp_status`, and (if the party has named Invitees) each Invitee's own `rsvpStatus` | No |
+| Guest submits their RSVP | `POST /api/guest/rsvp` | `rsvp_responses` upsert, `guests.rsvp_status`, and (if the party has named Invitees) each Invitee's own `rsvpStatus` — **all in one transaction** (`src/rsvp/saveRsvp.js`): if any write fails none are kept and the guest sees an error, so the response row and `rsvp_status` never disagree | No |
 | Guest asks to add another person | `POST /api/guest/invitees/request` | New `Invitee` row, `approvalStatus: 'pending_approval'` | No |
 | Admin approves/rejects a pending invitee request | `POST /api/admin/invitee-requests/[id]/approve` \| `reject` | Approve sets `approvalStatus: 'approved'` and increments the guest's `slotCount`; reject sets `'rejected'` | No |
 | Admin edits theme (colors, fonts, couple info) | `PUT /api/admin/theme` | `theme_settings` (single row) | **Yes** |

@@ -11,8 +11,6 @@ import {
   findGuestByCode,
   findGuestById,
   findRsvpResponseByGuestId,
-  updateGuestRsvpStatus,
-  upsertRsvpResponse,
   listGuestsForAdmin,
   createGuest,
   updateGuest,
@@ -41,6 +39,7 @@ import { VALID_PAGES, VALID_SECTION_TYPES } from './sections/validateSection.js'
 import { VALID_RELATIONSHIP_TYPES } from './guest-auth/validateGuestInput.js';
 import { generateInvitationCode } from './guest-auth/generateInvitationCode.js';
 import { validateParticipantNames } from './invitees/validateInvitees.js';
+import { saveWholePartyRsvp } from './rsvp/saveRsvp.js';
 import {
   listSeatingTables,
   createSeatingTable,
@@ -923,8 +922,7 @@ export function createApp() {
       });
     }
 
-    const result = await upsertRsvpResponse(guest.id, attending, attending ? names.names : []);
-    await updateGuestRsvpStatus(guest.id, attending ? 'accepted' : 'declined');
+    const result = await saveWholePartyRsvp(guest.id, { attending, participantNames: names.names });
 
     return res.json({ success: true, rsvp: result });
   });

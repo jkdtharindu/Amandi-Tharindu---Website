@@ -59,17 +59,26 @@ export async function findGuestById(id) {
 // candidate list returned every partial match's plaintext invitation code.
 // The invitation code is the only credential now — see app/api/guest/login.
 
-export async function findRsvpResponseByGuestId(guestId) {
-  if (!useDb) {
+// The three RSVP functions below take an optional trailing `exec`: a
+// `(text, params) => Promise<{ rows }>` query function. Passing the one that
+// belongs to an open transaction (see src/rsvp/saveRsvp.js) makes the write join
+// that transaction; omitting it runs a standalone query on the pool as before.
+// Supplying `exec` is also what selects the SQL branch, so a caller that has a
+// transaction never silently falls into the in-memory store.
+
+export async function findRsvpResponseByGuestId(guestId, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     return rsvpResponses.find((entry) => entry.guestId === guestId) || null;
   }
 
-  const { rows } = await query('SELECT * FROM rsvp_responses WHERE guest_id = $1 LIMIT 1', [guestId]);
+  const { rows } = await run('SELECT * FROM rsvp_responses WHERE guest_id = $1 LIMIT 1', [guestId]);
   return mapResponseRow(rows[0]);
 }
 
-export async function updateGuestRsvpStatus(guestId, status) {
-  if (!useDb) {
+export async function updateGuestRsvpStatus(guestId, status, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const guest = guestStore.find((entry) => entry.id === guestId);
     if (guest) {
       guest.rsvpStatus = status;
@@ -77,11 +86,12 @@ export async function updateGuestRsvpStatus(guestId, status) {
     return;
   }
 
-  await query('UPDATE guests SET rsvp_status = $1 WHERE id = $2', [status, guestId]);
+  await run('UPDATE guests SET rsvp_status = $1 WHERE id = $2', [status, guestId]);
 }
 
-export async function upsertRsvpResponse(guestId, attending, participantNames = []) {
-  if (!useDb) {
+export async function upsertRsvpResponse(guestId, attending, participantNames = [], exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const existing = rsvpResponses.find((entry) => entry.guestId === guestId);
     const timestamp = new Date().toISOString();
 
@@ -103,20 +113,20 @@ export async function upsertRsvpResponse(guestId, attending, participantNames = 
     return newResponse;
   }
 
-  const { rows } = await query('SELECT id FROM rsvp_responses WHERE guest_id = $1 LIMIT 1', [guestId]);
+  const { rows } = await run('SELECT id FROM rsvp_responses WHERE guest_id = $1 LIMIT 1', [guestId]);
   if (rows[0]) {
-    await query(
+    await run(
       'UPDATE rsvp_responses SET attending = $1, participant_names = $2, updated_at = now() WHERE guest_id = $3',
       [attending, participantNames, guestId]
     );
   } else {
-    await query(
+    await run(
       'INSERT INTO rsvp_responses (guest_id, attending, participant_names) VALUES ($1, $2, $3)',
       [guestId, attending, participantNames]
     );
   }
 
-  return findRsvpResponseByGuestId(guestId);
+  return findRsvpResponseByGuestId(guestId, exec);
 }
 
 function listAllGuestCodes() {

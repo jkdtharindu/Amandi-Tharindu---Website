@@ -85,9 +85,16 @@ export async function createInviteesForGuest(guestId, names, { addedBy = 'admin'
   return created;
 }
 
+// `exec` (optional, last argument) is a `(text, params) => Promise<{ rows }>`
+// query function belonging to an open transaction — see the note above
+// findRsvpResponseByGuestId in src/guest-auth/guestRepo.js. A read that has to
+// see its own transaction's uncommitted writes must be given it, because a
+// separate pool connection cannot.
+
 /** Every invitee for a guest, including their own pending requests. */
-export async function listInviteesForGuest(guestId) {
-  if (!useDb) {
+export async function listInviteesForGuest(guestId, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     return invitees
       .filter((invitee) => invitee.guestId === guestId)
       .sort((a, b) => a.displayOrder - b.displayOrder)
@@ -95,7 +102,7 @@ export async function listInviteesForGuest(guestId) {
   }
 
   try {
-    const { rows } = await query(
+    const { rows } = await run(
       'SELECT * FROM invitees WHERE guest_id = $1 ORDER BY display_order ASC',
       [guestId]
     );
@@ -107,8 +114,8 @@ export async function listInviteesForGuest(guestId) {
 }
 
 /** Only the approved invitees for a guest — what counts toward RSVP/seating. */
-export async function listApprovedInvitees(guestId) {
-  const all = await listInviteesForGuest(guestId);
+export async function listApprovedInvitees(guestId, exec) {
+  const all = await listInviteesForGuest(guestId, exec);
   return all.filter((invitee) => invitee.approvalStatus === 'approved');
 }
 
@@ -182,11 +189,12 @@ export async function rejectInvitee(id) {
  * aren't approved are silently ignored, so a tampered id can't touch
  * someone else's invitee.
  */
-export async function updateInviteeRsvpStatuses(guestId, updates = []) {
-  const approvedIds = new Set((await listApprovedInvitees(guestId)).map((invitee) => invitee.id));
+export async function updateInviteeRsvpStatuses(guestId, updates = [], exec) {
+  const approvedIds = new Set((await listApprovedInvitees(guestId, exec)).map((invitee) => invitee.id));
   const valid = updates.filter((update) => approvedIds.has(update.id));
 
-  if (!useDb) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     valid.forEach(({ id, attending }) => {
       const invitee = invitees.find((entry) => entry.id === id);
       if (invitee) {
@@ -198,12 +206,12 @@ export async function updateInviteeRsvpStatuses(guestId, updates = []) {
   }
 
   for (const { id, attending } of valid) {
-    await query(
+    await run(
       `UPDATE invitees SET rsvp_status = $1, updated_at = now() WHERE id = $2 AND guest_id = $3`,
       [attending ? 'accepted' : 'declined', id, guestId]
     );
   }
-  return listApprovedInvitees(guestId);
+  return listApprovedInvitees(guestId, exec);
 }
 
 /** A guest requests to add someone not on the original list — needs admin approval. */
