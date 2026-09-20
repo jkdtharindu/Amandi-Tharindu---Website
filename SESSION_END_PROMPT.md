@@ -102,6 +102,8 @@ STEP 5 — Write the changes, then report. Do not ask permission to write docume
   unpushed commits by hash and one-line message, and ask once whether to push. `git push` to
   main is HITL-gated and genuinely does need confirmation — but the asking is a single clear
   question at the end, not a reason to leave the documentation unwritten.
+- **Before asking, check whether a push is blocked:** read TASKS.md's Priority line; if it says not to push
+  (as of 2026-09-20, Action 69), don't ask — say the push is blocked and why, and list the commits for information only.
 - The session is not finished while any of the following is true: MEMORY.md/TASKS.md still hold
   only proposals, discovered work exists nowhere in TASKS.md, or the user has to ask "did you
   actually write it?"
