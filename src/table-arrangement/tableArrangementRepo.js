@@ -61,6 +61,7 @@ const SEAT_JSON = `
           END,
         'inviteeId', ts.invitee_id,
         'inviteeName', i.name,
+        'inviteeGuestName', ig.name,
         'dietaryRequirements', ts.dietary_requirements,
         'specialNotes', ts.special_notes
       ) ORDER BY ts.seat_number
@@ -81,6 +82,7 @@ const TABLE_SELECT = `
   LEFT JOIN guests g ON ts.guest_id = g.id
   LEFT JOIN probable_attendees pa ON ts.probable_attendee_id = pa.id
   LEFT JOIN invitees i ON ts.invitee_id = i.id
+  LEFT JOIN guests ig ON i.guest_id = ig.id
 `;
 
 function guestNameFor(guestId) {
@@ -106,6 +108,12 @@ function inviteeNameFor(inviteeId) {
   return invitee ? invitee.name : null;
 }
 
+function inviteeGuestNameFor(inviteeId) {
+  if (!inviteeId) return null;
+  const invitee = invitees.find((entry) => entry.id === inviteeId);
+  return invitee ? guestNameFor(invitee.guestId) : null;
+}
+
 /**
  * Project an in-memory table into the same shape the SQL path returns,
  * resolving guest names the way the LEFT JOIN does.
@@ -126,6 +134,7 @@ function hydrateMemoryTable(table) {
       probableAttendeeLabel: probableAttendeeLabelFor(seat.probableAttendeeId),
       inviteeId: seat.inviteeId || null,
       inviteeName: inviteeNameFor(seat.inviteeId),
+      inviteeGuestName: inviteeGuestNameFor(seat.inviteeId),
       dietaryRequirements: seat.dietaryRequirements,
       specialNotes: seat.specialNotes,
     })),

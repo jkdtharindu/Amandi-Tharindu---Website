@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import StatCard from './StatCard';
 import { useToast } from '@/components/Toast';
-import { seatRenderKey } from '@/src/table-arrangement/seatRenderKey.js';
+import { seatOccupantLabel } from '@/src/table-arrangement/seatLabel.js';
 
 type Seat = {
   id: string;
@@ -14,8 +14,7 @@ type Seat = {
   probableAttendeeLabel: string | null;
   inviteeId: string | null;
   inviteeName: string | null;
-  dietaryRequirements: string | null;
-  specialNotes: string | null;
+  inviteeGuestName: string | null;
 };
 
 export type SeatingTable = {
@@ -171,19 +170,14 @@ export default function TableArrangement({
     }
   }
 
-  async function handleAssign(
-    tableId: string,
-    seatId: string,
-    choice: AssignChoice,
-    notes?: { dietaryRequirements?: string; specialNotes?: string }
-  ) {
+  async function handleAssign(tableId: string, seatId: string, choice: AssignChoice) {
     setBusy(true);
 
     try {
       const res = await fetch(`/api/admin/table-arrangement/${tableId}/seats/${seatId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ ...choice, ...notes }),
+        body: JSON.stringify(choice),
       });
       const data = await res.json();
 
@@ -332,7 +326,7 @@ export default function TableArrangement({
               unassignedProbableAttendees={unassignedProbableAttendees}
               busy={busy}
               onDelete={() => handleDeleteTable(table)}
-              onAssign={(seatId, choice, notes) => handleAssign(table.id, seatId, choice, notes)}
+              onAssign={(seatId, choice) => handleAssign(table.id, seatId, choice)}
               onUnassign={(seatId) => handleUnassign(table.id, seatId)}
             />
           ))}
@@ -351,8 +345,8 @@ function ProbableAttendancePanel({
   busy: boolean;
   onSetBuffer: (bucket: ProbableBucket, count: number) => void;
 }) {
-  // Seeded from props, like SeatCard's dietary/notes fields — a later buffer
-  // change from elsewhere won't override text the Admin is mid-typing here.
+  // Seeded from props, so a later buffer change from elsewhere won't override
+  // text the Admin is mid-typing here.
   const [drafts, setDrafts] = useState<Record<ProbableBucket, string>>({
     declined: String(summary.find((row) => row.bucket === 'declined')?.bufferCount ?? 0),
     pending: String(summary.find((row) => row.bucket === 'pending')?.bufferCount ?? 0),
@@ -416,7 +410,7 @@ function TableCard({
   unassignedProbableAttendees: UnassignedProbableAttendee[];
   busy: boolean;
   onDelete: () => void;
-  onAssign: (seatId: string, choice: AssignChoice, notes?: { dietaryRequirements?: string; specialNotes?: string }) => void;
+  onAssign: (seatId: string, choice: AssignChoice) => void;
   onUnassign: (seatId: string) => void;
 }) {
   const filled = table.seats.filter((seat) => seat.guestId || seat.probableAttendeeId || seat.inviteeId).length;
@@ -446,13 +440,13 @@ function TableCard({
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {table.seats.map((seat) => (
           <SeatCard
-            key={seatRenderKey(seat)}
+            key={seat.id}
             seat={seat}
             unassignedGuests={unassignedGuests}
             unassignedInvitees={unassignedInvitees}
             unassignedProbableAttendees={unassignedProbableAttendees}
             busy={busy}
-            onAssign={(choice, notes) => onAssign(seat.id, choice, notes)}
+            onAssign={(choice) => onAssign(seat.id, choice)}
             onUnassign={() => onUnassign(seat.id)}
           />
         ))}
@@ -475,13 +469,10 @@ function SeatCard({
   unassignedInvitees: UnassignedInvitee[];
   unassignedProbableAttendees: UnassignedProbableAttendee[];
   busy: boolean;
-  onAssign: (choice: AssignChoice, notes?: { dietaryRequirements?: string; specialNotes?: string }) => void;
+  onAssign: (choice: AssignChoice) => void;
   onUnassign: () => void;
 }) {
-  const [dietary, setDietary] = useState(seat.dietaryRequirements || '');
-  const [notes, setNotes] = useState(seat.specialNotes || '');
   const occupied = seat.guestId !== null || seat.probableAttendeeId !== null || seat.inviteeId !== null;
-  const notesDirty = occupied && (dietary !== (seat.dietaryRequirements || '') || notes !== (seat.specialNotes || ''));
 
   const byDeclined = unassignedProbableAttendees.filter((p) => p.bucket === 'declined');
   const byPending = unassignedProbableAttendees.filter((p) => p.bucket === 'pending');
@@ -503,40 +494,7 @@ function SeatCard({
       </div>
 
       {occupied ? (
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-900">
-            {seat.guestName || seat.inviteeName || seat.probableAttendeeLabel}
-          </p>
-          <input
-            value={dietary}
-            onChange={(e) => setDietary(e.target.value)}
-            placeholder="Dietary requirements"
-            className="w-full px-2 py-1.5 rounded-md border border-slate-300 text-xs"
-          />
-          <input
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Special notes"
-            className="w-full px-2 py-1.5 rounded-md border border-slate-300 text-xs"
-          />
-          {notesDirty && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                const choice: AssignChoice = seat.guestId
-                  ? { guestId: seat.guestId }
-                  : seat.inviteeId
-                  ? { inviteeId: seat.inviteeId }
-                  : { probableAttendeeId: seat.probableAttendeeId as string };
-                onAssign(choice, { dietaryRequirements: dietary, specialNotes: notes });
-              }}
-              className="px-2 py-1 rounded-md bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
-            >
-              Save
-            </button>
-          )}
-        </div>
+        <p className="text-sm font-semibold text-slate-900">{seatOccupantLabel(seat)}</p>
       ) : (
         <select
           disabled={busy}
