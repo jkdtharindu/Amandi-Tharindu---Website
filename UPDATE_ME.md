@@ -12,8 +12,6 @@ Pairs with:
 - `SESSION_END_PROMPT.md` — the full close-out pass. Run that instead of this one when the
   session is actually ending — it covers everything this file does, plus tests/build/lint and
   the push question.
-- `MD_UPDATE_PROMPT.md` — a template for writing a completed change up as a PR description.
-  This file writes straight into the docs; that one is for the PR text afterward.
 
 ---
 
