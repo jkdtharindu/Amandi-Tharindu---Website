@@ -43,7 +43,7 @@ The good news: **almost everything in P0 and P1 is already built.** What's left 
 | Backups & restore | ✅ Done and rehearsed for real |
 | Deployed to Vercel | ✅ Done (2026-09-10) |
 
-Test suite: 515/515 passing as of 2026-09-20 (the last 16 are Action 50's, not yet deployed).
+Test suite: 525/525 passing as of 2026-09-20 (Action 50's 16 are deployed; the last 10 are Action 56's, not yet deployed).
 
 ---
 
@@ -61,7 +61,8 @@ These can't be tested without logging in for real:
 - [ ] Confirm the admin guest list or dashboard shows the 2026-09-20 test RSVP's status (accepted or declined, not pending) — the exact bug the all-or-nothing save fixed.
 - [ ] Try admin logout and guest logout on the live site — both were changed on 2026-09-18/19 and neither has been clicked through in a browser.
 - [ ] Look at the `reminder_2` template in `/admin/messages` and confirm it contains `[Code]` before the first real send.
-- [ ] After Action 50 is deployed: on a test party with two or more people (one of them seated, if you can), remove one person and confirm the list, the party's status, the headcount and the seat all update. Then try removing the last person and confirm you get a message instead of a removal.
+- [ ] Action 50 (deployed): on a test party with two or more people (one of them seated, if you can), remove one person and confirm the list, the party's status, the headcount and the seat all update. Then try removing the last person and confirm you get a message instead of a removal.
+- [ ] After Action 56 is deployed: remove a test guest whose people are seated (the Remove on the guest's row) and confirm every one of their seats becomes open in the table window. Also unassign Napoleon's seat on Table 3 by hand — it was left behind before the fix.
 
 ### 3c. Known bugs to fix
 - [x] `/api/csrf` handed out a new token on every call instead of reusing a valid one *(fixed 2026-09-13, commit `9f38a0b`; confirmed against `app/api/csrf/route.ts` on 2026-09-20)* — this has already caused a real bug (two admin panels racing on the same page). Fix at the source instead of patching each symptom.
@@ -81,7 +82,8 @@ These can't be tested without logging in for real:
 - [ ] Decide on a fail-closed `DATABASE_URL` guard for the 10 data stores that don't have one yet (Next Action 39).
 - [x] `message_logs.guest_id` has no `ON DELETE` clause, unlike the equivalent columns elsewhere (Next Action 40). *Migration 018 written 2026-09-17; the owner reported applying it on 2026-09-20 — not independently verified.*
 - [x] A guest's RSVP was saved in separate steps, so a failure in the middle could tell the guest "saved" while the admin still saw "pending" (Next Action 49). *Done 2026-09-20 — now all-or-nothing; a live test RSVP worked (owner-reported).*
-- [x] The admin's remove-one-person route had the same half-saved risk on the RSVP status it re-derives (Next Action 50). *Code and tests done 2026-09-20: the removal is now all-or-nothing, and removing the last person in a party is refused (use Remove on the guest's row). Not yet deployed or click-tested — see 3b.*
+- [x] The admin's remove-one-person route had the same half-saved risk on the RSVP status it re-derives (Next Action 50). *Deployed 2026-09-20 (`22a2e6a`): the removal is now all-or-nothing, and removing the last person in a party is refused (use Remove on the guest's row). Not yet confirmed by a click-through — see 3b.*
+- [x] Removing a whole guest left them, and their people, showing on their table seats (Next Action 56, found by the owner on the live site 2026-09-20). *Code and tests done 2026-09-20: the removal now frees every seat in one transaction. Not yet deployed. It does not fix seats already stuck from earlier removals — unassign those by hand in the table window.*
 - [ ] The admin's approve-request route has the same half-saved risk: it approves the person, then adds one to the headcount, as two separate writes (Next Action 55, found 2026-09-20).
 
 ### 3d. Content & final polish
