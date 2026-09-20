@@ -166,16 +166,22 @@ export default function GuestManager({
     }
   }
 
-  async function handleAddNewInvitees() {
-    if (!editing || newInviteeNames.length === 0) return;
+  /**
+   * Saves the names typed under "Add more people to this party". Resolves to
+   * the party's people afterwards, or null when nothing was saved (an empty
+   * row, or the server refused) — the reason is already on screen.
+   */
+  async function saveNewInvitees(): Promise<ExistingInvitee[] | null> {
+    if (!editing) return null;
 
-    const trimmedNames = newInviteeNames.map((n) => n.trim()).filter(Boolean);
-    if (trimmedNames.length === 0) {
-      showToast({ kind: 'error', text: 'Please enter at least one name.' });
-      return;
+    const trimmedNames = newInviteeNames.map((n) => n.trim());
+    if (trimmedNames.some((n) => !n)) {
+      setFieldErrors({
+        newInviteeNames: 'Fill in a name for each new person, or remove the empty row.',
+      });
+      return null;
     }
 
-    setBusy(true);
     try {
       const res = await fetch('/api/admin/guests/' + editing.id + '/invitees', {
         method: 'POST',
@@ -187,16 +193,29 @@ export default function GuestManager({
       if (res.ok && data.success) {
         setExistingInvitees(data.invitees);
         setNewInviteeNames([]);
-        showToast({
-          kind: 'ok',
-          text: `Added ${trimmedNames.length} person${trimmedNames.length === 1 ? '' : 's'}.`,
-        });
-        await load();
-      } else {
-        showToast({ kind: 'error', text: data.message || 'Could not add people.' });
+        return data.invitees;
       }
+      showToast({ kind: 'error', text: data.message || 'Could not add people.' });
     } catch {
       showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    }
+    return null;
+  }
+
+  async function handleAddNewInvitees() {
+    if (!editing || newInviteeNames.length === 0) return;
+
+    const addedCount = newInviteeNames.length;
+    setBusy(true);
+    setFieldErrors({});
+    try {
+      if (await saveNewInvitees()) {
+        showToast({
+          kind: 'ok',
+          text: `Added ${addedCount} person${addedCount === 1 ? '' : 's'}.`,
+        });
+        await load();
+      }
     } finally {
       setBusy(false);
     }
@@ -214,20 +233,34 @@ export default function GuestManager({
       relationship: form.relationship,
       whatsappNumber: form.whatsappNumber,
     };
-    if (!editing && trimmedInviteeNames.length > 0) {
-      payload.inviteeNames = trimmedInviteeNames;
-    } else if (editing && existingInvitees.length > 0) {
-      // The Seats field is disabled for a party with named invitees and shows
-      // the live count, but form.slotCount is frozen at whatever it held when
-      // the form opened — so removing someone and then saving an unrelated
-      // field submitted the pre-removal number (Next Action 32). Send the live
-      // count; the server re-derives it from the invitee list regardless.
-      payload.slotCount = existingInvitees.length;
-    } else {
-      payload.slotCount = Number(form.slotCount);
-    }
 
     try {
+      // Names still sitting in "Add more people" are part of this save. Saving
+      // only the guest's details used to close the form and silently drop them,
+      // so the party never grew. They go first, so the headcount sent below
+      // already includes them.
+      let currentInvitees = existingInvitees;
+      let addedCount = 0;
+      if (editing && newInviteeNames.length > 0) {
+        addedCount = newInviteeNames.length;
+        const saved = await saveNewInvitees();
+        if (!saved) return;
+        currentInvitees = saved;
+      }
+
+      if (!editing && trimmedInviteeNames.length > 0) {
+        payload.inviteeNames = trimmedInviteeNames;
+      } else if (editing && currentInvitees.length > 0) {
+        // The Seats field is disabled for a party with named invitees and shows
+        // the live count, but form.slotCount is frozen at whatever it held when
+        // the form opened — so removing someone and then saving an unrelated
+        // field submitted the pre-removal number (Next Action 32). Send the live
+        // count; the server re-derives it from the invitee list regardless.
+        payload.slotCount = currentInvitees.length;
+      } else {
+        payload.slotCount = Number(form.slotCount);
+      }
+
       const res = await fetch(url, {
         method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
@@ -236,10 +269,13 @@ export default function GuestManager({
       const data = await res.json();
 
       if (res.ok && data.success) {
+        const added = addedCount
+          ? ` and added ${addedCount} ${addedCount === 1 ? 'person' : 'people'}`
+          : '';
         showToast({
           kind: 'ok',
           text: editing
-            ? 'Updated ' + data.guest.name + '.'
+            ? 'Updated ' + data.guest.name + added + '.'
             : 'Added ' + data.guest.name + ' with code ' + data.guest.code + '.',
         });
         setShowForm(false);
@@ -448,7 +484,7 @@ export default function GuestManager({
                   !editing && form.inviteeNames.length > 0
                     ? String(form.inviteeNames.length)
                     : editing && existingInvitees.length > 0
-                      ? String(existingInvitees.length)
+                      ? String(existingInvitees.length + newInviteeNames.length)
                       : form.slotCount
                 }
                 onChange={(e) => setForm({ ...form, slotCount: e.target.value })}
@@ -459,7 +495,9 @@ export default function GuestManager({
               )}
               {editing && existingInvitees.length > 0 && (
                 <p className="mt-1 text-xs text-slate-500">
-                  Derived from the named people below — remove someone there to reduce it.
+                  {newInviteeNames.length > 0
+                    ? `Counts ${newInviteeNames.length} new ${newInviteeNames.length === 1 ? 'person' : 'people'} not saved yet — they are saved with Save changes.`
+                    : 'Derived from the named people below — remove someone there to reduce it.'}
                 </p>
               )}
             </div>
@@ -548,6 +586,9 @@ export default function GuestManager({
                 >
                   + Add a person
                 </button>
+                {fieldErrors.newInviteeNames && (
+                  <p className="mt-1 text-xs text-red-700">{fieldErrors.newInviteeNames}</p>
+                )}
                 {newInviteeNames.length > 0 && (
                   <button
                     type="button"
@@ -565,7 +606,8 @@ export default function GuestManager({
           {!editing && (
             <div className="mt-4">
               <label className="block text-xs font-semibold text-slate-500 mb-1">
-                Invitee names <span className="font-normal">(optional — name each person in this party)</span>
+                People in this party{' '}
+                <span className="font-normal">(required when there is more than one seat)</span>
               </label>
               <div className="space-y-2">
                 {form.inviteeNames.map((name, index) => (
@@ -606,8 +648,9 @@ export default function GuestManager({
                 <p className="mt-1 text-xs text-red-700">{fieldErrors.inviteeNames}</p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                Add a name per person and the guest can accept or decline for each one
-                individually. Leave this empty to use a simple headcount instead.
+                Add a name per person. The guest accepts or declines for each one, and each
+                person can be given a table. For a single seat you can leave this empty: the
+                guest&apos;s own name is saved as that one person.
               </p>
             </div>
           )}
