@@ -41,7 +41,7 @@ export function runInRsvpTransaction(work) {
  * on two phones) run one after the other. rsvp_responses.guest_id is not unique,
  * so without this both could see "no row yet" and each insert one.
  */
-async function lockGuest(exec, guestId) {
+export async function lockGuest(exec, guestId) {
   if (!exec) return;
   await exec('SELECT id FROM guests WHERE id = $1 FOR UPDATE', [guestId]);
 }

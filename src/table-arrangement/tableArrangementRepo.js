@@ -447,10 +447,17 @@ export async function unassignInviteeFromSeat(seatId) {
  * Finds whichever seat (if any) currently holds this invitee and clears it,
  * so deleting the invitee doesn't leave a seat stranded on a now-nonexistent
  * occupant. A no-op if the invitee was never seated. Called before deleting
- * the invitee row itself (see the DELETE /api/admin/guests/:id/invitees/:inviteeId route).
+ * the invitee row itself (see removeInvitee.js).
+ *
+ * `exec` (optional) is the open transaction's query function. On Postgres this is
+ * one UPDATE that clears exactly what assignGuestToSeat(seatId, null) clears —
+ * the invitee link plus the dietary requirements and notes — so it can run inside
+ * the removal transaction without dragging assignGuestToSeat into it. The seat's
+ * invitee_id has a unique partial index, so at most one seat can match.
  */
-export async function unassignSeatByInviteeId(inviteeId) {
-  if (!useDb) {
+export async function unassignSeatByInviteeId(inviteeId, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     for (const table of seatingTables) {
       const seat = table.seats.find((entry) => entry.inviteeId === inviteeId);
       if (seat) return unassignInviteeFromSeat(seat.id);
@@ -458,9 +465,17 @@ export async function unassignSeatByInviteeId(inviteeId) {
     return null;
   }
 
-  const { rows } = await query('SELECT id FROM table_seats WHERE invitee_id = $1', [inviteeId]);
-  if (!rows[0]) return null;
-  return unassignInviteeFromSeat(rows[0].id);
+  const { rows } = await run(
+    `UPDATE table_seats
+     SET invitee_id = NULL,
+         dietary_requirements = NULL,
+         special_notes = NULL,
+         updated_at = now()
+     WHERE invitee_id = $1
+     RETURNING id, seat_number, guest_id`,
+    [inviteeId]
+  );
+  return rows[0] || null;
 }
 
 /**

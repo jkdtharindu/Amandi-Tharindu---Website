@@ -228,16 +228,18 @@ export async function requestNewInvitee(guestId, name) {
  * for freeing any seat that referenced this invitee first (see
  * unassignSeatByInviteeId in tableArrangementRepo.js) and for re-deriving the
  * party's rsvp_status/slot_count afterward — this function only removes the row.
+ * `exec` (optional) is the open transaction's query function; see removeInvitee.js.
  */
-export async function deleteInvitee(id) {
-  if (!useDb) {
+export async function deleteInvitee(id, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const index = invitees.findIndex((entry) => entry.id === id);
     if (index === -1) return { success: false, reason: 'invitee_not_found' };
     const [removed] = invitees.splice(index, 1);
     return { success: true, invitee: { ...removed } };
   }
 
-  const { rows } = await query('DELETE FROM invitees WHERE id = $1 RETURNING *', [id]);
+  const { rows } = await run('DELETE FROM invitees WHERE id = $1 RETURNING *', [id]);
   if (!rows[0]) return { success: false, reason: 'invitee_not_found' };
   return { success: true, invitee: mapInviteeRow(rows[0]) };
 }

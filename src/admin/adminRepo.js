@@ -137,9 +137,11 @@ export async function incrementGuestSlotCount(id) {
  * a counter that can drift (the edit form also lets slot_count be typed
  * directly, so a relative -1 on delete could compound an existing mismatch).
  * Called after an admin removes one named person from the party.
+ * `exec` (optional) is the open transaction's query function; see removeInvitee.js.
  */
-export async function syncGuestSlotCountToInvitees(id) {
-  if (!isDbEnabled()) {
+export async function syncGuestSlotCountToInvitees(id, exec) {
+  const run = exec ?? (isDbEnabled() ? query : null);
+  if (!run) {
     const guest = guestStore.find((entry) => entry.id === id);
     if (!guest) return null;
     guest.slotCount = invitees.filter(
@@ -148,7 +150,7 @@ export async function syncGuestSlotCountToInvitees(id) {
     return guest;
   }
 
-  const { rows } = await query(
+  const { rows } = await run(
     `UPDATE guests SET slot_count = (
        SELECT COUNT(*)::int FROM invitees WHERE guest_id = $1 AND approval_status = 'approved'
      ) WHERE id = $1 RETURNING *`,

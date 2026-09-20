@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getInviteeById,
-  deleteInvitee,
-  listApprovedInvitees,
-  deriveGuestRsvpStatus,
-} from '@/src/invitees/inviteesRepo.js';
-import { unassignSeatByInviteeId } from '@/src/table-arrangement/tableArrangementRepo.js';
-import { updateGuestRsvpStatus, upsertRsvpResponse } from '@/src/guest-auth/guestRepo.js';
-import { syncGuestSlotCountToInvitees } from '@/src/admin/adminRepo.js';
+import { getInviteeById } from '@/src/invitees/inviteesRepo.js';
+import { removeInviteeFromParty } from '@/src/invitees/removeInvitee.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ id: string; inviteeId: string }> };
-type InviteeRow = { id: string; name: string; rsvpStatus: string };
+
+const notFound = () =>
+  NextResponse.json(
+    { success: false, reason: 'invitee_not_found', message: 'That person no longer exists.' },
+    { status: 404 }
+  );
 
 /**
  * Removes one named person from an existing party. Frees any seat they held
  * (Next Action 22 — until this route existed, the only "Remove" button on the
  * Guest list deleted the whole party and never touched table_seats at all),
- * then re-derives the party's rsvp_status and slot_count from whoever is left,
- * the same way accepting/declining/approving a request already does.
+ * then re-derives the party's rsvp_status and slot_count from whoever is left.
+ *
+ * All of it is one all-or-nothing transaction (Next Action 50): if any step
+ * fails nothing changes and the admin is told to try again. Removing the last
+ * approved person is refused with a 409 — remove the whole party instead.
  */
 export async function DELETE(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
@@ -33,29 +34,40 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
 
   const { id, inviteeId } = await context.params;
 
+  // Answered here, before the transaction: a malformed guest id would make
+  // Postgres reject the row lock with an error instead of a clean "not found".
   const invitee = await getInviteeById(inviteeId);
-  if (!invitee || invitee.guestId !== id) {
+  if (!invitee || invitee.guestId !== id) return notFound();
+
+  let result;
+  try {
+    result = await removeInviteeFromParty(id, inviteeId);
+  } catch (error) {
+    console.error('Removing an invitee failed; nothing was changed:', error);
     return NextResponse.json(
-      { success: false, reason: 'invitee_not_found', message: 'That person no longer exists.' },
-      { status: 404 }
+      {
+        success: false,
+        reason: 'remove_failed',
+        message: 'Could not remove that person. Nothing was changed — please try again.',
+      },
+      { status: 500 }
     );
   }
 
-  await unassignSeatByInviteeId(inviteeId);
-  await deleteInvitee(inviteeId);
-
-  const remaining: InviteeRow[] = await listApprovedInvitees(id);
-  const status = deriveGuestRsvpStatus(remaining);
-  const acceptedNames = remaining.filter((i) => i.rsvpStatus === 'accepted').map((i) => i.name);
-
-  try {
-    await upsertRsvpResponse(id, status === 'accepted', acceptedNames);
-    await updateGuestRsvpStatus(id, status);
-  } catch (statusError) {
-    console.error('RSVP status re-derive failed after removing an invitee:', statusError);
+  if (!result.success) {
+    if (result.reason === 'last_invitee') {
+      return NextResponse.json(
+        {
+          success: false,
+          reason: 'last_invitee',
+          message:
+            "That is the last person on this invitation. To take the whole invitation off the list, use Remove on the guest's row instead.",
+        },
+        { status: 409 }
+      );
+    }
+    return notFound();
   }
 
-  await syncGuestSlotCountToInvitees(id);
-
-  return NextResponse.json({ success: true, invitees: remaining });
+  return NextResponse.json({ success: true, invitees: result.invitees });
 }
