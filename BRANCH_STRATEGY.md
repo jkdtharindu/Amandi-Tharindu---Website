@@ -86,6 +86,8 @@ When multiple Claude sessions are working on the same repo:
 
 **No known open drift as of this entry.** `main` is the sole active line of development until a new feature branch is opened.
 
+**Update 2026-09-21:** one short-lived branch is open — `fix/approve-request-55-58` (PR #16, one commit `4f8857c` cut from `origin/main`), in its own worktree at `.claude/worktrees/fix-approve-request-55-58`. It exists because `main` holds unpushed multi-admin work that cannot ship yet (TASKS.md Action 69); the branch carries only Actions 55 and 58, so it can merge without it. It is well inside the two-week limit. **After it merges:** run `git status` inside the worktree, then `git worktree remove` it and delete the branch locally and on origin. A worktree that must build needs its own `npm ci` (MEMORY.md 2026-09-21).
+
 ## References
 - TASKS.md — tracks feature slices and completion status
 - MEMORY.md — records decisions and past issues

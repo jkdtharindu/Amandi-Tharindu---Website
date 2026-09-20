@@ -321,6 +321,10 @@ Correction: `GuestManager.tsx` now saves the drafted names first when "Save chan
 Reason: the check made was "do the two changes touch the same lines?", not "does either change need something that is not in the commit?".
 Correction: recorded in Action 74, so the next session ships `40a2d09` with Action 67 or splits that hunk out first. The same pass found TASKS.md, MEMORY.md and MVP.md counting `40a2d09` as multi-admin work; the Priority line, Action 69 and MVP.md are corrected, and the older MEMORY.md entries that say so are left as written (append-only).
 
+[2026-09-21] Mistake: this session's documentation edits were partly lost, twice, to another session working in the same files. The end-of-session edits to TASKS.md, MVP.md and MEMORY.md were written, and then another session's own write of those files replaced the whole file from its earlier copy, so about half of them (the Priority line, the Current focus line, the wording on Actions 55 and 58, the worktree lesson) were gone from both the working copy and HEAD and had to be re-applied. Separately, edits staged in the shared index for a filtered commit were committed by the other session's `git commit` (`373e676`) — harmless here, since they were docs and this session's own, but it shows that staging in this folder is not private.
+Reason: two sessions each read a file, edited it in memory and wrote the whole file back; whichever wrote last won. Nothing in the folder says who is currently editing a file, and a shared index is visible to anyone who commits.
+Correction: the edits were re-applied against the current text, and this time the write, the staging and the commit were done in one command so nothing sits staged or half-written. Detection was by checking the committed text for each edit's exact sentence rather than trusting that the script had reported success. For future sessions: after writing shared docs, grep for the specific sentences you added; and stage and commit in the same command.
+
 4) Deprecated patterns (old approaches we've moved away from)
 
 [2026-09-06] Pattern: `middleware.ts` / `export function middleware()` for request-level work.
