@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import StatCard from './StatCard';
 import { useToast } from '@/components/Toast';
+import { seatRenderKey } from '@/src/table-arrangement/seatRenderKey.js';
 
 type Seat = {
   id: string;
@@ -190,6 +191,9 @@ export default function TableArrangement({
         await load();
       } else {
         showToast({ kind: 'error', text: data.message || 'Could not assign that seat.' });
+        // A refusal usually means this screen is out of date (the seat was taken
+        // from another tab), so show the plan as it is now.
+        await load();
       }
     } catch {
       showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
@@ -442,7 +446,7 @@ function TableCard({
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {table.seats.map((seat) => (
           <SeatCard
-            key={seat.id}
+            key={seatRenderKey(seat)}
             seat={seat}
             unassignedGuests={unassignedGuests}
             unassignedInvitees={unassignedInvitees}

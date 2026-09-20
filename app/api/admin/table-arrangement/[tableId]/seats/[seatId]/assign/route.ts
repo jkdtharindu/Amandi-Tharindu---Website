@@ -14,7 +14,9 @@ type RouteContext = { params: Promise<{ tableId: string; seatId: string }> };
  * Assigns a seat to a real Guest, a ProbableAttendee placeholder, or an
  * individual Invitee (P1-14 / P1-16 / multi-person invitations) — exactly
  * one of guestId/probableAttendeeId/inviteeId is required. Rejects if that
- * occupant already holds another seat.
+ * occupant already holds another seat, or if this seat already holds someone
+ * else (Next Action 59) — the seat has to be emptied first. Re-assigning the
+ * seat's current occupant is allowed: it is how their notes are saved.
  */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();

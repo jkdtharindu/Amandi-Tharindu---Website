@@ -495,7 +495,10 @@ test('one ProbableAttendee cannot occupy two seats', async (t) => {
   );
 });
 
-test('assigning a real guest to a seat evicts any ProbableAttendee already there, and vice versa', async (t) => {
+// A seat holds one occupant. Until Next Action 59 a different occupant assigned on
+// top silently evicted the first; it is now refused, and the seat has to be
+// emptied (the screen's Remove) first. The one-occupant end state is unchanged.
+test('a seat holds one occupant: a guest and a ProbableAttendee swap places only after the seat is emptied', async (t) => {
   resetStores();
   t.after(resetStores);
 
@@ -504,12 +507,20 @@ test('assigning a real guest to a seat evicts any ProbableAttendee already there
   const table = await createSeatingTable({ tableNumber: 1, capacity: 1 });
 
   await assignProbableAttendeeToSeat(table.seats[0].id, slot.id);
+  await assert.rejects(() => assignGuestToSeat(table.seats[0].id, 'g1'), /already has someone/);
+  const [refused] = await listSeatingTables();
+  assert.equal(refused.seats[0].probableAttendeeId, slot.id, 'the refused guest did not displace the placeholder');
+  assert.equal(refused.seats[0].guestId, null);
+
+  await unassignProbableAttendeeFromSeat(table.seats[0].id);
   await assignGuestToSeat(table.seats[0].id, 'g1');
 
   const [afterGuest] = await listSeatingTables();
   assert.equal(afterGuest.seats[0].guestId, 'g1');
   assert.equal(afterGuest.seats[0].probableAttendeeId, null, 'the seat can only hold one occupant');
 
+  await assert.rejects(() => assignProbableAttendeeToSeat(table.seats[0].id, slot.id), /already has someone/);
+  await unassignGuestFromSeat(table.seats[0].id);
   await assignProbableAttendeeToSeat(table.seats[0].id, slot.id);
   const [afterProbable] = await listSeatingTables();
   assert.equal(afterProbable.seats[0].guestId, null);
@@ -606,7 +617,7 @@ test('one invitee cannot occupy two seats', async (t) => {
   await assert.rejects(() => assignInviteeToSeat(table.seats[1].id, john.id), /already assigned/);
 });
 
-test('assigning an invitee to an occupied seat evicts the previous occupant type', async (t) => {
+test('an invitee cannot be put on a seat that already holds a guest until the seat is emptied', async (t) => {
   resetStores();
   t.after(resetStores);
 
@@ -615,6 +626,12 @@ test('assigning an invitee to an occupied seat evicts the previous occupant type
 
   const table = await createSeatingTable({ tableNumber: 1, capacity: 1 });
   await assignGuestToSeat(table.seats[0].id, 'g1');
+  await assert.rejects(() => assignInviteeToSeat(table.seats[0].id, john.id), /already has someone/);
+  const [refused] = await listSeatingTables();
+  assert.equal(refused.seats[0].guestId, 'g1', 'the refused invitee did not displace the guest');
+  assert.equal(refused.seats[0].inviteeId, null);
+
+  await unassignGuestFromSeat(table.seats[0].id);
   await assignInviteeToSeat(table.seats[0].id, john.id);
 
   const [after] = await listSeatingTables();
