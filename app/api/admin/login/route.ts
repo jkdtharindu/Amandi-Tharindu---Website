@@ -72,7 +72,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   let token: string;
   try {
-    token = createAdminSession(String(body.email).trim().toLowerCase(), result.party);
+    token = createAdminSession(String(body.email).trim().toLowerCase(), {
+      party: result.party,
+    });
   } catch {
     return NextResponse.json(
       {

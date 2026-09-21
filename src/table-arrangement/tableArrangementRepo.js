@@ -595,9 +595,7 @@ export async function unassignSeatsForGuest(guestId, exec) {
  */
 export async function listUnassignedGuests() {
   if (!useDb) {
-    const seated = new Set(
-      seatingTables.flatMap((table) => table.seats.map((seat) => seat.guestId).filter(Boolean))
-    );
+    const seated = memorySeatedGuestIds();
     const guestIdsWithInvitees = new Set(invitees.map((invitee) => invitee.guestId));
     return guestStore
       .filter(
@@ -749,6 +747,20 @@ export async function getGuestWithTableAssignment(guestId) {
 function memorySeatedProbableIds() {
   return new Set(
     seatingTables.flatMap((table) => table.seats.map((seat) => seat.probableAttendeeId).filter(Boolean))
+  );
+}
+
+/**
+ * Ids of whole parties already sitting on a seat, for the in-memory path.
+ *
+ * Added 2026-09-21 (Action 69): the party-aware functions below already called
+ * this, but it was never written, so the no-DATABASE_URL path threw a
+ * ReferenceError — which is the path the throwaway dev server uses for
+ * click-testing.
+ */
+function memorySeatedGuestIds() {
+  return new Set(
+    seatingTables.flatMap((table) => table.seats.map((seat) => seat.guestId).filter(Boolean))
   );
 }
 
@@ -925,12 +937,30 @@ export async function listSeatingTablesByParty(party) {
   return rows;
 }
 
-/** Get unassigned guests for a specific party. */
+/**
+ * Get unassigned guests for a specific party.
+ *
+ * Mirrors `listUnassignedGuests`, including its rule that a party with named
+ * people is left out: those are seated one person at a time through
+ * `listUnassignedInvitees`, so offering the whole party as well would let the
+ * same people be seated twice and counted twice in Balance to Arrange. The
+ * party-aware copy dropped that rule (Action 69); restored 2026-09-21. Since
+ * Action 67 every new party has named people, so without it almost every
+ * party would have shown up in both pickers.
+ */
 export async function listUnassignedGuestsByParty(party) {
   if (!useDb) {
     const seatedIds = memorySeatedGuestIds();
+    const guestIdsWithInvitees = new Set(invitees.map((invitee) => invitee.guestId));
     return [...guestStore]
-      .filter((g) => (g.assignedToParty ?? 'bride') === party && g.rsvpStatus === 'accepted' && !seatedIds.has(g.id) && !g.isDeleted)
+      .filter(
+        (g) =>
+          (g.assignedToParty ?? 'bride') === party &&
+          g.rsvpStatus === 'accepted' &&
+          !seatedIds.has(g.id) &&
+          !guestIdsWithInvitees.has(g.id) &&
+          !g.isDeleted
+      )
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
@@ -940,6 +970,7 @@ export async function listUnassignedGuestsByParty(party) {
     WHERE g.assigned_to_party = $1
       AND g.rsvp_status = 'accepted'
       AND NOT EXISTS (SELECT 1 FROM table_seats ts WHERE ts.guest_id = g.id)
+      AND NOT EXISTS (SELECT 1 FROM invitees i WHERE i.guest_id = g.id)
       AND g.is_deleted = false
     ORDER BY g.created_at DESC
   `, [party]);

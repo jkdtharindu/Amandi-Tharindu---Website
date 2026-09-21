@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  listSeatingTables,
   listSeatingTablesByParty,
   createSeatingTable,
-  listUnassignedGuests,
   listUnassignedGuestsByParty,
-  listAssignedGuests,
   listAssignedGuestsByParty,
   listUnassignedInvitees,
   listUnassignedProbableAttendees,
   getProbableAttendanceSummary,
   isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
-import { listAllGuests, listAllRsvpResponses, listGuestsByParty, getPartyStats } from '@/src/admin/adminRepo.js';
+import { listAllGuests, listAllRsvpResponses, getPartyStats } from '@/src/admin/adminRepo.js';
 import { computeRsvpStats } from '@/src/admin/guestQueries.js';
 import { buildDashboardStats } from '@/src/table-arrangement/dashboardStats.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
@@ -41,7 +38,6 @@ export async function GET(): Promise<NextResponse> {
     unassignedProbableAttendees,
     probableAttendanceSummary,
     allGuests,
-    partyGuests,
     responses,
   ] = await Promise.all([
     listSeatingTablesByParty(session.party),
@@ -51,7 +47,6 @@ export async function GET(): Promise<NextResponse> {
     listUnassignedProbableAttendees(),
     getProbableAttendanceSummary(),
     listAllGuests(),
-    listGuestsByParty(session.party),
     listAllRsvpResponses(),
   ]);
 

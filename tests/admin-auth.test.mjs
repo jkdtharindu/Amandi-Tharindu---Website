@@ -104,6 +104,35 @@ test('rejects a malformed stored hash instead of crashing (bride)', () => {
   const result = verifyAdminCredentials('bride@example.com', BRIDE_PASSWORD, {
     brideEmail: 'bride@example.com',
     bridePasswordHash: 'not-a-valid-hash',
+    groomEmail: '',
+    groomPasswordHash: '',
+    adminEmail: '',
+    passwordHash: '',
+  });
+  assert.equal(result.success, false);
+  // Not admin_not_configured: the account was set up, it just cannot be used.
+  // Saying so would hand an unauthenticated caller a 500 describing the
+  // server's own state.
+  assert.equal(result.reason, 'invalid_credentials');
+});
+
+test('one broken account does not lock the other one out', () => {
+  const result = verifyAdminCredentials('groom@example.com', GROOM_PASSWORD, {
+    ...BRIDE_GROOM_CONFIG,
+    bridePasswordHash: 'not-a-valid-hash',
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.party, 'groom');
+});
+
+test('reports invalid credentials, not misconfiguration, when every hash is broken', () => {
+  const result = verifyAdminCredentials('bride@example.com', BRIDE_PASSWORD, {
+    brideEmail: 'bride@example.com',
+    bridePasswordHash: 'not-a-valid-hash',
+    groomEmail: 'groom@example.com',
+    groomPasswordHash: 'also-not-valid',
+    adminEmail: '',
+    passwordHash: '',
   });
   assert.equal(result.success, false);
   assert.equal(result.reason, 'invalid_credentials');

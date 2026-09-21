@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -8,6 +9,20 @@ import {
 
 const CONFIG = { secret: 'test-secret-value', ttlMs: 60_000 };
 const EMAIL = 'admin@example.com';
+
+/**
+ * Signs an arbitrary claims object with CONFIG's secret, the way
+ * createAdminSession does. Used to build tokens createAdminSession itself
+ * refuses to issue, so the verify side can be tested on its own.
+ */
+function signClaims(claims) {
+  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', CONFIG.secret)
+    .update(payload)
+    .digest('hex');
+  return `${payload}.${signature}`;
+}
 
 test('round-trips the admin email through a signed token', () => {
   const token = createAdminSession(EMAIL, CONFIG);
@@ -70,4 +85,64 @@ test('refuses to create a session when no secret is configured', () => {
 test('refuses to verify a session when no secret is configured', () => {
   const token = createAdminSession(EMAIL, CONFIG);
   assert.equal(verifyAdminSession(token, { secret: '', ttlMs: 1000 }), null);
+});
+
+// The party claim (P1-14B). Every side-scoped admin query filters on it, so
+// the value that comes back out has to be the one that went in.
+test('round-trips the groom party through a signed token', () => {
+  const token = createAdminSession(EMAIL, { ...CONFIG, party: 'groom' });
+  assert.equal(verifyAdminSession(token, CONFIG).party, 'groom');
+});
+
+test('round-trips the bride party through a signed token', () => {
+  const token = createAdminSession(EMAIL, { ...CONFIG, party: 'bride' });
+  assert.equal(verifyAdminSession(token, CONFIG).party, 'bride');
+});
+
+test('defaults to the bride when no party is given', () => {
+  const token = createAdminSession(EMAIL, CONFIG);
+  assert.equal(verifyAdminSession(token, CONFIG).party, 'bride');
+});
+
+test('refuses to sign a token for an unrecognised party', () => {
+  // 'BRIDE' is in the list on purpose: the match is exact, so a differently
+  // cased value is a mistake rather than a synonym.
+  for (const bad of ['everyone', '', 'BRIDE', 'groom ', 0, {}]) {
+    assert.throws(
+      () => createAdminSession(EMAIL, { ...CONFIG, party: bad }),
+      /invalid_party/,
+      `should refuse party ${JSON.stringify(bad)}`
+    );
+  }
+});
+
+test('treats a null or undefined party as unspecified, not as an error', () => {
+  // `??` cannot tell "absent" from "explicitly null", and the default has to
+  // stay for the legacy single-admin path, so both mean the bride.
+  for (const unset of [null, undefined]) {
+    const token = createAdminSession(EMAIL, { ...CONFIG, party: unset });
+    assert.equal(verifyAdminSession(token, CONFIG).party, 'bride');
+  }
+});
+
+test('a config object is never mistaken for a party', () => {
+  // Guards the Action 69 regression: `party` was briefly the second positional
+  // argument, so this call signed a token whose party was '[object Object]'.
+  const session = verifyAdminSession(createAdminSession(EMAIL, CONFIG), CONFIG);
+  assert.equal(session.party, 'bride');
+  assert.equal(session.email, EMAIL);
+});
+
+test('reads a legacy token with no party claim as the bride', () => {
+  const token = signClaims({ sub: EMAIL, exp: Date.now() + 60_000 });
+  assert.equal(verifyAdminSession(token, CONFIG).party, 'bride');
+});
+
+test('rejects a validly signed token whose party is unrecognised', () => {
+  const token = signClaims({
+    sub: EMAIL,
+    party: '[object Object]',
+    exp: Date.now() + 60_000,
+  });
+  assert.equal(verifyAdminSession(token, CONFIG), null);
 });
