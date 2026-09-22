@@ -1,5 +1,11 @@
 import { Pool } from 'pg';
 
+if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+  throw new Error(
+    'DATABASE_URL is required in production. Set it in your Vercel environment variables or .env file.'
+  );
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });

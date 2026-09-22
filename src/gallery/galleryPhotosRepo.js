@@ -1,8 +1,10 @@
 import { query } from '../db.js';
 import { galleryPhotos } from '../data/galleryPhotosStore.js';
 
+const useDb = Boolean(process.env.DATABASE_URL);
+
 export async function listGalleryPhotos() {
-  if (!process.env.DATABASE_URL) {
+  if (!useDb) {
     return listInMemory();
   }
   const { rows } = await query(
@@ -12,7 +14,7 @@ export async function listGalleryPhotos() {
 }
 
 export async function createGalleryPhoto({ photoUrl, caption = '', displayOrder = 0 }) {
-  if (!process.env.DATABASE_URL) {
+  if (!useDb) {
     return createInMemory({ photoUrl, caption, displayOrder });
   }
   const { rows } = await query(
@@ -25,7 +27,7 @@ export async function createGalleryPhoto({ photoUrl, caption = '', displayOrder 
 }
 
 export async function updateGalleryPhoto(id, { caption, displayOrder }) {
-  if (!process.env.DATABASE_URL) {
+  if (!useDb) {
     return updateInMemory(id, { caption, displayOrder });
   }
   const updates = [];
@@ -52,7 +54,7 @@ export async function updateGalleryPhoto(id, { caption, displayOrder }) {
 }
 
 export async function deleteGalleryPhoto(id) {
-  if (!process.env.DATABASE_URL) {
+  if (!useDb) {
     return deleteInMemory(id);
   }
   const { rows } = await query(
