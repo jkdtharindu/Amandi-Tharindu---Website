@@ -61,6 +61,7 @@ export default function TableArrangement({
   initialUnassignedProbableAttendees,
   initialProbableAttendanceSummary,
   initialDashboardStats,
+  initialOverallDashboardStats,
 }: {
   initialTables: SeatingTable[];
   initialUnassignedGuests: UnassignedGuest[];
@@ -68,12 +69,15 @@ export default function TableArrangement({
   initialUnassignedProbableAttendees: UnassignedProbableAttendee[];
   initialProbableAttendanceSummary: ProbableAttendanceSummaryRow[];
   initialDashboardStats: TableArrangementDashboardStats;
+  initialOverallDashboardStats?: TableArrangementDashboardStats;
 }) {
   // State, not a prop, so load() can refresh it after every action. It was a
   // one-time server prop until Next Action 29, so the stat cards stayed at
   // their page-load values however many guests the admin seated.
   const [dashboardStats, setDashboardStats] =
     useState<TableArrangementDashboardStats>(initialDashboardStats);
+  const [overallDashboardStats, setOverallDashboardStats] =
+    useState<TableArrangementDashboardStats | undefined>(initialOverallDashboardStats);
   const [tables, setTables] = useState<SeatingTable[]>(initialTables);
   const [unassignedGuests, setUnassignedGuests] = useState<UnassignedGuest[]>(initialUnassignedGuests);
   const [unassignedInvitees, setUnassignedInvitees] = useState<UnassignedInvitee[]>(initialUnassignedInvitees);
@@ -244,16 +248,35 @@ export default function TableArrangement({
 
   return (
     <div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatCard label="RSVP Accepted" value={dashboardStats.accepted} />
-        <StatCard label="Table Arranged" value={dashboardStats.tableArranged} />
-        <StatCard label="Balance to Arrange" value={dashboardStats.balanceToArrange} hint="Accepted, not yet seated" />
-        <StatCard
-          label="RSVP Not Accepted"
-          value={dashboardStats.declined + dashboardStats.pending}
-          hint={`${dashboardStats.declined} declined, ${dashboardStats.pending} pending`}
-        />
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-slate-500 mb-3">Your Party</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="RSVP Accepted" value={dashboardStats.accepted} />
+          <StatCard label="Table Arranged" value={dashboardStats.tableArranged} />
+          <StatCard label="Balance to Arrange" value={dashboardStats.balanceToArrange} hint="Accepted, not yet seated" />
+          <StatCard
+            label="RSVP Not Accepted"
+            value={dashboardStats.declined + dashboardStats.pending}
+            hint={`${dashboardStats.declined} declined, ${dashboardStats.pending} pending`}
+          />
+        </div>
       </div>
+
+      {overallDashboardStats && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-slate-500 mb-3">Overall (Both Parties)</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="RSVP Accepted" value={overallDashboardStats.accepted} />
+            <StatCard label="Table Arranged" value={overallDashboardStats.tableArranged} />
+            <StatCard label="Balance to Arrange" value={overallDashboardStats.balanceToArrange} hint="Accepted, not yet seated" />
+            <StatCard
+              label="RSVP Not Accepted"
+              value={overallDashboardStats.declined + overallDashboardStats.pending}
+              hint={`${overallDashboardStats.declined} declined, ${overallDashboardStats.pending} pending`}
+            />
+          </div>
+        </div>
+      )}
 
       <ProbableAttendancePanel summary={probableAttendanceSummary} busy={busy} onSetBuffer={handleSetBuffer} />
 

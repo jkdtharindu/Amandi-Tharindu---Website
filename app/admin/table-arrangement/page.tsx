@@ -9,7 +9,7 @@ import {
   listUnassignedProbableAttendees,
   getProbableAttendanceSummary,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
-import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
+import { listAllGuests, listAllRsvpResponses, getPartyStats } from '@/src/admin/adminRepo.js';
 import { computeRsvpStats } from '@/src/admin/guestQueries.js';
 import { buildDashboardStats } from '@/src/table-arrangement/dashboardStats.js';
 
@@ -37,12 +37,23 @@ export default async function AdminTableArrangementPage() {
     listAllRsvpResponses(),
   ]);
 
+  const partyStats = await getPartyStats(session.party);
+  const overallStats = computeRsvpStats(guests.filter((g) => !g.isDeleted), responses);
+
   const dashboardStats = buildDashboardStats({
     tables,
     assignedGuests,
     unassignedGuests,
     unassignedInvitees,
-    rsvpStats: computeRsvpStats(guests, responses),
+    rsvpStats: partyStats,
+  });
+
+  const overallDashboardStats = buildDashboardStats({
+    tables: [],
+    assignedGuests: [],
+    unassignedGuests: guests.filter((g) => !g.isDeleted),
+    unassignedInvitees: [],
+    rsvpStats: overallStats,
   });
 
   return (
@@ -73,6 +84,7 @@ export default async function AdminTableArrangementPage() {
           initialUnassignedProbableAttendees={unassignedProbableAttendees}
           initialProbableAttendanceSummary={probableAttendanceSummary}
           initialDashboardStats={dashboardStats}
+          initialOverallDashboardStats={overallDashboardStats}
         />
       </main>
     </>
