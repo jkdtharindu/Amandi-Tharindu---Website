@@ -3,7 +3,13 @@
  * Generates an ADMIN_PASSWORD_HASH value for .env.
  *
  * Usage:
- *   echo "your-password" | node scripts/set-admin-password.js
+ *   echo your-password | node scripts/set-admin-password.js
+ *
+ * Do NOT wrap the password in quotes on Windows Command Prompt (cmd.exe) —
+ * unlike PowerShell or a Unix shell, cmd's `echo` does not strip them, so
+ * `echo "your-password" | ...` hashes the literal string `"your-password"`,
+ * quote marks included. A password has no spaces, so quotes are never
+ * needed here on any shell.
  *
  * This script deliberately only PRINTS the hash. Writing it into .env is a
  * secrets change, which HITL.md reserves for a human.
@@ -20,7 +26,7 @@ const password = await readStdin();
 
 if (!password) {
   console.error('No password received on stdin.');
-  console.error('Usage: echo "your-password" | node scripts/set-admin-password.js');
+  console.error('Usage: echo your-password | node scripts/set-admin-password.js');
   process.exit(1);
 }
 
