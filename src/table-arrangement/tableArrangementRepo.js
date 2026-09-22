@@ -15,6 +15,12 @@ const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat'
 const SEAT_ALREADY_TAKEN = 'That seat already has someone on it.';
 const BUFFER_BELOW_SEATED = 'Cannot reduce below the number already seated — unassign them first';
 const INVALID_BUFFER_COUNT = 'Count must be a non-negative whole number';
+const GUEST_NOT_FOUND = 'That guest no longer exists (may have been removed).';
+const GUEST_DECLINED = 'Cannot seat a guest who has declined their invitation.';
+const GUEST_DELETED = 'Cannot seat a deleted guest — they have been removed.';
+const INVITEE_NOT_FOUND = 'That person no longer exists (may have been removed).';
+const INVITEE_DECLINED = 'Cannot seat a person who declined their invitation.';
+const SEAT_NOT_FOUND = 'That seat no longer exists — the table may have been removed.';
 
 /**
  * The errors above are written *for the admin reading the screen* — "that
@@ -33,6 +39,12 @@ const USER_FACING_ERRORS = new Set([
   SEAT_ALREADY_TAKEN,
   BUFFER_BELOW_SEATED,
   INVALID_BUFFER_COUNT,
+  GUEST_NOT_FOUND,
+  GUEST_DECLINED,
+  GUEST_DELETED,
+  INVITEE_NOT_FOUND,
+  INVITEE_DECLINED,
+  SEAT_NOT_FOUND,
 ]);
 
 /** True when `error`'s message was written to be shown to an admin. */
@@ -322,11 +334,17 @@ export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, 
     const found = findMemorySeat(seatId);
     if (!found) return null;
 
-    if (guestId && seatHeldByAnother(found.seat, 'guestId', guestId)) {
-      throw new Error(SEAT_ALREADY_TAKEN);
-    }
-
     if (guestId) {
+      // Validate guest exists and is in a valid state to be seated
+      const guest = guestStore.find((g) => g.id === guestId);
+      if (!guest) throw new Error(GUEST_NOT_FOUND);
+      if (guest.isDeleted) throw new Error(GUEST_DELETED);
+      if (guest.rsvpStatus === 'declined') throw new Error(GUEST_DECLINED);
+
+      if (seatHeldByAnother(found.seat, 'guestId', guestId)) {
+        throw new Error(SEAT_ALREADY_TAKEN);
+      }
+
       const clash = seatingTables.some((table) =>
         table.seats.some((seat) => seat.guestId === guestId && seat.id !== seatId)
       );
@@ -345,6 +363,18 @@ export async function assignGuestToSeat(seatId, guestId, { dietaryRequirements, 
   }
 
   try {
+    // Validate guest exists and is in a valid state if assigning (not clearing)
+    if (guestId) {
+      const { rows: guestRows } = await run(
+        'SELECT is_deleted, rsvp_status FROM guests WHERE id = $1',
+        [guestId]
+      );
+      if (!guestRows.length) throw new Error(GUEST_NOT_FOUND);
+      const guest = guestRows[0];
+      if (guest.is_deleted) throw new Error(GUEST_DELETED);
+      if (guest.rsvp_status === 'declined') throw new Error(GUEST_DECLINED);
+    }
+
     const { rows } = await run(`
       UPDATE table_seats
       SET guest_id = $2,
@@ -454,11 +484,19 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
     const found = findMemorySeat(seatId);
     if (!found) return null;
 
-    if (inviteeId && seatHeldByAnother(found.seat, 'inviteeId', inviteeId)) {
-      throw new Error(SEAT_ALREADY_TAKEN);
-    }
-
     if (inviteeId) {
+      // Validate invitee exists and is in a valid state to be seated
+      const invitee = invitees.find((i) => i.id === inviteeId);
+      if (!invitee) throw new Error(INVITEE_NOT_FOUND);
+      // Derive invitee's RSVP status from their guest's status (invitees inherit their party's status)
+      const guest = guestStore.find((g) => g.id === invitee.guestId);
+      if (!guest || guest.isDeleted) throw new Error(INVITEE_NOT_FOUND);
+      if (guest.rsvpStatus === 'declined') throw new Error(INVITEE_DECLINED);
+
+      if (seatHeldByAnother(found.seat, 'inviteeId', inviteeId)) {
+        throw new Error(SEAT_ALREADY_TAKEN);
+      }
+
       const clash = seatingTables.some((table) =>
         table.seats.some((seat) => seat.inviteeId === inviteeId && seat.id !== seatId)
       );
@@ -476,6 +514,19 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
   }
 
   try {
+    // Validate invitee exists and is in a valid state if assigning (not clearing)
+    if (inviteeId) {
+      const { rows: inviteeRows } = await run(
+        `SELECT i.id, g.is_deleted, g.rsvp_status FROM invitees i
+         JOIN guests g ON g.id = i.guest_id WHERE i.id = $1`,
+        [inviteeId]
+      );
+      if (!inviteeRows.length) throw new Error(INVITEE_NOT_FOUND);
+      const invitee = inviteeRows[0];
+      if (invitee.is_deleted) throw new Error(INVITEE_NOT_FOUND);
+      if (invitee.rsvp_status === 'declined') throw new Error(INVITEE_DECLINED);
+    }
+
     const { rows } = await run(`
       UPDATE table_seats
       SET invitee_id = $2,

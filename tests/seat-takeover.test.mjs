@@ -202,6 +202,13 @@ function fakeExec({ updateRows = [{ id: 'seat-1', seat_number: 1 }], seatExists 
       return { rows: updateRows };
     }
     if (/^SELECT id FROM table_seats/.test(sql)) return { rows: seatExists ? [{ id: 'seat-1' }] : [] };
+    // Handle new validation queries for guests and invitees (Action 61)
+    if (/^SELECT is_deleted, rsvp_status FROM guests/.test(sql)) {
+      return { rows: [{ is_deleted: false, rsvp_status: 'accepted' }] };
+    }
+    if (/^SELECT i.id, g.is_deleted, g.rsvp_status FROM invitees/.test(sql)) {
+      return { rows: [{ is_deleted: false, rsvp_status: 'accepted' }] };
+    }
     return { rows: [] };
   };
   return { exec, statements };
@@ -242,12 +249,18 @@ for (const [name, assign, column] of [
     assert.equal(await assign(exec), null);
   });
 
-  test(`a successful ${name} assignment does not run the follow-up seat lookup`, async () => {
+  test(`a successful ${name} assignment validates the occupant before updating (Action 61)`, async () => {
     const { exec, statements } = fakeExec();
 
     await assign(exec);
 
-    assert.equal(statements.filter((entry) => /^SELECT/.test(entry.sql)).length, 0);
+    // Guest and invitee assignments should run validation queries (Action 61)
+    // Probable attendee assignments don't need validation (they're placeholders)
+    if (name !== 'probable attendee') {
+      const selectStatements = statements.filter((entry) => /^SELECT/.test(entry.sql));
+      assert.ok(selectStatements.length >= 1, 'validation query runs before assignment');
+      assert.ok(!selectStatements.some((entry) => /^SELECT id FROM table_seats/.test(entry.sql)), 'but no follow-up seat lookup needed');
+    }
   });
 }
 

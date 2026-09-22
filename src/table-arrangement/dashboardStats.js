@@ -12,12 +12,16 @@
  * Pure — callers fetch the inputs, so the page can reuse what it already
  * loaded for other purposes rather than querying twice.
  *
+ * All counts use the same unit (people, not families) so the numbers are
+ * directly comparable. An accepted family of 3 contributes 1 to "Accepted"
+ * and 1-3 to "Table Arranged" depending on how many are seated (Action 61).
+ *
  * @param {object} input
  * @param {{ seats: { inviteeId: string | null }[] }[]} input.tables
- * @param {{ rsvpStatus: string }[]} input.assignedGuests
- * @param {unknown[]} input.unassignedGuests
- * @param {unknown[]} input.unassignedInvitees
- * @param {{ accepted: number, declined: number, pending: number }} input.rsvpStats
+ * @param {{ rsvpStatus: string, participantCount?: number }[]} input.assignedGuests
+ * @param {{ participantCount?: number }[]} input.unassignedGuests
+ * @param {{ participantCount?: number }[]} input.unassignedInvitees
+ * @param {{ acceptedHeadcount: number, declined: number, pending: number }} input.rsvpStats
  */
 export function buildDashboardStats({
   tables,
@@ -35,15 +39,27 @@ export function buildDashboardStats({
 
   // Only guests who are both seated AND still RSVP-accepted count here — a
   // seated guest who later changes their answer to declined stops counting
-  // without needing to be auto-unseated.
+  // without needing to be auto-unseated (Action 61 — detect and exclude declined).
   const seatedAcceptedGuests = assignedGuests.filter(
     (guest) => guest.rsvpStatus === 'accepted'
   ).length;
 
+  // Count unassigned people (headcount from multi-person invitations, or 1 per family)
+  const unassignedGuestHeadcount = unassignedGuests.reduce(
+    (total, guest) => total + (guest.participantCount || 1),
+    0
+  );
+  const unassignedInviteeHeadcount = unassignedInvitees.reduce(
+    (total, invitee) => total + (invitee.participantCount || 1),
+    0
+  );
+
   return {
-    accepted: rsvpStats.accepted,
+    // Use acceptedHeadcount (people) instead of accepted count (families)
+    // so it matches the unit of tableArranged and balanceToArrange (Action 61)
+    accepted: rsvpStats.acceptedHeadcount,
     tableArranged: seatedAcceptedGuests + seatedInviteeCount,
-    balanceToArrange: unassignedGuests.length + unassignedInvitees.length,
+    balanceToArrange: unassignedGuestHeadcount + unassignedInviteeHeadcount,
     declined: rsvpStats.declined,
     pending: rsvpStats.pending,
   };

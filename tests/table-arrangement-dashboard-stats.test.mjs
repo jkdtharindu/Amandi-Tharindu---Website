@@ -9,7 +9,7 @@ import { buildDashboardStats } from '../src/table-arrangement/dashboardStats.js'
  * worth pinning down independently of either caller.
  */
 
-const RSVP = { accepted: 5, declined: 2, pending: 3 };
+const RSVP = { acceptedHeadcount: 5, declined: 2, pending: 3 };
 
 function seat(inviteeId = null) {
   return { inviteeId };
@@ -57,7 +57,27 @@ test('a seated guest who later declined no longer counts as arranged', () => {
     rsvpStats: RSVP,
   });
 
-  assert.equal(stats.tableArranged, 1);
+  assert.equal(stats.tableArranged, 1, 'only the accepted guest counts');
+});
+
+test('all counts use the same unit (people, not families) — action 61', () => {
+  const stats = buildDashboardStats({
+    tables: [{ seats: [{ inviteeId: 'inv-1' }, { inviteeId: 'inv-2' }, { inviteeId: 'inv-3' }] }],
+    assignedGuests: [],
+    unassignedGuests: [{ participantCount: 2 }],
+    unassignedInvitees: [],
+    rsvpStats: { acceptedHeadcount: 5, declined: 1, pending: 1 },
+  });
+
+  // A family of 3 contributes:
+  // - 5 to accepted (acceptedHeadcount from all accepted families, not family count)
+  // - 3 to tableArranged (all three invitees seated)
+  // - 2 to balanceToArrange (unassigned family of 2)
+  assert.deepEqual(
+    {accepted: stats.accepted, arranged: stats.tableArranged, balance: stats.balanceToArrange},
+    {accepted: 5, arranged: 3, balance: 2},
+    'all use people count, not families'
+  );
 });
 
 test('seats holding a probable attendee or nobody do not count as arranged', () => {

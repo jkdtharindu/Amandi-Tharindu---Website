@@ -545,18 +545,25 @@ test('unassigning a ProbableAttendee frees it to be seated elsewhere', async (t)
   assert.equal(refreshed.seats[1].probableAttendeeId, slot.id);
 });
 
-test('"Table Arranged" candidates (accepted, seated guests) exclude declined/pending guests even if seated', async (t) => {
+test('"Table Arranged" candidates (accepted, seated guests) cannot include declined/pending guests (Action 61)', async (t) => {
   resetStores();
   t.after(resetStores);
 
   const table = await createSeatingTable({ tableNumber: 1, capacity: 2 });
-  await assignGuestToSeat(table.seats[0].id, 'g1'); // accepted
-  await assignGuestToSeat(table.seats[1].id, 'g3'); // declined, seated anyway (edge case)
+  await assignGuestToSeat(table.seats[0].id, 'g1'); // accepted — succeeds
 
+  // Decline guest 'g3' (currently accepted) and try to seat them
+  const g3 = guestStore.find((g) => g.id === 'g3');
+  g3.rsvpStatus = 'declined';
+
+  await assert.rejects(
+    () => assignGuestToSeat(table.seats[1].id, 'g3'),
+    /Cannot seat a guest who has declined/
+  );
+
+  // Only g1 is seated
   const assigned = await listAssignedGuests();
-  const acceptedSeated = assigned.filter((guest) => guest.rsvpStatus === 'accepted');
-  assert.deepEqual(acceptedSeated.map((g) => g.id), ['g1']);
-  assert.equal(assigned.length, 2, 'both seats show up in the raw list — the accepted-only filter happens in the page, not the repo');
+  assert.deepEqual(assigned.map((g) => g.id), ['g1']);
 });
 
 // --- Individual invitee seating (multi-person invitations) -----------------
