@@ -107,7 +107,7 @@ These can't be tested without logging in for real:
 
 ### 3e. Process (lower urgency, doesn't block launch)
 - [ ] The HITL safety-check script (`npm run hitl:migrate`) only covers database migrations today. Deploys, sending messages, secrets changes, and pushes to `main` are still unguarded by any automated check.
-- [ ] CI runs only one check — the docs-consistency gate (`.github/workflows/docs-check.yml`). Tests, the build and lint are not run in CI, so a broken change could merge if nobody runs them by hand.
+- [x] CI runs only one check — the docs-consistency gate (`.github/workflows/docs-check.yml`). Tests, the build and lint are not run in CI, so a broken change could merge if nobody runs them by hand. *Done 2026-09-22: added test.yml, build.yml, and lint.yml workflows; all three run on every PR.*
 - [ ] UI/UX polish backlog, none of it launch-blocking: focus handling for the mobile menu (46), a Gallery enlarge-on-click (47 — needs a scope decision), and whether to keep the old Express prototype at all (48). (The skip-to-content link, Next Action 45, shipped 2026-09-20 and is live.)
 
 ---
