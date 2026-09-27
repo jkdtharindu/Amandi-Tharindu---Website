@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  listSeatingTablesByParty,
-  createSeatingTable,
-  listUnassignedGuestsByParty,
-  listAssignedGuestsByParty,
-  listUnassignedInvitees,
-  listUnassignedProbableAttendees,
-  getProbableAttendanceSummary,
-  isUserFacingError,
-} from '@/src/table-arrangement/tableArrangementRepo.js';
-import { listAllGuests, listAllRsvpResponses, getPartyStats } from '@/src/admin/adminRepo.js';
-import { computeRsvpStats } from '@/src/admin/guestQueries.js';
-import { buildDashboardStats } from '@/src/table-arrangement/dashboardStats.js';
+import { createSeatingTable, isUserFacingError } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { loadTableArrangementView } from '@/src/table-arrangement/loadTableArrangementView.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -30,49 +19,8 @@ export async function GET(): Promise<NextResponse> {
   const session = await getAdminSession();
   if (!session) return unauthorizedResponse();
 
-  const [
-    tables,
-    unassignedGuests,
-    assignedGuests,
-    unassignedInvitees,
-    unassignedProbableAttendees,
-    probableAttendanceSummary,
-    allGuests,
-    responses,
-  ] = await Promise.all([
-    listSeatingTablesByParty(session.party),
-    listUnassignedGuestsByParty(session.party),
-    listAssignedGuestsByParty(session.party),
-    listUnassignedInvitees(),
-    listUnassignedProbableAttendees(),
-    getProbableAttendanceSummary(),
-    listAllGuests(),
-    listAllRsvpResponses(),
-  ]);
-
-  const partyStats = await getPartyStats(session.party);
-  const overallStats = computeRsvpStats(allGuests.filter((g: { isDeleted?: boolean }) => !g.isDeleted), responses);
-
-  return NextResponse.json({
-    success: true,
-    tables,
-    unassignedGuests,
-    unassignedInvitees,
-    unassignedProbableAttendees,
-    probableAttendanceSummary,
-    dashboardStats: buildDashboardStats({
-      tables,
-      assignedGuests,
-      unassignedGuests,
-      unassignedInvitees,
-      rsvpStats: partyStats,
-    }),
-    stats: {
-      party: partyStats,
-      overall: overallStats,
-    },
-    party: session.party,
-  });
+  const view = await loadTableArrangementView(session.party);
+  return NextResponse.json({ success: true, ...view });
 }
 
 /** Creates a seating table with `capacity` empty seats for the logged-in admin's party (P1-14, P1-14H). */

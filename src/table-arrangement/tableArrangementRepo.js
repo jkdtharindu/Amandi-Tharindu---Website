@@ -1043,11 +1043,14 @@ export async function listAssignedGuestsByParty(party) {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
+  // EXISTS rather than SELECT DISTINCT: Postgres rejects DISTINCT with an ORDER BY
+  // column that is not selected. rsvp_status feeds the "Table Arranged" count.
   const { rows } = await query(`
-    SELECT DISTINCT g.id, g.name, g.code, g.relationship, g.slot_count
+    SELECT g.id, g.name, g.code, g.relationship, g.slot_count, g.rsvp_status
     FROM guests g
-    INNER JOIN table_seats ts ON g.id = ts.guest_id
-    WHERE g.assigned_to_party = $1 AND g.is_deleted = false
+    WHERE g.assigned_to_party = $1
+      AND g.is_deleted = false
+      AND EXISTS (SELECT 1 FROM table_seats ts WHERE ts.guest_id = g.id)
     ORDER BY g.created_at DESC
   `, [party]);
   return rows.map((row) => ({
@@ -1056,5 +1059,6 @@ export async function listAssignedGuestsByParty(party) {
     code: row.code,
     relationship: row.relationship,
     slotCount: row.slot_count,
+    rsvpStatus: row.rsvp_status,
   }));
 }

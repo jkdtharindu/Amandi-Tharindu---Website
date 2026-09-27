@@ -110,6 +110,7 @@ export default function TableArrangement({
         setUnassignedProbableAttendees(data.unassignedProbableAttendees);
         setProbableAttendanceSummary(data.probableAttendanceSummary);
         setDashboardStats(data.dashboardStats);
+        setOverallDashboardStats(data.overallDashboardStats);
       }
     } catch {
       showToast({ kind: 'error', text: 'Could not load the seating plan.' });

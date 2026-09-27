@@ -1,60 +1,13 @@
 import AdminNav from '@/components/admin/AdminNav';
 import TableArrangement from '@/components/admin/TableArrangement';
 import { requireAdminPage } from '@/lib/adminGuard';
-import {
-  listSeatingTables,
-  listUnassignedGuests,
-  listAssignedGuests,
-  listUnassignedInvitees,
-  listUnassignedProbableAttendees,
-  getProbableAttendanceSummary,
-} from '@/src/table-arrangement/tableArrangementRepo.js';
-import { listAllGuests, listAllRsvpResponses, getPartyStats } from '@/src/admin/adminRepo.js';
-import { computeRsvpStats } from '@/src/admin/guestQueries.js';
-import { buildDashboardStats } from '@/src/table-arrangement/dashboardStats.js';
+import { loadTableArrangementView } from '@/src/table-arrangement/loadTableArrangementView.js';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminTableArrangementPage() {
   const session = await requireAdminPage();
-  const [
-    tables,
-    unassignedGuests,
-    assignedGuests,
-    unassignedInvitees,
-    unassignedProbableAttendees,
-    probableAttendanceSummary,
-    guests,
-    responses,
-  ] = await Promise.all([
-    listSeatingTables(),
-    listUnassignedGuests(),
-    listAssignedGuests(),
-    listUnassignedInvitees(),
-    listUnassignedProbableAttendees(),
-    getProbableAttendanceSummary(),
-    listAllGuests(),
-    listAllRsvpResponses(),
-  ]);
-
-  const partyStats = await getPartyStats(session.party);
-  const overallStats = computeRsvpStats(guests.filter((g) => !g.isDeleted), responses);
-
-  const dashboardStats = buildDashboardStats({
-    tables,
-    assignedGuests,
-    unassignedGuests,
-    unassignedInvitees,
-    rsvpStats: partyStats,
-  });
-
-  const overallDashboardStats = buildDashboardStats({
-    tables: [],
-    assignedGuests: [],
-    unassignedGuests: guests.filter((g) => !g.isDeleted),
-    unassignedInvitees: [],
-    rsvpStats: overallStats,
-  });
+  const view = await loadTableArrangementView(session.party);
 
   return (
     <>
@@ -78,13 +31,13 @@ export default async function AdminTableArrangementPage() {
           Organize guest seating and manage dietary requirements.
         </p>
         <TableArrangement
-          initialTables={tables}
-          initialUnassignedGuests={unassignedGuests}
-          initialUnassignedInvitees={unassignedInvitees}
-          initialUnassignedProbableAttendees={unassignedProbableAttendees}
-          initialProbableAttendanceSummary={probableAttendanceSummary}
-          initialDashboardStats={dashboardStats}
-          initialOverallDashboardStats={overallDashboardStats}
+          initialTables={view.tables}
+          initialUnassignedGuests={view.unassignedGuests}
+          initialUnassignedInvitees={view.unassignedInvitees}
+          initialUnassignedProbableAttendees={view.unassignedProbableAttendees}
+          initialProbableAttendanceSummary={view.probableAttendanceSummary}
+          initialDashboardStats={view.dashboardStats}
+          initialOverallDashboardStats={view.overallDashboardStats}
         />
       </main>
     </>
