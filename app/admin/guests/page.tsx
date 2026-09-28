@@ -2,7 +2,7 @@ import AdminNav from '@/components/admin/AdminNav';
 import GuestManager, { type Guest } from '@/components/admin/GuestManager';
 import InviteeRequests from '@/components/admin/InviteeRequests';
 import { requireAdminPage } from '@/lib/adminGuard';
-import { listAllGuests } from '@/src/admin/adminRepo.js';
+import { listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { filterGuests } from '@/src/admin/guestQueries.js';
 import { getCategories } from '@/src/admin/categories.js';
 
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminGuestsPage() {
   const session = await requireAdminPage();
-  const guests = (await listAllGuests()) as Guest[];
+  const guests = (await listGuestsByParty(session.party)) as Guest[];
   const categories = getCategories();
 
   return (

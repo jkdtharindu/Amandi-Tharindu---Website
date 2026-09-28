@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { listSeatingTables } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { listSeatingTablesByParty } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { buildTableArrangementExport, buildTableArrangementSummary } from '@/src/table-arrangement/tableArrangementExport.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
-/** Downloads the seating plan (summary + per-seat detail) as a TSV Excel can open (P1-14). */
+/** Downloads the signed-in side's seating plan (summary + per-seat detail) as a TSV Excel can open (P1-14). */
 export async function GET(): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
-  const tables = await listSeatingTables();
+  const tables = await listSeatingTablesByParty(session.party);
   const summary = buildTableArrangementSummary(tables);
   const arrangements = buildTableArrangementExport(tables);
   const fullExport = summary + '\n' + arrangements;

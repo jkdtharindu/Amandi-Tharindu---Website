@@ -6,7 +6,6 @@ import { listTemplates, templateLabel } from '../src/messaging/messageTemplatesR
 import { selectRecipients } from '../src/messaging/selectRecipients.js';
 import {
   logMessage,
-  listRecentLogs,
   listSentGuestIds,
   decorateLogs,
 } from '../src/messaging/messageLogRepo.js';
@@ -222,30 +221,6 @@ test('logMessage records a whatsapp send and returns the stored entry', async ()
   assert.equal(messageLogs.length, 1);
 });
 
-test('listRecentLogs returns the newest entries first', async () => {
-  await logMessage({ guestId: 'g1', templateId: 't1' });
-  await logMessage({ guestId: 'g2', templateId: 't1' });
-
-  const logs = await listRecentLogs();
-  assert.deepEqual(
-    logs.map((l) => l.guestId),
-    ['g2', 'g1']
-  );
-});
-
-test('listRecentLogs respects the limit', async () => {
-  await logMessage({ guestId: 'g1', templateId: 't1' });
-  await logMessage({ guestId: 'g2', templateId: 't1' });
-  await logMessage({ guestId: 'g4', templateId: 't1' });
-
-  const logs = await listRecentLogs(2);
-  assert.equal(logs.length, 2);
-  assert.deepEqual(
-    logs.map((l) => l.guestId),
-    ['g4', 'g2']
-  );
-});
-
 test('listSentGuestIds returns only the guests already sent that template', async () => {
   await logMessage({ guestId: 'g1', templateId: 't1' });
   await logMessage({ guestId: 'g2', templateId: 't2' });
@@ -268,8 +243,7 @@ test('listSentGuestIds returns nothing when no template is given', async () => {
 });
 
 test('decorateLogs joins guest and template details onto each entry', async () => {
-  await logMessage({ guestId: 'g1', templateId: 't1' });
-  const logs = await listRecentLogs();
+  const logs = [await logMessage({ guestId: 'g1', templateId: 't1' })];
 
   const decorated = decorateLogs(logs, guests, [{ id: 't1', name: 'reminder_1' }]);
 
@@ -279,8 +253,7 @@ test('decorateLogs joins guest and template details onto each entry', async () =
 });
 
 test('decorateLogs degrades gracefully when the guest or template is gone', async () => {
-  await logMessage({ guestId: 'deleted-guest', templateId: 'deleted-template' });
-  const logs = await listRecentLogs();
+  const logs = [await logMessage({ guestId: 'deleted-guest', templateId: 'deleted-template' })];
 
   const decorated = decorateLogs(logs, guests, []);
 

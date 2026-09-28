@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listAllGuests } from '@/src/admin/adminRepo.js';
+import { listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { selectRecipients } from '@/src/messaging/selectRecipients.js';
 import { listSentGuestIds } from '@/src/messaging/messageLogRepo.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
@@ -15,17 +15,19 @@ type GuestRow = {
 };
 
 /**
- * The audience for a WhatsApp run (P1-06): who matches the filters, who has
+ * The audience for a WhatsApp run (P1-06), from the signed-in side's guests only: each
+ * side messages its own guests from its own number. Who matches the filters, who has
  * no number, and who has already been worked through for this template.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   const params = request.nextUrl.searchParams;
   const templateId = params.get('templateId') || '';
   const skipSent = params.get('skipSent') !== 'false';
 
-  const guests = (await listAllGuests()) as GuestRow[];
+  const guests = (await listGuestsByParty(session.party)) as GuestRow[];
   const skipGuestIds = skipSent && templateId ? await listSentGuestIds(templateId) : [];
 
   const { recipients, noNumberCount, alreadySentCount } = selectRecipients(guests, {

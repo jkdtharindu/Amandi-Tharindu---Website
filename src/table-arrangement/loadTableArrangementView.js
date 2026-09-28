@@ -28,7 +28,7 @@ export async function loadTableArrangementView(party) {
     allTables,
     allUnassignedGuests,
     allAssignedGuests,
-    unassignedInvitees,
+    allUnassignedInvitees,
     unassignedProbableAttendees,
     probableAttendanceSummary,
     sideGuests,
@@ -50,6 +50,7 @@ export async function loadTableArrangementView(party) {
   ]);
 
   const sideGuestIds = new Set(sideGuests.map((guest) => guest.id));
+  const unassignedInvitees = allUnassignedInvitees.filter((invitee) => sideGuestIds.has(invitee.guestId));
 
   return {
     tables,
@@ -61,14 +62,14 @@ export async function loadTableArrangementView(party) {
       tables,
       assignedGuests,
       unassignedGuests,
-      unassignedInvitees: unassignedInvitees.filter((invitee) => sideGuestIds.has(invitee.guestId)),
+      unassignedInvitees,
       rsvpStats: computeRsvpStats(sideGuests, responses),
     }),
     overallDashboardStats: buildDashboardStats({
       tables: allTables,
       assignedGuests: allAssignedGuests,
       unassignedGuests: allUnassignedGuests,
-      unassignedInvitees,
+      unassignedInvitees: allUnassignedInvitees,
       rsvpStats: computeRsvpStats(allGuests, responses),
     }),
   };

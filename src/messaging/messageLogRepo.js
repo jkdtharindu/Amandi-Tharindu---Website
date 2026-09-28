@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { query } from '../db.js';
 import { messageLogs } from '../data/messageLogStore.js';
+import { guestStore } from '../data/guestStore.js';
 import { templateLabel } from './messageTemplatesRepo.js';
 
 /**
@@ -65,17 +66,33 @@ export async function logMessage({
   return mapRow(rows[0]);
 }
 
-/** Newest first. In-memory relies on insertion order, the DB on created_at. */
-export async function listRecentLogs(limit = 20) {
+/**
+ * Newest first (in-memory by insertion order, the DB by created_at), only for guests on
+ * one side. Carries each guest's name and code so a removed guest's old entries still read correctly.
+ */
+export async function listRecentLogsByParty(party, limit = 20) {
   if (!isDbEnabled()) {
-    return [...messageLogs].reverse().slice(0, limit);
+    const guestById = new Map(guestStore.map((guest) => [guest.id, guest]));
+    return [...messageLogs]
+      .reverse()
+      .flatMap((log) => {
+        const guest = guestById.get(log.guestId);
+        if (!guest || (guest.assignedToParty ?? 'bride') !== party) return [];
+        return [{ ...log, guestName: guest.name, guestCode: guest.code }];
+      })
+      .slice(0, limit);
   }
 
   const { rows } = await query(
-    'SELECT * FROM message_logs ORDER BY created_at DESC LIMIT $1',
-    [limit]
+    `SELECT ml.*, g.name AS guest_name, g.code AS guest_code
+     FROM message_logs ml
+     JOIN guests g ON g.id = ml.guest_id
+     WHERE g.assigned_to_party = $1
+     ORDER BY ml.created_at DESC
+     LIMIT $2`,
+    [party, limit]
   );
-  return rows.map(mapRow);
+  return rows.map((row) => ({ ...mapRow(row), guestName: row.guest_name, guestCode: row.guest_code }));
 }
 
 /** Guests already worked through for `templateId`, so a re-run can skip them. */
@@ -110,8 +127,8 @@ export function decorateLogs(logs = [], guests = [], templates = []) {
     const template = templateById.get(log.templateId);
     return {
       ...log,
-      guestName: guest?.name ?? 'Unknown guest',
-      guestCode: guest?.code ?? '',
+      guestName: guest?.name ?? log.guestName ?? 'Unknown guest',
+      guestCode: guest?.code ?? log.guestCode ?? '',
       templateLabel: template ? templateLabel(template.name) : 'Unknown template',
     };
   });

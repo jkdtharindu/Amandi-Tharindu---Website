@@ -8,7 +8,7 @@
  * (Next Action 58).
  *
  * @param {{ id: string, name: string, createdAt: string, guestId: string }[]} pending
- * @param {{ id: string, name: string, code: string, isDeleted?: boolean }[]} guests every guest, removed ones included
+ * @param {{ id: string, name: string, code: string, isDeleted?: boolean }[]} guests the guests whose requests may be shown — the signed-in side's; a request for anyone else is left out
  */
 export function buildPendingRequests(pending, guests) {
   const guestById = new Map(guests.map((guest) => [guest.id, guest]));

@@ -88,6 +88,14 @@ test("the other side's row mirrors it", async () => {
   });
 });
 
+test("the seat picker offers only the signed-in side's unseated people", async () => {
+  const bride = await loadTableArrangementView('bride');
+  const groom = await loadTableArrangementView('groom');
+
+  assert.deepEqual(bride.unassignedInvitees.map((person) => person.name), ['Nirmala']);
+  assert.deepEqual(groom.unassignedInvitees.map((person) => person.name), ['Rani']);
+});
+
 test("the side's RSVP Accepted is a number, not blank", async () => {
   const { dashboardStats } = await loadTableArrangementView('bride');
   assert.equal(typeof dashboardStats.accepted, 'number');

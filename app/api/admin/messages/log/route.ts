@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listAllGuests } from '@/src/admin/adminRepo.js';
 import { listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
-import { logMessage, listRecentLogs, decorateLogs } from '@/src/messaging/messageLogRepo.js';
+import { logMessage, listRecentLogsByParty, decorateLogs } from '@/src/messaging/messageLogRepo.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 const RECENT_LIMIT = 20;
 
-/** Recent message log entries, with guest and template detail joined on. */
+/** The signed-in side's recent message log entries, with guest and template detail joined on. */
 export async function GET(): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
-  const [logs, guests, templates] = await Promise.all([
-    listRecentLogs(RECENT_LIMIT),
-    listAllGuests(),
+  const [logs, templates] = await Promise.all([
+    listRecentLogsByParty(session.party, RECENT_LIMIT),
     listTemplates(),
   ]);
 
-  return NextResponse.json({ success: true, logs: decorateLogs(logs, guests, templates) });
+  return NextResponse.json({ success: true, logs: decorateLogs(logs, [], templates) });
 }
 
 /**

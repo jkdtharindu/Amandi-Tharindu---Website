@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
+import { listGuestsByParty, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
 import { filterGuests, guestsToCsv } from '@/src/admin/guestQueries.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
-/** CSV export of the full guest list with RSVP status (P0-08). */
+/** CSV export of the signed-in side's guest list with RSVP status (P0-08). */
 export async function GET(): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   const [guests, responses] = await Promise.all([
-    listAllGuests(),
+    listGuestsByParty(session.party),
     listAllRsvpResponses(),
   ]);
 
