@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
 import { logMessage, listRecentLogsByParty, decorateLogs } from '@/src/messaging/messageLogRepo.js';
+import { guestIsOnSide } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -26,7 +27,8 @@ export async function GET(): Promise<NextResponse> {
  * presses Send inside WhatsApp. The log tracks who has been worked through.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -50,6 +52,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       { success: false, reason: 'guest_required', message: 'A guest is required.' },
       { status: 400 }
+    );
+  }
+  if (!(await guestIsOnSide(guestId, session.party))) {
+    return NextResponse.json(
+      { success: false, reason: 'guest_not_found', message: 'Guest not found.' },
+      { status: 404 }
     );
   }
 

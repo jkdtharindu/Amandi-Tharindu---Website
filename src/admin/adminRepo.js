@@ -237,21 +237,6 @@ export async function getPartyStats(party) {
   return stats;
 }
 
-/** Get a guest only if they belong to the requesting party. Returns null otherwise. */
-export async function getGuestIfPartyOwner(id, party) {
-  if (!isDbEnabled()) {
-    const guest = guestStore.find((g) => g.id === id);
-    if (!guest || (guest.assignedToParty ?? 'bride') !== party) return null;
-    return guest;
-  }
-
-  const { rows } = await query(
-    `SELECT * FROM guests WHERE id = $1 AND assigned_to_party = $2`,
-    [id, party]
-  );
-  return rows.length > 0 ? mapGuestRow(rows[0]) : null;
-}
-
 /**
  * Create a guest assigned to a specific party.
  *

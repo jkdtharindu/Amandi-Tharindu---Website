@@ -2,23 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listApprovedInvitees, createInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
 import { validateInviteeNames } from '@/src/invitees/validateInvitees.js';
 import { syncGuestSlotCountToInvitees } from '@/src/admin/adminRepo.js';
+import { guestIsOnSide } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const guestNotFound = () =>
+  NextResponse.json(
+    { success: false, reason: 'guest_not_found', message: 'That guest no longer exists.' },
+    { status: 404 }
+  );
+
 /** The named people in a party, for the "remove a person" control on the Guest list page. */
 export async function GET(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   const { id } = await context.params;
+  if (!(await guestIsOnSide(id, session.party))) return guestNotFound();
+
   const invitees = await listApprovedInvitees(id);
   return NextResponse.json({ success: true, invitees });
 }
 
 /** Adds new people to an existing party and syncs the guest's headcount. */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -28,6 +39,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
   }
 
   const { id } = await context.params;
+  if (!(await guestIsOnSide(id, session.party))) return guestNotFound();
 
   let body: Record<string, unknown> = {};
   try {

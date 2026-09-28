@@ -5,10 +5,13 @@ import {
   assignInviteeToSeat,
   isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { guestIsOnSide, inviteeIsOnSide, seatIsOnSideTable } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ tableId: string; seatId: string }> };
+
+const notFound = (message: string) => NextResponse.json({ success: false, message }, { status: 404 });
 
 /**
  * Assigns a seat to a real Guest, a ProbableAttendee placeholder, or an
@@ -17,9 +20,13 @@ type RouteContext = { params: Promise<{ tableId: string; seatId: string }> };
  * occupant already holds another seat, or if this seat already holds someone
  * else (Next Action 59) — the seat has to be emptied first. Re-assigning the
  * seat's current occupant is allowed: it is how their notes are saved.
+ *
+ * The seat must be on the signed-in side's table and a guest or invitee must be
+ * on that side too; the placeholder pool is shared by both sides.
  */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -28,7 +35,8 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     );
   }
 
-  const { seatId } = await context.params;
+  const { tableId, seatId } = await context.params;
+  if (!(await seatIsOnSideTable(tableId, seatId, session.party))) return notFound('Seat not found.');
 
   let body: Record<string, unknown> = {};
   try {
@@ -61,6 +69,8 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       { status: 400 }
     );
   }
+  if (guestId && !(await guestIsOnSide(guestId, session.party))) return notFound('Guest not found.');
+  if (inviteeId && !(await inviteeIsOnSide(inviteeId, session.party))) return notFound('That person was not found.');
 
   try {
     let seat;

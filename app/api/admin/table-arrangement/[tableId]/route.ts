@@ -4,14 +4,18 @@ import {
   deleteSeatingTable,
   isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { tableIsOnSide } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ tableId: string }> };
 
-/** Renames a seating table (P1-14). */
+const tableNotFound = () => NextResponse.json({ success: false, message: 'Table not found.' }, { status: 404 });
+
+/** Renames one of the signed-in side's seating tables (P1-14). */
 export async function PUT(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -21,6 +25,7 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
   }
 
   const { tableId } = await context.params;
+  if (!(await tableIsOnSide(tableId, session.party))) return tableNotFound();
 
   let body: Record<string, unknown> = {};
   try {
@@ -34,9 +39,7 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
 
   try {
     const table = await updateSeatingTable(tableId, { tableName: body.tableName as string | undefined });
-    if (!table) {
-      return NextResponse.json({ success: false, message: 'Table not found.' }, { status: 404 });
-    }
+    if (!table) return tableNotFound();
     return NextResponse.json({ success: true, table });
   } catch (error) {
     if (isUserFacingError(error)) {
@@ -50,9 +53,10 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
   }
 }
 
-/** Deletes a seating table and all its seats (P1-14). */
+/** Deletes one of the signed-in side's seating tables and all its seats (P1-14). */
 export async function DELETE(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -62,6 +66,7 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
   }
 
   const { tableId } = await context.params;
+  if (!(await tableIsOnSide(tableId, session.party))) return tableNotFound();
 
   try {
     await deleteSeatingTable(tableId);

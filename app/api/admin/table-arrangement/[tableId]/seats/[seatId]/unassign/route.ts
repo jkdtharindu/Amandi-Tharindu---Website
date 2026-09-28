@@ -3,14 +3,16 @@ import {
   unassignGuestFromSeat,
   isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { seatIsOnSideTable } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ tableId: string; seatId: string }> };
 
-/** Frees a seat so its guest can be reassigned elsewhere (P1-14). */
+/** Frees a seat on one of the signed-in side's tables so its guest can be reassigned elsewhere (P1-14). */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -19,7 +21,10 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     );
   }
 
-  const { seatId } = await context.params;
+  const { tableId, seatId } = await context.params;
+  if (!(await seatIsOnSideTable(tableId, seatId, session.party))) {
+    return NextResponse.json({ success: false, message: 'Seat not found.' }, { status: 404 });
+  }
 
   try {
     const seat = await unassignGuestFromSeat(seatId);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { approveInviteeRequest } from '@/src/invitees/approveInviteeRequest.js';
+import { inviteeIsOnSide } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -10,7 +11,8 @@ type RouteContext = { params: Promise<{ id: string }> };
  * re-derives the party's RSVP status — all in one transaction (Next Action 55).
  */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -20,6 +22,12 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
   }
 
   const { id } = await context.params;
+  if (!(await inviteeIsOnSide(id, session.party))) {
+    return NextResponse.json(
+      { success: false, reason: 'not_found', message: 'Request not found.' },
+      { status: 404 }
+    );
+  }
 
   let result;
   try {

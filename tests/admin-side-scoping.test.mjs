@@ -51,6 +51,37 @@ test('no admin page or route reads an all-sides list, except for wedding-wide co
   assert.deepEqual(offenders, [], 'use the side-filtered reader (…ByParty) with session.party instead');
 });
 
+// Content both admins manage together, sign-in itself, and the placeholder pool the
+// owner chose to keep shared (Action 68). Every other admin route acts on one side's data.
+const SHARED_ROUTES = [
+  'app/api/admin/events/route.ts',
+  'app/api/admin/events/[id]/route.ts',
+  'app/api/admin/gallery/route.ts',
+  'app/api/admin/gallery/[id]/route.ts',
+  'app/api/admin/sections/route.ts',
+  'app/api/admin/sections/[id]/route.ts',
+  'app/api/admin/theme/route.ts',
+  'app/api/admin/upload/route.ts',
+  'app/api/admin/login/route.ts',
+  'app/api/admin/logout/route.ts',
+  'app/api/admin/table-arrangement/probable-attendees/route.ts',
+];
+
+test('every handler of a side-data admin route reads the signed-in side', () => {
+  const missing = [];
+  for (const file of sourceFiles('app/api/admin').filter((f) => f.endsWith('/route.ts'))) {
+    if (SHARED_ROUTES.includes(file)) continue;
+    const handlers = readFileSync(join(ROOT, file), 'utf8')
+      .split(/(?=export async function (?:GET|POST|PUT|PATCH|DELETE)\b)/)
+      .slice(1);
+    for (const handler of handlers) {
+      if (!/session\.party/.test(handler)) missing.push(`${file} ${handler.match(/function (\w+)/)[1]}`);
+    }
+  }
+
+  assert.deepEqual(missing, [], 'check the id belongs to session.party (src/admin/sideAccess.js), or list the route as shared');
+});
+
 const GUESTS = [
   { id: 'b1', code: 'FRI-BR-001', name: 'Bride Friend', relationship: 'Friends', slotCount: 1, rsvpStatus: 'pending', isDeleted: false, assignedToParty: 'bride' },
   { id: 'bx', code: 'FRI-BR-002', name: 'Bride Removed', relationship: 'Friends', slotCount: 1, rsvpStatus: 'pending', isDeleted: true, assignedToParty: 'bride' },

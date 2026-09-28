@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInviteeById } from '@/src/invitees/inviteesRepo.js';
 import { removeInviteeFromParty } from '@/src/invitees/removeInvitee.js';
+import { guestIsOnSide } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -23,7 +24,8 @@ const notFound = () =>
  * approved person is refused with a 409 — remove the whole party instead.
  */
 export async function DELETE(request: NextRequest, context: RouteContext): Promise<NextResponse> {
-  if (!(await getAdminSession())) return unauthorizedResponse();
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
 
   if (!verifyCsrfToken(request)) {
     return NextResponse.json(
@@ -38,6 +40,7 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
   // Postgres reject the row lock with an error instead of a clean "not found".
   const invitee = await getInviteeById(inviteeId);
   if (!invitee || invitee.guestId !== id) return notFound();
+  if (!(await guestIsOnSide(id, session.party))) return notFound();
 
   let result;
   try {

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { recordMessageEvent, getMessageEventsForGuest } from '@/src/admin/adminRepo.js';
+import { guestIsOnSide } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
+
+const guestNotFound = () =>
+  NextResponse.json({ success: false, message: 'Guest not found.' }, { status: 404 });
 
 /**
  * Record a message event as sent (P1-14G).
@@ -37,6 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 400 }
     );
   }
+  if (!(await guestIsOnSide(guestId, session.party))) return guestNotFound();
 
   try {
     const event = await recordMessageEvent(guestId, eventName, session.party);
@@ -65,6 +70,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 400 }
     );
   }
+  if (!(await guestIsOnSide(guestId, session.party))) return guestNotFound();
 
   try {
     const events = await getMessageEventsForGuest(guestId);
