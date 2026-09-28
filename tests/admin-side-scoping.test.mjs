@@ -27,7 +27,6 @@ const ALL_SIDES_READERS = [
 
 // Allowed only where the result becomes wedding-wide counts, never rows.
 const COUNTS_ONLY = {
-  'app/admin/dashboard/page.tsx': ['listAllGuests'],
   'app/api/admin/guests/route.ts': ['listAllGuests'],
 };
 

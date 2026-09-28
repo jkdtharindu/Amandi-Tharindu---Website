@@ -2,20 +2,29 @@ import AdminNav from '@/components/admin/AdminNav';
 import RsvpChart from '@/components/admin/RsvpChart';
 import StatCard from '@/components/admin/StatCard';
 import { requireAdminPage } from '@/lib/adminGuard';
-import { listAllGuests, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
-import { computeRsvpStats } from '@/src/admin/guestQueries.js';
+import { loadDashboardStats } from '@/src/admin/loadDashboardStats.js';
 
 // Always read live numbers; the dashboard must not be cached (PRD P0-08).
 export const dynamic = 'force-dynamic';
 
+function StatRow({ stats }: { stats: { totalInvited: number; accepted: number; acceptedHeadcount: number; declined: number; pending: number } }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCard label="Total invited" value={stats.totalInvited} hint="Invitations sent" />
+      <StatCard
+        label="Accepted"
+        value={stats.accepted}
+        hint={`${stats.acceptedHeadcount} people attending`}
+      />
+      <StatCard label="Declined" value={stats.declined} />
+      <StatCard label="Awaiting reply" value={stats.pending} />
+    </div>
+  );
+}
+
 export default async function AdminDashboardPage() {
   const session = await requireAdminPage();
-
-  const [guests, responses] = await Promise.all([
-    listAllGuests(),
-    listAllRsvpResponses(),
-  ]);
-  const stats = computeRsvpStats(guests, responses);
+  const { sideStats, overallStats } = await loadDashboardStats(session.party);
 
   return (
     <>
@@ -32,20 +41,19 @@ export default async function AdminDashboardPage() {
           </a>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          <StatCard label="Total invited" value={stats.totalInvited} hint="Invitations sent" />
-          <StatCard
-            label="Accepted"
-            value={stats.accepted}
-            hint={`${stats.acceptedHeadcount} people attending`}
-          />
-          <StatCard label="Declined" value={stats.declined} />
-          <StatCard label="Awaiting reply" value={stats.pending} />
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-slate-500 mb-3">Your Party</h2>
+          <StatRow stats={sideStats} />
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-slate-500 mb-3">Overall (Both Parties)</h2>
+          <StatRow stats={overallStats} />
         </div>
 
         <section className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold mb-4">Breakdown</h2>
-          <RsvpChart stats={stats} />
+          <h2 className="text-lg font-semibold mb-4">Breakdown (Both Parties)</h2>
+          <RsvpChart stats={overallStats} />
         </section>
       </main>
     </>
