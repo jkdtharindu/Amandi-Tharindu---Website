@@ -6,14 +6,26 @@ function gitDiffFiles() {
     // fetch base ref (GITHUB_BASE_REF is set automatically on pull_request events)
     execSync('git fetch --all', { stdio: 'ignore' });
     const baseRef = process.env.GITHUB_BASE_REF;
-    const out = baseRef
-      ? execSync(`git diff --name-only origin/${baseRef}...HEAD`, { encoding: 'utf8' })
-      : '';
-    if (!out) {
-      // fallback: diff against main
-      return execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+    if (baseRef) {
+      const out = execSync(`git diff --name-only origin/${baseRef}...HEAD`, { encoding: 'utf8' });
+      if (out) return out.split(/\r?\n/).filter(Boolean);
     }
-    return out.split(/\r?\n/).filter(Boolean);
+
+    // No PR base ref: a direct push. The workflow passes the pre-push SHA as
+    // EVENT_BEFORE (github.event.before) — diffing against HEAD covers every
+    // commit in the push, not just the last one. All-zero means "no prior
+    // commit" (a new branch's first push), which falls through to the
+    // against-main fallback below instead.
+    const before = process.env.EVENT_BEFORE;
+    if (before && !/^0+$/.test(before)) {
+      const out = execSync(`git diff --name-only ${before}..HEAD`, { encoding: 'utf8' });
+      return out.split(/\r?\n/).filter(Boolean);
+    }
+
+    // fallback: diff against main
+    const out = execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf8' });
+    if (out) return out.split(/\r?\n/).filter(Boolean);
+    return execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
   } catch (err) {
     // best-effort: list staged/changed files
     try {
