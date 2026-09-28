@@ -161,14 +161,14 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Definition: Which side a SeatingTable belongs to — `bride`, `groom` or `common` — chosen when the Admin creates the table. Only people from that side can be seated at a bride or groom table; a `common` table takes people from both sides.
 - Do not call it: `party` (already means one Guest's group of people — see Invitee), `team`, `camp`, `owner`
 - Example: A bride Admin creates "Rose Table" as "My side" (bride); a groom person cannot be seated there. The couple's leftovers go to a table created as "Common".
-- Note: Proposed 2026-09-20 (Grill Me session) — not yet built. See PRD §20 and TASKS.md Action 68. Stored in code in `seating_tables.assigned_to_party`, which today holds only `bride` or `groom` (migration 022) and would gain `common` in migration 023. A person's side is their Guest's side (`guests.assigned_to_party`). A table's side can change only while it is empty.
+- Note: Proposed 2026-09-20 (Grill Me session); built 2026-09-28 (TASKS.md Action 68, PRD §20), not yet on the live site. Stored in code in `seating_tables.assigned_to_party`, which held only `bride` or `groom` (migration 022) and gains `common` in migration 023 (written, not yet applied). A person's side is their Guest's side (`guests.assigned_to_party`). A table's side can change only while it is empty. In requests the admin never names a side: the form sends "own" (their side) or "common".
 
 ### CommonTable
 - Canonical name: `CommonTable`
 - Definition: A SeatingTable with TableSide `common`, where the bride-side and groom-side guests left over after each side has filled its own tables sit together. Both Admins see every CommonTable and who sits there; each Admin seats and removes only their own side's people on it.
 - Do not call it: `mixed table`, `shared table`, `leftover table`, `joint table`
 - Example: Bride side has 3 people left and groom side has 4; the leftover summary shows 7 and about one CommonTable still needed at 10 seats.
-- Note: Proposed 2026-09-20 (Grill Me session) — not yet built. See PRD §20 and Action 68. Numbered on its own line (Common 1, 2, 3…); guests see its required, unique table name, never its number.
+- Note: Proposed 2026-09-20 (Grill Me session); built 2026-09-28 (Action 68, PRD §20), not yet on the live site. Numbered on its own line (Common 1, 2, 3…); guests see its required, unique table name, never its number. Either Admin deletes an empty CommonTable; one with anyone seated cannot be deleted or change side. Placeholders (ProbableAttendee) may sit at one, and either Admin may remove them.
 
 ### SeatAssignment
 - Canonical name: `SeatAssignment`

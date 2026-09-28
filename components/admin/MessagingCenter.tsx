@@ -23,6 +23,8 @@ type Recipient = {
   relationship: string;
   rsvpStatus: string;
   whatsappNumber: string | null;
+  /** Where the party sits, for [TableNumber]: table names, "" while unseated (Action 68). */
+  tableName: string;
 };
 
 type Audience = {
@@ -174,6 +176,7 @@ export default function MessagingCenter({
       link: buildSiteLink(siteUrl),
       date: weddingDate,
       venue: venueName,
+      tablenumber: recipient.tableName,
     });
   }
 

@@ -64,14 +64,14 @@ The **backend API** for multi-admin bride/groom support is complete (commit 67cb
 
 ---
 
-### ✅ Task 2: Table Arrangement UI (Next Action 66)
+### ✅ Task 2: Table Arrangement UI (P1-14H; sides and Common tables are TASKS.md Action 68 — this heading used to say "Next Action 66", which clashed with the envelope-animation Action 66)
 
-**What:** React component showing only logged-in party's tables and unassigned guests. Drag-to-assign interface (or click-to-assign).
+**What:** React component showing the logged-in party's own tables plus every Common table (Action 68), and only that party's unassigned guests. Click-to-assign interface.
 
 **API Routes:**
-- `GET /api/admin/table-arrangement` — returns party-filtered tables + unassigned guests
-- `POST /api/admin/table-arrangement` — creates table for this party
-- `POST /api/admin/table-arrangement/[tableId]/seats/[seatId]/assign` — assigns guest (403 if cross-party)
+- `GET /api/admin/table-arrangement` — returns the party's own tables + all Common tables (each with `side`), its unassigned guests, and the leftover summary
+- `POST /api/admin/table-arrangement` — creates a table: name required and unique, `side: "own"` or `"common"`
+- `POST /api/admin/table-arrangement/[tableId]/seats/[seatId]/assign` — assigns guest (404 for the other side's table or person — Action 73 chose 404 over 403; removing the other side's person from a Common table is 403)
 
 **Response (GET):**
 ```json
@@ -87,12 +87,12 @@ The **backend API** for multi-admin bride/groom support is complete (commit 67cb
 ```
 
 **Acceptance Criteria:**
-- [ ] Table list displays only party's tables (no cross-party tables visible)
+- [ ] Table list displays the party's own tables and Common tables (never the other party's own tables)
 - [ ] Unassigned guests list shows only unassigned, accepted guests from this party
 - [ ] Drag-to-assign (or click-to-assign) moves guest to table seat
 - [ ] Cross-party attempt shows 403 error message (if API enforces it)
 - [ ] Seat assignment updates seat details (dietary, notes, etc.)
-- [ ] Create new table form assigns to current party automatically
+- [ ] Create new table form asks for a name and offers "My side" or "Common" (Action 68, PRD §20 — no longer assigned to the current party automatically)
 - [ ] Component tests cover both parties
 - [ ] Mobile responsive
 
