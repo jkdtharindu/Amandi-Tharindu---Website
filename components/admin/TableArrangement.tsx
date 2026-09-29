@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import StatCard from './StatCard';
 import { useToast } from '@/components/Toast';
 import { seatOccupantLabel } from '@/src/table-arrangement/seatLabel.js';
+import { sideLabel, tableLabel } from '@/src/table-arrangement/tableSides.js';
+
+export type Party = 'bride' | 'groom';
+export type TableSide = Party | 'common';
 
 type Seat = {
   id: string;
@@ -15,6 +19,8 @@ type Seat = {
   inviteeId: string | null;
   inviteeName: string | null;
   inviteeGuestName: string | null;
+  /** The side of the guest or invitee on the seat; null for a placeholder or an empty seat. */
+  occupantSide: Party | null;
 };
 
 export type SeatingTable = {
@@ -22,7 +28,20 @@ export type SeatingTable = {
   table_number: number;
   table_name: string | null;
   capacity: number;
+  /** Bride, groom or Common (Action 68). The list holds this side's own tables and every Common table. */
+  side: TableSide;
   seats: Seat[];
+};
+
+type LeftoverSideRow = { unseated: number; freeSeats: number; leftover: number };
+
+export type LeftoverSummary = {
+  bride: LeftoverSideRow;
+  groom: LeftoverSideRow;
+  combinedLeftover: number;
+  commonFreeSeats: number;
+  seatsPerCommonTable: number;
+  commonTablesNeeded: number;
 };
 
 export type UnassignedGuest = { id: string; name: string };
@@ -48,13 +67,15 @@ export type TableArrangementDashboardStats = {
   pending: number;
 };
 
-type NewTableForm = { tableNumber: string; tableName: string; capacity: string };
+type RequestedSide = 'own' | 'common';
+type NewTableForm = { tableNumber: string; tableName: string; capacity: string; side: RequestedSide };
 type AssignChoice = { guestId?: string; probableAttendeeId?: string; inviteeId?: string };
 
-const EMPTY_FORM: NewTableForm = { tableNumber: '', tableName: '', capacity: '10' };
+const EMPTY_FORM: NewTableForm = { tableNumber: '', tableName: '', capacity: '10', side: 'own' };
 const BUCKET_LABEL: Record<ProbableBucket, string> = { declined: 'Declined', pending: 'Pending' };
 
 export default function TableArrangement({
+  party,
   initialTables,
   initialUnassignedGuests,
   initialUnassignedInvitees,
@@ -62,7 +83,9 @@ export default function TableArrangement({
   initialProbableAttendanceSummary,
   initialDashboardStats,
   initialOverallDashboardStats,
+  initialLeftoverSummary,
 }: {
+  party: Party;
   initialTables: SeatingTable[];
   initialUnassignedGuests: UnassignedGuest[];
   initialUnassignedInvitees: UnassignedInvitee[];
@@ -70,6 +93,7 @@ export default function TableArrangement({
   initialProbableAttendanceSummary: ProbableAttendanceSummaryRow[];
   initialDashboardStats: TableArrangementDashboardStats;
   initialOverallDashboardStats?: TableArrangementDashboardStats;
+  initialLeftoverSummary: LeftoverSummary;
 }) {
   // State, not a prop, so load() can refresh it after every action. It was a
   // one-time server prop until Next Action 29, so the stat cards stayed at
@@ -78,6 +102,7 @@ export default function TableArrangement({
     useState<TableArrangementDashboardStats>(initialDashboardStats);
   const [overallDashboardStats, setOverallDashboardStats] =
     useState<TableArrangementDashboardStats | undefined>(initialOverallDashboardStats);
+  const [leftoverSummary, setLeftoverSummary] = useState<LeftoverSummary>(initialLeftoverSummary);
   const [tables, setTables] = useState<SeatingTable[]>(initialTables);
   const [unassignedGuests, setUnassignedGuests] = useState<UnassignedGuest[]>(initialUnassignedGuests);
   const [unassignedInvitees, setUnassignedInvitees] = useState<UnassignedInvitee[]>(initialUnassignedInvitees);
@@ -111,6 +136,7 @@ export default function TableArrangement({
         setProbableAttendanceSummary(data.probableAttendanceSummary);
         setDashboardStats(data.dashboardStats);
         setOverallDashboardStats(data.overallDashboardStats);
+        setLeftoverSummary(data.leftoverSummary);
       }
     } catch {
       showToast({ kind: 'error', text: 'Could not load the seating plan.' });
@@ -127,8 +153,9 @@ export default function TableArrangement({
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
         body: JSON.stringify({
           tableNumber: Number(form.tableNumber),
-          tableName: form.tableName || undefined,
+          tableName: form.tableName.trim(),
           capacity: Number(form.capacity),
+          side: form.side,
         }),
       });
       const data = await res.json();
@@ -149,7 +176,9 @@ export default function TableArrangement({
 
   async function handleDeleteTable(table: SeatingTable) {
     const confirmed = window.confirm(
-      'Delete Table ' + table.table_number + (table.table_name ? ' (' + table.table_name + ')' : '') + '? Seated guests will become unassigned.'
+      table.side === 'common'
+        ? `Delete the Common table "${tableLabel(table)}"?`
+        : `Delete "${tableLabel(table)}"? Seated guests will become unassigned.`
     );
     if (!confirmed) return;
 
@@ -168,6 +197,35 @@ export default function TableArrangement({
       } else {
         showToast({ kind: 'error', text: data.message || 'Could not remove the table.' });
       }
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Own side <-> Common. The server refuses (409) while anyone is seated, so the
+  // button is only offered on an empty table (Action 68).
+  async function handleChangeSide(table: SeatingTable, side: RequestedSide) {
+    setBusy(true);
+
+    try {
+      const res = await fetch('/api/admin/table-arrangement/' + table.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ side }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast({
+          kind: 'ok',
+          text: side === 'common' ? `"${tableLabel(table)}" is now a Common table.` : `"${tableLabel(table)}" is now your side's table.`,
+        });
+      } else {
+        showToast({ kind: 'error', text: data.message || "Could not change the table's side." });
+      }
+      await load();
     } catch {
       showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
@@ -281,10 +339,12 @@ export default function TableArrangement({
 
       <ProbableAttendancePanel summary={probableAttendanceSummary} busy={busy} onSetBuffer={handleSetBuffer} />
 
+      <LeftoverPanel summary={leftoverSummary} party={party} />
+
       <div className="mb-6">
         <form onSubmit={handleAddTable} className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-semibold mb-4">Add a table</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label htmlFor="tableNumber" className="block text-xs font-semibold text-slate-500 mb-1">
                 Table number
@@ -301,11 +361,12 @@ export default function TableArrangement({
             </div>
             <div>
               <label htmlFor="tableName" className="block text-xs font-semibold text-slate-500 mb-1">
-                Name <span className="font-normal">(optional)</span>
+                Name <span className="font-normal">(guests see this)</span>
               </label>
               <input
                 id="tableName"
-                placeholder="e.g., Family"
+                required
+                placeholder="e.g., Rose Table"
                 value={form.tableName}
                 onChange={(e) => setForm({ ...form, tableName: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
@@ -326,7 +387,24 @@ export default function TableArrangement({
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
               />
             </div>
+            <div>
+              <label htmlFor="tableSide" className="block text-xs font-semibold text-slate-500 mb-1">
+                Side
+              </label>
+              <select
+                id="tableSide"
+                value={form.side}
+                onChange={(e) => setForm({ ...form, side: e.target.value as RequestedSide })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+              >
+                <option value="own">My side ({sideLabel(party)})</option>
+                <option value="common">Common (both sides)</option>
+              </select>
+            </div>
           </div>
+          <p className="mt-3 text-xs text-slate-500">
+            Numbers start again on each side and for Common tables. Guests see only the name.
+          </p>
           <button
             type="submit"
             disabled={busy || !csrfToken}
@@ -340,22 +418,81 @@ export default function TableArrangement({
       {tables.length === 0 ? (
         <p className="text-sm text-slate-500">No tables created yet.</p>
       ) : (
-        <div className="space-y-4">
-          {tables.map((table) => (
-            <TableCard
-              key={table.id}
-              table={table}
-              unassignedGuests={unassignedGuests}
-              unassignedInvitees={unassignedInvitees}
-              unassignedProbableAttendees={unassignedProbableAttendees}
-              busy={busy}
-              onDelete={() => handleDeleteTable(table)}
-              onAssign={(seatId, choice) => handleAssign(table.id, seatId, choice)}
-              onUnassign={(seatId) => handleUnassign(table.id, seatId)}
-            />
-          ))}
-        </div>
+        [
+          { key: 'own', title: `${sideLabel(party)}'s side tables`, hint: '', list: tables.filter((t) => t.side !== 'common') },
+          {
+            key: 'common',
+            title: 'Common tables',
+            hint: "Shared with the other side. Both admins see everyone here; you can seat and remove only your own side's guests.",
+            list: tables.filter((t) => t.side === 'common'),
+          },
+        ]
+          .filter((group) => group.list.length > 0)
+          .map((group) => (
+            <section key={group.key} className="mb-6">
+              <h2 className="text-sm font-semibold text-slate-500 mb-1">{group.title}</h2>
+              {group.hint && <p className="text-xs text-slate-500 mb-3">{group.hint}</p>}
+              <div className="space-y-4">
+                {group.list.map((table) => (
+                  <TableCard
+                    key={table.id}
+                    table={table}
+                    party={party}
+                    unassignedGuests={unassignedGuests}
+                    unassignedInvitees={unassignedInvitees}
+                    unassignedProbableAttendees={unassignedProbableAttendees}
+                    busy={busy}
+                    onDelete={() => handleDeleteTable(table)}
+                    onChangeSide={(side) => handleChangeSide(table, side)}
+                    onAssign={(seatId, choice) => handleAssign(table.id, seatId, choice)}
+                    onUnassign={(seatId) => handleUnassign(table.id, seatId)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))
       )}
+    </div>
+  );
+}
+
+/**
+ * Counts only — never the other side's names (PRD §20). Each side's accepted
+ * people still without a seat, the empty seats on that side's own tables, and
+ * the people who will not fit there; then what the Common tables still need.
+ */
+function LeftoverPanel({ summary, party }: { summary: LeftoverSummary; party: Party }) {
+  const sides: Party[] = party === 'bride' ? ['bride', 'groom'] : ['groom', 'bride'];
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6" data-testid="leftover-summary">
+      <h2 className="font-semibold mb-1">Leftover seating</h2>
+      <p className="text-sm text-slate-500 mb-4">
+        Accepted guests each side still has to seat, against the empty seats at that side&apos;s own tables.
+        Whoever does not fit goes to a Common table.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2 mb-3">
+        {sides.map((side) => (
+          <div key={side} className="rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-semibold text-slate-500 mb-2">
+              {sideLabel(side)}&apos;s side{side === party ? ' (you)' : ''}
+            </p>
+            <p className="text-sm text-slate-700">
+              {summary[side].unseated} not seated yet · {summary[side].freeSeats} free seats at own tables
+            </p>
+            <p className="text-sm font-semibold text-slate-900">{summary[side].leftover} left over</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Combined leftover" value={summary.combinedLeftover} hint="Both sides, after their own tables" />
+        <StatCard label="Free seats at Common tables" value={summary.commonFreeSeats} />
+        <StatCard
+          label="Common tables still needed"
+          value={summary.commonTablesNeeded}
+          hint={`Roughly, at ${summary.seatsPerCommonTable} seats each`}
+        />
+      </div>
     </div>
   );
 }
@@ -420,44 +557,72 @@ function ProbableAttendancePanel({
 
 function TableCard({
   table,
+  party,
   unassignedGuests,
   unassignedInvitees,
   unassignedProbableAttendees,
   busy,
   onDelete,
+  onChangeSide,
   onAssign,
   onUnassign,
 }: {
   table: SeatingTable;
+  party: Party;
   unassignedGuests: UnassignedGuest[];
   unassignedInvitees: UnassignedInvitee[];
   unassignedProbableAttendees: UnassignedProbableAttendee[];
   busy: boolean;
   onDelete: () => void;
+  onChangeSide: (side: RequestedSide) => void;
   onAssign: (seatId: string, choice: AssignChoice) => void;
   onUnassign: (seatId: string) => void;
 }) {
+  const isCommon = table.side === 'common';
   const filled = table.seats.filter((seat) => seat.guestId || seat.probableAttendeeId || seat.inviteeId).length;
+  const yours = table.seats.filter((seat) => seat.occupantSide === party).length;
+  // A table's side is locked once anyone sits there, and a Common table can be
+  // deleted only while empty; the server refuses both (409), so neither is offered.
+  const empty = filled === 0;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h3 className="font-semibold">
-          Table {table.table_number}
-          {table.table_name ? ` — ${table.table_name}` : ''}
-        </h3>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold text-slate-500">
-            {filled}/{table.capacity} filled
-          </span>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onDelete}
-            className="px-3 py-1.5 rounded-lg border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-50 disabled:opacity-50"
+          {tableLabel(table)}
+          <span className="ml-2 text-xs font-normal text-slate-500">No. {table.table_number}</span>
+          <span
+            className={`ml-2 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
+              isCommon ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+            }`}
           >
-            Delete
-          </button>
+            {sideLabel(table.side)}
+          </span>
+        </h3>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-slate-500">
+            {filled}/{table.capacity} filled{isCommon ? ` · ${yours} yours` : ''}
+          </span>
+          {empty && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onChangeSide(isCommon ? 'own' : 'common')}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"
+            >
+              {isCommon ? `Move to ${sideLabel(party)}'s side` : 'Make it Common'}
+            </button>
+          )}
+          {(!isCommon || empty) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onDelete}
+              className="px-3 py-1.5 rounded-lg border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-50 disabled:opacity-50"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -466,6 +631,7 @@ function TableCard({
           <SeatCard
             key={seat.id}
             seat={seat}
+            removable={!isCommon || seat.occupantSide === null || seat.occupantSide === party}
             unassignedGuests={unassignedGuests}
             unassignedInvitees={unassignedInvitees}
             unassignedProbableAttendees={unassignedProbableAttendees}
@@ -481,6 +647,7 @@ function TableCard({
 
 function SeatCard({
   seat,
+  removable,
   unassignedGuests,
   unassignedInvitees,
   unassignedProbableAttendees,
@@ -489,6 +656,8 @@ function SeatCard({
   onUnassign,
 }: {
   seat: Seat;
+  /** False for the other side's person at a Common table: only their admin may move them (the server answers 403). */
+  removable: boolean;
   unassignedGuests: UnassignedGuest[];
   unassignedInvitees: UnassignedInvitee[];
   unassignedProbableAttendees: UnassignedProbableAttendee[];
@@ -505,7 +674,7 @@ function SeatCard({
     <div className="rounded-lg border border-slate-200 p-3">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-slate-500">Seat {seat.seatNumber}</span>
-        {occupied && (
+        {occupied && removable && (
           <button
             type="button"
             disabled={busy}
@@ -518,7 +687,12 @@ function SeatCard({
       </div>
 
       {occupied ? (
-        <p className="text-sm font-semibold text-slate-900">{seatOccupantLabel(seat)}</p>
+        <p className="text-sm font-semibold text-slate-900">
+          {seatOccupantLabel(seat)}
+          {!removable && seat.occupantSide && (
+            <span className="block text-xs font-normal text-slate-500">{sideLabel(seat.occupantSide)}&apos;s side</span>
+          )}
+        </p>
       ) : (
         <select
           disabled={busy}

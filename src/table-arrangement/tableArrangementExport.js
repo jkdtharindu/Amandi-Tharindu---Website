@@ -3,9 +3,15 @@
  *
  * Generates tab-separated values with proper escaping for Excel compatibility.
  * To enable proper .xlsx format, install 'exceljs' library and uncomment the section below.
+ *
+ * Each row carries the table's number, name and side (Bride, Groom or Common —
+ * Action 68). Numbers restart on each side, so "Table 1" alone no longer names
+ * one table; the summary's dietary and notes lists use the table's name instead.
  */
 
-const COLUMNS = ['Table', 'Table Name', 'Seat', 'Guest Name', 'Contact', 'Dietary Requirements', 'Special Notes'];
+import { sideLabel, tableLabel } from './tableSides.js';
+
+const COLUMNS = ['Table', 'Table Name', 'Side', 'Seat', 'Guest Name', 'Contact', 'Dietary Requirements', 'Special Notes'];
 
 /**
  * Escape values to prevent formula injection in Excel.
@@ -43,6 +49,7 @@ export function buildTableArrangementExport(tables = []) {
       rows.push(toTsvRow([
         table.table_number || '',
         table.table_name || '',
+        sideLabel(table.side),
         '—',
         '(No seats assigned)',
         '',
@@ -54,6 +61,7 @@ export function buildTableArrangementExport(tables = []) {
         rows.push(toTsvRow([
           table.table_number || '',
           table.table_name || '',
+          sideLabel(table.side),
           seat.seatNumber || '',
           seat.guestName || seat.inviteeName || seat.probableAttendeeLabel || '(Unassigned)',
           seat.guestName ? '' : '',
@@ -89,14 +97,14 @@ export function buildTableArrangementSummary(tables = []) {
         totalAssigned += 1;
         if (seat.dietaryRequirements) {
           dietaryRequirements.push({
-            table: table.table_number,
+            table: tableLabel(table),
             guest: seat.guestName || seat.inviteeName || seat.probableAttendeeLabel,
             requirement: seat.dietaryRequirements,
           });
         }
         if (seat.specialNotes) {
           specialNotes.push({
-            table: table.table_number,
+            table: tableLabel(table),
             guest: seat.guestName || seat.inviteeName || seat.probableAttendeeLabel,
             note: seat.specialNotes,
           });

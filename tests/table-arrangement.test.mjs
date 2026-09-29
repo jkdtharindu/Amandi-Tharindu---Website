@@ -58,18 +58,18 @@ test('the export always emits its header row, even with no tables', () => {
   const tsv = buildTableArrangementExport([]);
   assert.equal(
     tsv,
-    'Table\tTable Name\tSeat\tGuest Name\tContact\tDietary Requirements\tSpecial Notes\n'
+    'Table\tTable Name\tSide\tSeat\tGuest Name\tContact\tDietary Requirements\tSpecial Notes\n'
   );
 });
 
 test('a table with no seats still gets a row, so it is not silently dropped', () => {
   const tsv = buildTableArrangementExport([
-    { table_number: 3, table_name: 'Overflow', seats: [] },
+    { table_number: 3, table_name: 'Overflow', side: 'common', seats: [] },
   ]);
   const rows = tsv.trimEnd().split('\n');
 
   assert.equal(rows.length, 2, 'header plus the empty table');
-  assert.match(rows[1], /^3\tOverflow\t—\t\(No seats assigned\)/);
+  assert.match(rows[1], /^3\tOverflow\tCommon\t—\t\(No seats assigned\)/);
 });
 
 test('unassigned seats are labelled rather than left blank', () => {

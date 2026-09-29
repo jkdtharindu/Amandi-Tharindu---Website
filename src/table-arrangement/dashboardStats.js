@@ -16,12 +16,19 @@
  * directly comparable. An accepted family of 3 contributes 1 to "Accepted"
  * and 1-3 to "Table Arranged" depending on how many are seated (Action 61).
  *
+ * `side`, when given, is the side the row is for. Its `tables` then include the
+ * Common tables (Action 68), where the other side's people sit too, so only
+ * seats whose `occupantSide` is this side count as this side's seated people —
+ * including this side's own people at a Common table. Without `side` (the
+ * wedding row) every seated invitee counts.
+ *
  * @param {object} input
- * @param {{ seats: { inviteeId: string | null }[] }[]} input.tables
+ * @param {{ seats: { inviteeId: string | null, occupantSide?: string | null }[] }[]} input.tables
  * @param {{ rsvpStatus: string, participantCount?: number }[]} input.assignedGuests
  * @param {{ participantCount?: number }[]} input.unassignedGuests
  * @param {{ participantCount?: number }[]} input.unassignedInvitees
  * @param {{ acceptedHeadcount: number, declined: number, pending: number }} input.rsvpStats
+ * @param {'bride' | 'groom'} [input.side]
  */
 export function buildDashboardStats({
   tables,
@@ -29,11 +36,13 @@ export function buildDashboardStats({
   unassignedGuests,
   unassignedInvitees,
   rsvpStats,
+  side,
 }) {
   // Seated invitees (individuals from a multi-person invitation) count toward
   // "Table Arranged" the same as seated guest parties do.
   const seatedInviteeCount = tables.reduce(
-    (total, table) => total + table.seats.filter((seat) => seat.inviteeId).length,
+    (total, table) =>
+      total + table.seats.filter((seat) => seat.inviteeId && (!side || seat.occupantSide === side)).length,
     0
   );
 
@@ -44,7 +53,23 @@ export function buildDashboardStats({
     (guest) => guest.rsvpStatus === 'accepted'
   ).length;
 
-  // Count unassigned people (headcount from multi-person invitations, or 1 per family)
+  return {
+    // Use acceptedHeadcount (people) instead of accepted count (families)
+    // so it matches the unit of tableArranged and balanceToArrange (Action 61)
+    accepted: rsvpStats.acceptedHeadcount,
+    tableArranged: seatedAcceptedGuests + seatedInviteeCount,
+    balanceToArrange: countUnseated(unassignedGuests, unassignedInvitees),
+    declined: rsvpStats.declined,
+    pending: rsvpStats.pending,
+  };
+}
+
+/**
+ * Accepted people still waiting for a seat: "Balance to Arrange", and each side's
+ * unseated count in the leftover summary (Action 68) — one formula for both.
+ * Headcount from multi-person invitations, or 1 per family.
+ */
+export function countUnseated(unassignedGuests, unassignedInvitees) {
   const unassignedGuestHeadcount = unassignedGuests.reduce(
     (total, guest) => total + (guest.participantCount || 1),
     0
@@ -53,14 +78,5 @@ export function buildDashboardStats({
     (total, invitee) => total + (invitee.participantCount || 1),
     0
   );
-
-  return {
-    // Use acceptedHeadcount (people) instead of accepted count (families)
-    // so it matches the unit of tableArranged and balanceToArrange (Action 61)
-    accepted: rsvpStats.acceptedHeadcount,
-    tableArranged: seatedAcceptedGuests + seatedInviteeCount,
-    balanceToArrange: unassignedGuestHeadcount + unassignedInviteeHeadcount,
-    declined: rsvpStats.declined,
-    pending: rsvpStats.pending,
-  };
+  return unassignedGuestHeadcount + unassignedInviteeHeadcount;
 }

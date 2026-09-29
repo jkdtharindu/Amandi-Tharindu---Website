@@ -912,6 +912,8 @@ A photorealistic 3D envelope animation plays when the guest first views their in
 
 Every table has a **side** — bride, groom or common. The side is chosen when the table is created, and only people from that side can be seated there. A **Common** table exists for the leftovers: after each side has filled its own tables, the bride-side and groom-side guests who remain (too few to fill a table of their own) sit together at Common tables.
 
+> Status (2026-09-28): built and tested on the in-memory path, committed locally, not pushed — see TASKS.md Action 68 for what is verified and what is not. Migration 023 is written and not applied. Two departures from the text below, both recorded in MEMORY.md: a seat or person from the other side answers **404**, not 403 (Action 73's rule — 403 is used only for removing the other side's person from a Common table, which the admin can see); and the `[TableNumber]` placeholder did not exist before this work, so it was added rather than changed. Part of "What was true before" had already been fixed by Action 73 earlier the same day (the assign route's side check and the invitee picker's side filter).
+
 ### What was true before this work (found while preparing the session)
 - Tables already carry `assigned_to_party` (migration 022), but it is set from the logged-in admin's session, never chosen in a form, and there is no `common` value.
 - **Nothing enforces the side when seating.** The assign route (`.../seats/[seatId]/assign`) never checks it; the "403 for the wrong side" in P1-14H is not built. `listUnassignedInvitees()` and `listUnassignedProbableAttendees()` are not filtered by side, so a bride table can hold groom people today.

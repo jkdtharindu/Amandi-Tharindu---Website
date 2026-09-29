@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - '**'
+  push:
+    branches:
+      - main
 
 jobs:
   check-docs:
@@ -17,6 +20,8 @@ jobs:
         with:
           node-version: '18'
       - name: Run docs checks
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
         run: |
           npm install
           node scripts/ci-check-docs.js
