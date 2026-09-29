@@ -1,20 +1,21 @@
 # Admin User Manual — Amandi & Tharindu Wedding Website
 
-> **Draft, 2026-09-20 (session-end pass): this describes the intended flow, not the site today.** CSV import, "Forgot password", the WhatsApp drop-down with ticking a message as sent, layout locking, and the per-side dashboard are not built (`TASKS.md` Action 73), and the multi-admin logins themselves are unpushed and their migrations unapplied (Action 69). Keep this until the work ships, then correct it.
+> **Living document — checked against the actual site on 2026-09-28.** Two admin accounts (bride and groom) are live and working. A few things an earlier draft of this guide described were never actually built, and have been removed below: importing guests from a CSV file, a self-service "Forgot password" link, and "locking" the seating layout while you coordinate (the owner decided against building this). As of today, the Guests page, Table Arrangement, Export CSV, the spreadsheet download and the Messages page are **all** split by side — see [What's Shared vs. What's Per-Side](#whats-shared-vs-whats-per-side) for the two things that are still deliberately shared. Some of what's below (table sides/Common tables, the everyday-leaks side-scoping fix, the Messages drop-down) is finished and tested but was still waiting on the owner's `npm run migrate` and a push as of this update — if a screen looks different from this guide, that's most likely why.
 
-**Last updated:** 2026-09-20
+**Last updated:** 2026-09-28
 
 ---
 
 ## Table of Contents
 
 1. [Login & Account Setup](#login--account-setup)
-2. [Admin Dashboard Overview](#admin-dashboard-overview)
-3. [Managing Your Guest List](#managing-your-guest-list)
-4. [WhatsApp Messaging & Reminders](#whatsapp-messaging--reminders)
-5. [Table Assignment & Seating](#table-assignment--seating)
-6. [Coordination Between Bride & Groom](#coordination-between-bride--groom)
-7. [Troubleshooting](#troubleshooting)
+2. [What's Shared vs. What's Per-Side](#whats-shared-vs-whats-per-side)
+3. [Admin Dashboard Overview](#admin-dashboard-overview)
+4. [Managing Your Guest List](#managing-your-guest-list)
+5. [WhatsApp Messaging](#whatsapp-messaging)
+6. [Table Assignment & Seating](#table-assignment--seating)
+7. [Coordination Between Bride & Groom](#coordination-between-bride--groom)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -22,180 +23,186 @@
 
 ### Your Login Credentials
 
-You have **two separate admin accounts** — one for the bride's side, one for the groom's side.
+You each have **your own admin account** — one for the bride, one for the groom, with separate emails and passwords. Sign in at `/admin`.
 
-- **Bride:** Email and password provided separately
-- **Groom:** Email and password provided separately
+### There Is No "Forgot Password" Link
 
-Each of you logs in with your own credentials at `[website-url]/admin`.
+If you forget your password, there's no self-service reset yet. Ask your developer to set a new one for you — it's a one-line command they run (`npm run admin:set-password`), not a database change.
 
 ### What You See When Logged In
 
-When you log in, you only see your own party's information:
-- Your invitee list (guests you invited)
-- Your table assignments
-- Your party's RSVP statistics
-- Message templates and sending history for your guests
+Nearly everything you see and manage is your own side's only. See the next section for the two deliberate exceptions.
 
-**You will NOT see:**
-- Your spouse's invitee list
-- Your spouse's table assignments
-- Your spouse's messages or templates
+---
+
+## What's Shared vs. What's Per-Side
+
+This is the single most important thing to know about the admin panel, so it gets its own section.
+
+**Split by side (you only see and manage your own):**
+- The **Guests** page — your guest list, adding/editing/removing guests, the add-person approval panel
+- **Export CSV** (from the Dashboard) — your own guests only
+- The **Table Arrangement** page — your own tables and who's seated at them
+- **Download spreadsheet** (from Table Arrangement) — your own tables only
+- The **Messages** page — you can only see and message your own guests here, and "Recent messages" only shows your own sending activity
+
+**Deliberately shared (both of you see and act on the same thing):**
+- **Common tables** — a table either of you can mark "Common" holds both sides' people; you both see who's sitting there, but you can each still only seat or remove your own side's people on it. See [Table Assignment & Seating](#table-assignment--seating).
+- The **Dashboard's "Overall (Both Parties)" row** — a combined total shown next to your own numbers, on purpose, so you can each see how the whole wedding is tracking without seeing each other's guest lists.
+- Anything that isn't guest data — Theme, Sections, Events and Gallery are whole-site content, not split by side.
+
+That's it. Nothing else shows your spouse's guests, tables or messages by default.
 
 ---
 
 ## Admin Dashboard Overview
 
-The dashboard shows your party's key statistics at a glance:
+### The Dashboard Page
 
-### Your Party's Stats
+Shows two rows of numbers, one above the other:
+
+**Your Party** — just your own guests:
 ```
-Invited: [count]
-Accepted: [count] ([percentage]%)
+Total invited: [count]
+Accepted: [count]  (with a note of how many people that is)
 Declined: [count]
-Pending: [count]
+Awaiting reply: [count]
 ```
 
-### Wedding Total (Both Parties)
-```
-Total Invited: [count]
-Total Accepted: [count]
-Total Declined: [count]
-Total Pending: [count]
-```
+**Overall (Both Parties)** — the same four numbers, combined across both sides.
 
-### Message Tracking
-Below the stats, a table shows each of your guests and the status of messages sent to them:
+Below both rows is a breakdown chart of the combined numbers, and an **Export CSV** button (your own guests only — see above).
 
-- **✓ (Checkmark)** = Message sent
-- **☐ (Empty box)** = Message pending (not yet sent)
+### The Table Arrangement Page
 
-Common message events:
-- RSVP Reminder
-- Thank You for RSVP
-- Table Details Update
-- Final Reminder
+This page shows the same two-row pattern: **"Your Party"** (just your own guests) and **"Overall (Both Parties)"** (combined). Each set shows:
+- **RSVP Accepted**
+- **Table Arranged** — how many accepted people are actually seated
+- **Balance to Arrange** — accepted people who aren't seated yet
+- **RSVP Not Accepted** — declined + still-pending, added together
+
+Above the tables is a **Leftover seating** panel — see [Table Assignment & Seating](#table-assignment--seating) for what it shows.
+
+There is no message-tracking checklist on the Dashboard — that idea was replaced by the per-guest tick-box on the Guests page's Messages drop-down (see below).
 
 ---
 
 ## Managing Your Guest List
 
-### Adding Guests
+### Adding a Guest
 
 1. Go to **Guests** in the admin menu
-2. Click **Add Guest**
-3. Enter:
-   - **Name:** Primary contact for this family/party
-   - **Relationship:** Family, Colleagues, Friends, Neighbours, or Other
-   - **Participant Count:** Maximum number of people in their party (e.g., 4 people)
-4. Click **Save** — a unique invitation code is auto-generated (e.g., `SILVA-001`)
-5. **Important:** The guest is automatically assigned to your party (bride or groom). You cannot change this later.
+2. Click **Add guest**
+3. Fill in:
+   - **Full name** — the primary contact for this party
+   - **Group** — a category such as Relations, Colleagues, Neighbours, or Friends (your developer can customize this list)
+   - **Seats** — how many people are in their party
+   - **WhatsApp number** (optional)
+4. Click **Add guest** — an invitation code is generated automatically, e.g. `NEI-RU-742` (3 letters from the group, 2 from the first name, 3 random digits)
+5. The guest is assigned to your side automatically. This can't be changed later.
 
-### Editing Guest Details
+### Naming Individuals in a Party
 
-1. Find the guest in your list
-2. Click **Edit**
-3. You can change: name, relationship, participant count, WhatsApp number
-4. **You CANNOT change:** the party assignment (bride/groom)
-5. Click **Save**
+If a party has **more than one seat**, you're asked to name each person (a party of one doesn't need this — they're just the one name). This matters because:
+- Each named person can be seated individually at Table Arrangement, rather than the whole party as a block
+- Their invitation shows the **name** of the table they're seated at (never a raw number — see [Table Assignment & Seating](#table-assignment--seating)), and if others from their party are seated at the same table, it adds "— with [their names]"
 
-### Deleting a Guest
+You can add more named people to an existing party later from the **Edit** screen — type the names, then either use the small **Add these people** button on the spot, or type them and press the main **Save changes** button, which now saves everything together.
 
-1. Find the guest in your list
-2. Click **Delete** — the guest is soft-deleted (their RSVP data is preserved for record-keeping)
-3. They will NOT be able to log in and RSVP anymore
-4. Their data remains in the system for historical records
+### Editing a Guest
 
-### Importing Multiple Guests at Once
+1. Find the guest and click **Edit**
+2. Change name, group, WhatsApp number, or the named people in their party
+3. You **cannot** change which side (bride/groom) they belong to
+4. Click **Save changes**
 
-1. Prepare a CSV file with columns: `name`, `relationship`, `slot_count`
-2. Go to **Guests** → **Import CSV**
-3. Upload the file
-4. Review the preview
-5. Click **Confirm Import** — all guests are assigned to your party automatically
+### Removing a Guest
 
-**Important:** Do NOT try to invite the same person under both bride and groom. The system will reject it as a duplicate.
+Click **Delete**, confirm the prompt. This is a soft delete: their RSVP history is kept for your records, any table seats they held are freed immediately, and they can no longer log in to RSVP. This can be undone by your developer if needed, but not from the admin panel itself.
+
+### There Is No CSV Import
+
+Adding guests one at a time through the form above is the only way right now — bulk import from a spreadsheet was planned but never built. If you have a lot of guests to add, budget time for entering them individually, or ask your developer about a one-off script.
+
+**Important:** Don't invite the same person under both bride's and groom's lists — the invitation code system doesn't stop you doing this by hand, so it's on the two of you to agree who invites whom before adding anyone.
 
 ---
 
-## WhatsApp Messaging & Reminders
+## WhatsApp Messaging
 
-### Sending a Message to a Guest
+There are two separate ways to send a WhatsApp message, and they work differently. Neither one sends the message for you — both just open WhatsApp with the text ready, and you press Send yourself. Both are now split by side: you only ever message your own guests.
 
-1. Go to **Dashboard** or **Guests**
-2. Find the guest you want to message
-3. Click the **WhatsApp** button next to their name
-4. A dropdown menu appears with message templates:
-   - Thanks for submitting RSVP
-   - Reminder to RSVP
-   - Table number details update with greetings
-   - Final Reminder (or custom messages)
-5. Click a template — a preview appears with the message filled in with the guest's details
-6. Review the message
-7. Click **Send via WhatsApp** — this opens WhatsApp on your phone with the message pre-filled
-8. Manually press **Send** in WhatsApp
+### Message One Guest (from the Guests page)
 
-### After You Send a Message
+1. Find the guest in your list
+2. Click the **WhatsApp** button next to their name — it opens a small drop-down
+3. Pick a message kind: **RSVP reminder**, **Table number update**, **Final reminder**, or **Thank you**. Each fills in the message text for you — the table-number one names the table they're actually seated at (or says "not yet assigned" if they aren't seated yet); every kind that's already been sent to this guest shows a small ✓ next to its name
+4. Edit the text if you like, then click **Open in WhatsApp** and press Send inside WhatsApp
+5. **Tick "Mark … as sent"** yourself once you're done — opening WhatsApp does not tick it for you, so you decide when it counts as sent, and you can un-tick it later if you need to re-send
 
-Once you've sent a WhatsApp message:
+This is per-guest and keeps its own record of which of the four kinds each guest has had.
 
-1. Return to the website dashboard
-2. Find the guest in the message tracking table
-3. Check the box next to the message type you just sent (e.g., ✓ RSVP Reminder)
-4. This marks the message as **completed** so you know not to send it again
+### Sending to a Group (the Messages page)
 
-### Message Templates & Personalization
+This is the more powerful tool, for reaching several guests at once:
 
-All message templates are shared (the same for both bride and groom), but each message is **personalized** with:
+1. Go to **Messages** in the admin menu
+2. Pick a **Template** and an **Audience** (by RSVP status — pending, accepted, declined, or everyone — and optionally by group)
+3. Tick **"Skip guests who already got this template"** to avoid re-sending to people you've already reached
+4. Click **Start sending** — this opens a one-at-a-time worklist
+5. For each person: review or edit the message, click **Open in WhatsApp**, press Send inside WhatsApp, then it automatically moves to the next person and logs that you sent it
+6. Click **Skip** to leave someone for later without logging anything, or **Stop** to pause the run
 
-- Guest's name
-- Guest's unique invitation code
-- Guest's assigned table number (if assigned)
-- Wedding event details (date, time, venue)
-- Your greeting (e.g., "Hi from Amandi" or "Hi from Tharindu")
+The **Recent messages** panel on the right shows what's been sent and when — this is your message history for this tool, logged automatically the moment you open WhatsApp, so there's no separate box to tick afterwards. (This is a different log from the per-guest tick-boxes above — the two don't share a history.)
 
-### Example: "Thanks for Submitting RSVP" Message
-
-```
-Hi Nimal,
-
-Hi from Amandi!
-Thanks for confirming your attendance! 🎉
-Your table assignment: Table 5
-Your invitation code: SILVA-001
-
-See you at the Grand Hotel on 14 Dec at 6:00 PM.
-
-Warm regards,
-Amandi & Tharindu
-```
+This page now shows only your own guests, same as the Guests page.
 
 ---
 
 ## Table Assignment & Seating
 
-### Assigning Guests to Tables
+### Table Sides and Common Tables
 
-1. Go to **Table Arrangement** in the admin menu
-2. You see only your party's tables and guests
-3. Find an unassigned guest in the list
-4. Click **Assign to Table** and select a table number
-5. The guest is now seated at that table
+Every table belongs to a side: **yours**, or **Common**. A table on your side can only be seen and seated by you; a Common table is shared — you both see who's sitting there, but each of you can still only seat or remove your own side's people on it. This is how leftover guests from both sides end up able to sit together once each side's own tables are full.
 
-### Viewing Table Assignments
+Table numbers start again at 1 for each side and separately for Common tables, so "Table 1" isn't unique — but guests are never shown a raw number anyway (see below), so this only matters to you.
+
+### Creating a Table
 
 1. Go to **Table Arrangement**
-2. Each table shows:
-   - Table number
-   - Assigned guests (from your party only)
-   - Capacity remaining
-3. You can rearrange guests by clicking **Move Guest** to another table
+2. Fill in a **Table number**, a **Table name** (now required — e.g. "Rose Table" — this is what guests actually see), and **Capacity**
+3. Choose **My side** or **Common**
+4. Click **Create table**
+
+A table's side can only be changed while it's empty, and only between your own side and Common — never straight to the other side's.
+
+### Seating Someone
+
+Each table shows its seats. For any empty seat, use its dropdown (labelled "Unassigned — select…") to pick who sits there — the list is grouped into **Accepted guests**, **Accepted invitees** (named individuals from a party), and two **Probable** groups (see below). Picking a name seats them immediately — there's no separate "confirm" step.
+
+To move someone, click **Remove** on their seat first (which frees it and puts them back on the unassigned list), then assign them to a different seat.
+
+A seated person is shown as just their name if they're a whole party, or "Name (Party name)" if they're a named individual — so two Davids from different families aren't confused with each other.
+
+The system won't let you seat someone who has **declined** their invitation, assign a seat that doesn't exist, or seat your own guest at the other side's table (Common tables are the only shared option).
+
+### The Leftover Seating Panel
+
+Above the tables, a **Leftover seating** panel shows, for each side: how many accepted people still need a seat, how many empty seats that side's own tables have, and how many would be left over once those run out. Below that: the combined leftover across both sides, how many free seats exist on Common tables right now, and roughly how many more Common tables would be needed for the rest.
+
+### Probable Attendance (buffer seats)
+
+A **Probable attendance** panel — a way to hold a few spare seats for people who declined or haven't responded, in case they turn up anyway. Set an "Estimate likely to attend anyway" number for Declined and for Pending, and click **Save**; that many anonymous placeholder seats become available to assign from the dropdown above. They're never tied to a real name, and this buffer is shared between both sides (not split).
+
+### Downloading the Seating Plan
+
+The **Download spreadsheet** button exports your own side's tables — including Common tables you can see into, with a Side column so you can tell them apart. Note it's a plain text file with an `.xlsx` name, so Excel may warn you before opening it — that's expected, just open it anyway.
 
 ### Important Notes
 
-- **You cannot see your spouse's table assignments** — each party manages their own seating
-- **You cannot assign your spouse's guests to a table** — the system prevents cross-party assignment
-- If you need to know the total table capacity or resolve overlaps, **coordinate with your spouse** (see below)
+- **You only see and manage your own side's tables and guests here**, except for Common tables, which you both see.
+- **You cannot seat your spouse's guests anywhere, including Common tables** — the system only ever offers your own accepted guests, invitees, and probable-attendance slots.
+- **Guests never see a table number** — only the table's name (or "Table N" if it was somehow never given one). This is on their invitation page and in any message that mentions their table.
 
 ---
 
@@ -203,37 +210,22 @@ Amandi & Tharindu
 
 ### Before Making Major Changes
 
-Both the bride and groom should **discuss and agree** on the following before one of you makes the change:
+Agree between yourselves before either of you:
 
-1. **Adding or removing guests** — communicate who is being invited and from which side
-2. **Table assignments** — ensure tables don't conflict (e.g., overlapping space or capacity issues)
-3. **Sending messages** — coordinate the timing and content to avoid conflicting information to guests
+1. **Adds or removes guests** — so you don't both end up inviting the same person
+2. **Creates tables** — table names must be unique across the whole venue, so agree names before you both start creating them
+3. **Sends WhatsApp messages** — each of you now only sees and messages your own guests, so this is mostly self-solving, but still agree on who's contacting anyone seated at a Common table together
 
-### Example Coordination Workflow
+### Example: Adding 50 New Guests
 
-**Scenario:** You want to add 50 new guests.
+1. Discuss and finalize the list together — decide who invites whom
+2. Each of you logs in and adds your own guests one at a time (there's no bulk import yet, so budget time for this)
+3. Check the **Dashboard** together afterwards — its "Overall (Both Parties)" row shows the combined total, so you can confirm the numbers make sense
+4. Move on to table assignment once both sides are ready
 
-1. **Bride & groom discuss together** — finalize the list and who invites whom
-2. **One of you logs in** (let's say the bride) and imports the CSV of bride's guests
-3. **The groom does the same** with groom's guest list in a separate import
-4. **Check the dashboard together** — confirm total accepted/pending counts make sense
-5. **Proceed to table assignments** once both sides are ready
+### If You Both Need to Seat Leftover Guests Together
 
-### If Table Assignments Conflict
-
-**Scenario:** The bride assigns guests to Table 1, but the groom also needs Table 1 for his guests.
-
-1. **The groom sees his table list** — they're separate, so no direct conflict in the system
-2. **But in the real venue**, both sides might be trying to use the same physical table
-3. **Solution:**
-   - Groom contacts bride: "I need Table 1 for my guests — can we use Table 2 for yours?"
-   - **One admin locks the layout** to prevent accidental changes while discussing
-   - **Both admins log in** (on separate devices if needed) and adjust table positions together
-   - **Once done**, unlock the layout and mark it finalized
-
-### No "Locked" Indicator Yet
-
-*Note: Layout locking is planned for a future version to prevent accidental overwrites during coordination.*
+Once your own tables are full, mark a table **Common** (yours or a new one) so both of you can seat your remaining people there. Check the **Leftover seating** panel first to see roughly how many Common tables you'll need between you.
 
 ---
 
@@ -241,52 +233,45 @@ Both the bride and groom should **discuss and agree** on the following before on
 
 ### I Cannot See a Guest in My List
 
-**Reason:** The guest is assigned to your spouse's party, not yours.
+**Reason:** They're on your spouse's side, not yours — the Guests page only shows your own.
 
-**Solution:** Ask your spouse to manage that guest. Or, if the person should have been added to your party, delete the guest on your spouse's side and re-add them on yours.
+**Solution:** Ask your spouse to check their list. If the guest should have been on your side, ask your spouse to delete them and re-add them under your account.
 
-### I Cannot Assign a Guest to a Table
+### I Cannot Seat a Guest
 
-**Reason:** The guest is assigned to your spouse's party.
+**Possible reasons:**
+- They belong to your spouse's side (only your own accepted guests appear in the seating dropdown)
+- They've declined their RSVP — declined guests can't be seated
+- The seat is already taken — remove its current occupant first
 
-**Solution:** Only your spouse can assign their guests to tables. Coordinate with them to do this.
+### A Message Says "Unauthorized" or "Not Found"
 
-### A Message Says "Unauthorized"
+You tried to open, edit or message a guest, table or seat that belongs to your spouse's side. This is a safety check working as intended — double check you're working with your own data. (A Common table itself is visible to you both; this only applies to who's allowed to sit there.)
 
-**Reason:** You tried to access or edit data (guests, tables) that belongs to your spouse's party.
+### The Numbers Don't Match What I Expected
 
-**Solution:** This is a security protection. Check that you're editing your own guests and tables only.
+**On the Dashboard and Table Arrangement pages:** look for the two rows — **"Your Party"** is just your guests; **"Overall (Both Parties)"** is the combined total. Make sure you're reading the right one.
+
+**Export CSV and Download spreadsheet** both only include your own side's data now.
+
+### I Downloaded the Spreadsheet and Excel Warned Me
+
+That's expected for now — the file is plain tab-separated text with an `.xlsx` name on it, not a real Excel workbook. Click through the warning; the data itself is correct.
 
 ### I Forgot My Password
 
-1. Go to `/admin` login page
-2. Click **Forgot Password?**
-3. Enter your email
-4. Check your email for a reset link
-5. Create a new password
-6. Log in with your new password
-
-### I'm Getting a Different Count Than Expected
-
-**Reason:** The dashboard shows both your party's stats AND the total wedding stats. Make sure you're looking at the right row.
-
-**Tip:** Check the table labels:
-- "BRIDE'S PARTY" = your stats (if you're the bride)
-- "GROOM'S PARTY" = your stats (if you're the groom)
-- "TOTAL" = combined stats for both parties
+There's no self-service reset. Contact your developer and ask them to set a new password for your account.
 
 ---
 
 ## Contact Support
 
-If you encounter issues not covered in this guide:
+If something isn't covered here:
 
-1. Check this document again (use the Table of Contents above)
-2. Restart your browser and log back in
-3. If the issue persists, contact the website developer with a screenshot and description of what went wrong
+1. Check this guide again (use the Table of Contents)
+2. Try logging out and back in
+3. If it's still broken, contact your developer with a screenshot and a description of what happened
 
 ---
 
-**Questions?** Ask your spouse first — many issues are resolved by coordinating together.
-
-**Date this guide was created:** 2026-09-20
+**Questions?** Talk to your spouse first about who invites whom and who names which tables — since almost everything else is now split by side, most confusion left is about those two shared decisions rather than a bug.

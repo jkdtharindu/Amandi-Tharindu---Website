@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import WhatsAppReminderModal from './WhatsAppReminderModal';
+import GuestMessageModal, { type MessageTemplate } from './GuestMessageModal';
 import { useToast } from '@/components/Toast';
 
 export type Guest = {
@@ -37,10 +37,18 @@ export default function GuestManager({
   initialGuests,
   categories = ['Relations', 'Colleagues', 'Neighbours', 'Friends'],
   siteUrl,
+  party,
+  templates,
+  weddingDate,
+  venueName,
 }: {
   initialGuests: Guest[];
   categories?: string[];
   siteUrl: string;
+  party: 'bride' | 'groom';
+  templates: MessageTemplate[];
+  weddingDate: string;
+  venueName: string;
 }) {
   const EMPTY_FORM: FormState = {
     name: '',
@@ -727,17 +735,17 @@ export default function GuestManager({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {guest.whatsappNumber && guest.rsvpStatus === 'pending' ? (
+                    {guest.whatsappNumber ? (
                       <button
                         type="button"
                         onClick={() => setReminderGuest(guest)}
                         className="text-emerald-700 hover:text-emerald-900 hover:underline"
-                        title="Send an RSVP reminder on WhatsApp"
+                        title="Message on WhatsApp"
                       >
                         {guest.whatsappNumber}
                       </button>
                     ) : (
-                      guest.whatsappNumber ?? <span className="text-slate-400">—</span>
+                      <span className="text-slate-400">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -777,9 +785,13 @@ export default function GuestManager({
       </p>
 
       {reminderGuest && (
-        <WhatsAppReminderModal
+        <GuestMessageModal
           guest={reminderGuest}
+          party={party}
           siteUrl={siteUrl}
+          weddingDate={weddingDate}
+          venueName={venueName}
+          templates={templates}
           onClose={() => setReminderGuest(null)}
         />
       )}

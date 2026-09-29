@@ -10,11 +10,32 @@
 export const DEFAULT_RSVP_REMINDER_TEMPLATE =
   "Hi {name}, we'd love to hear if you can make it! Please RSVP at {link} using your code: {code}";
 
+/**
+ * Table-number update, for the per-guest Messages drop-down (Action 73). A plain
+ * constant, not a database row: the three other per-guest message kinds (RSVP
+ * reminder, final reminder, thank you) reuse migration 005's seeded templates,
+ * which this project only ever edits through a migration, and this one doesn't
+ * warrant that — it's owner-editable here like DEFAULT_RSVP_REMINDER_TEMPLATE.
+ */
+export const TABLE_UPDATE_TEMPLATE =
+  "Hi [Name], excited to see you at the wedding! You'll be seated at [TableNumber]. See you there — [Greeting]";
+
 const MIN_PHONE_DIGITS = 8;
 // `tablenumber` is `[TableNumber]` (PRD P1-14F). It fills with the table's
 // *name* — "Table N" only for an unnamed table — because guests are never shown
 // table numbers (PRD §20, Action 68); the placeholder keeps its old spelling.
-const KNOWN_PLACEHOLDERS = ['name', 'link', 'code', 'date', 'venue', 'tablenumber'];
+// Filled via tableLabelsByGuest() in src/table-arrangement/guestTableView.js,
+// the same function the bulk Messaging Center uses (Action 68), so this
+// per-guest drop-down can never describe a different table than that guest
+// would see anywhere else.
+const KNOWN_PLACEHOLDERS = ['name', 'link', 'code', 'date', 'venue', 'greeting', 'tablenumber'];
+
+const GREETING_BY_PARTY = { bride: "The Bride's Family", groom: "The Groom's Family" };
+
+/** [Greeting]: names the sender, per the owner's 2026-09-20 decision — no per-admin display name exists yet, so this is the side. */
+export function greetingForParty(party) {
+  return GREETING_BY_PARTY[party] ?? GREETING_BY_PARTY.bride;
+}
 
 /**
  * Replaces placeholders with values from `data` (missing values become '').

@@ -320,35 +320,10 @@ export async function softDeleteGuestIfPartyOwner(id, party, exec) {
 /**
  * MESSAGE EVENT TRACKING (2026-09-20, P1-14G)
  * Track which message events have been sent to each guest.
+ *
+ * setMessageEventCompletion/getMessageEventsForGuest moved to
+ * src/messaging/messageEventsRepo.js (Action 73) — see that file for why.
  */
-
-/** Record a message event as sent/completed. */
-export async function recordMessageEvent(guestId, eventName, party) {
-  if (!isDbEnabled()) {
-    // In-memory: store in an array (not persisted; in production this is DB-backed)
-    return { guestId, eventName, party, isCompleted: true };
-  }
-
-  const { rows } = await query(
-    `INSERT INTO message_events (guest_id, event_name, sent_by_party, is_completed)
-     VALUES ($1, $2, $3, true)
-     ON CONFLICT DO NOTHING
-     RETURNING *`,
-    [guestId, eventName, party]
-  );
-  return rows.length > 0 ? rows[0] : null;
-}
-
-/** Get message events for a guest. */
-export async function getMessageEventsForGuest(guestId) {
-  if (!isDbEnabled()) return [];
-
-  const { rows } = await query(
-    `SELECT event_name, is_completed, sent_at FROM message_events WHERE guest_id = $1 ORDER BY sent_at`,
-    [guestId]
-  );
-  return rows;
-}
 
 /** Get pending message events for a party (guests without completed message events). */
 export async function getPendingMessageEventsByParty(party) {
