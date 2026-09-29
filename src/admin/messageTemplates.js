@@ -11,7 +11,10 @@ export const DEFAULT_RSVP_REMINDER_TEMPLATE =
   "Hi {name}, we'd love to hear if you can make it! Please RSVP at {link} using your code: {code}";
 
 const MIN_PHONE_DIGITS = 8;
-const KNOWN_PLACEHOLDERS = ['name', 'link', 'code', 'date', 'venue'];
+// `tablenumber` is `[TableNumber]` (PRD P1-14F). It fills with the table's
+// *name* — "Table N" only for an unnamed table — because guests are never shown
+// table numbers (PRD §20, Action 68); the placeholder keeps its old spelling.
+const KNOWN_PLACEHOLDERS = ['name', 'link', 'code', 'date', 'venue', 'tablenumber'];
 
 /**
  * Replaces placeholders with values from `data` (missing values become '').

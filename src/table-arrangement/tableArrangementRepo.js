@@ -5,10 +5,14 @@ import { guestStore } from '../data/guestStore.js';
 import { probableAttendees } from '../data/probableAttendeesStore.js';
 import { invitees } from '../data/inviteesStore.js';
 import { mapGuestRow } from '../guest-auth/guestRepo.js';
+import { COMMON, TABLE_SIDES, isSeatOccupied } from './tableSides.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
 const DUPLICATE_TABLE_NUMBER = 'A table with that number already exists';
+const DUPLICATE_TABLE_NAME = 'A table with that name already exists';
+const SIDE_CHANGE_NOT_EMPTY = "A table's side can change only while nobody is seated at it.";
+const COMMON_TABLE_NOT_EMPTY = 'A Common table can be removed only while nobody is seated at it.';
 const GUEST_ALREADY_SEATED = 'Guest is already assigned to another seat';
 const PROBABLE_ALREADY_SEATED = 'This probable attendee is already assigned to another seat';
 const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat';
@@ -33,6 +37,9 @@ const SEAT_NOT_FOUND = 'That seat no longer exists — the table may have been r
  */
 const USER_FACING_ERRORS = new Set([
   DUPLICATE_TABLE_NUMBER,
+  DUPLICATE_TABLE_NAME,
+  SIDE_CHANGE_NOT_EMPTY,
+  COMMON_TABLE_NOT_EMPTY,
   GUEST_ALREADY_SEATED,
   PROBABLE_ALREADY_SEATED,
   INVITEE_ALREADY_SEATED,
@@ -52,10 +59,43 @@ export function isUserFacingError(error) {
   return USER_FACING_ERRORS.has(error?.message);
 }
 
+// A table that still has people on it is a conflict with the table's current
+// state, not a bad request: empty it and the same request succeeds (Action 68).
+const CONFLICT_ERRORS = new Set([SIDE_CHANGE_NOT_EMPTY, COMMON_TABLE_NOT_EMPTY]);
+
+/** The HTTP status for an admin-facing error (409 or 400), or null for any other fault. */
+export function userFacingStatus(error) {
+  if (!isUserFacingError(error)) return null;
+  return CONFLICT_ERRORS.has(error.message) ? 409 : 400;
+}
+
 const PROBABLE_BUCKETS = ['declined', 'pending'];
 
 // Postgres unique_violation.
 const UNIQUE_VIOLATION = '23505';
+
+// Migration 023's case-insensitive unique index on table names. Any other unique
+// violation on seating_tables is the per-side table number (migration 022).
+const TABLE_NAME_INDEX = 'seating_tables_name_unique';
+
+function duplicateTableError(error) {
+  return new Error(error.constraint === TABLE_NAME_INDEX ? DUPLICATE_TABLE_NAME : DUPLICATE_TABLE_NUMBER);
+}
+
+/** A table name as stored: trimmed, and null when blank (unnamed tables are exempt from uniqueness). */
+function storedTableName(value) {
+  const name = typeof value === 'string' ? value.trim() : '';
+  return name || null;
+}
+
+const sameTableName = (a, b) => Boolean(a && b) && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+// A table or person created before migration 020/022 has no side recorded; the column defaults to the bride.
+const sideOf = (record) => record?.assignedToParty ?? 'bride';
+
+function assertKnownSide(side) {
+  if (!TABLE_SIDES.includes(side)) throw new Error(`Unknown table side: ${side}`);
+}
 
 const SEAT_JSON = `
   COALESCE(
@@ -74,6 +114,8 @@ const SEAT_JSON = `
         'inviteeId', ts.invitee_id,
         'inviteeName', i.name,
         'inviteeGuestName', ig.name,
+        'inviteeGuestId', i.guest_id,
+        'occupantSide', COALESCE(g.assigned_to_party, ig.assigned_to_party),
         'dietaryRequirements', ts.dietary_requirements,
         'specialNotes', ts.special_notes
       ) ORDER BY ts.seat_number
@@ -82,12 +124,17 @@ const SEAT_JSON = `
   ) AS seats
 `;
 
+// Every table carries its side (bride, groom or common — Action 68), and every
+// seat the side of whoever sits on it (`occupantSide`, null for a placeholder or
+// an empty seat), so a Common table can show everyone while each admin acts only
+// on their own side's people.
 const TABLE_SELECT = `
   SELECT
     st.id,
     st.table_number,
     st.table_name,
     st.capacity,
+    st.assigned_to_party AS side,
     ${SEAT_JSON}
   FROM seating_tables st
   LEFT JOIN table_seats ts ON st.id = ts.seating_table_id
@@ -97,10 +144,29 @@ const TABLE_SELECT = `
   LEFT JOIN guests ig ON i.guest_id = ig.id
 `;
 
+const TABLE_GROUP_BY = 'GROUP BY st.id, st.table_number, st.table_name, st.capacity, st.assigned_to_party';
+
+// Seats that hold anyone, for the "only while empty" rules (Action 68).
+const TABLE_HAS_OCCUPANT = `
+  EXISTS (
+    SELECT 1 FROM table_seats ts
+    WHERE ts.seating_table_id = st.id
+      AND (ts.guest_id IS NOT NULL OR ts.probable_attendee_id IS NOT NULL OR ts.invitee_id IS NOT NULL)
+  )
+`;
+
 function guestNameFor(guestId) {
   if (!guestId) return null;
   const guest = guestStore.find((entry) => entry.id === guestId);
   return guest ? guest.name : null;
+}
+
+/** The side of whoever sits on an in-memory seat: their guest's side, or null for a placeholder/empty seat. */
+function occupantSideFor(seat) {
+  const guestId = seat.guestId || invitees.find((entry) => entry.id === seat.inviteeId)?.guestId;
+  if (!guestId) return null;
+  const guest = guestStore.find((entry) => entry.id === guestId);
+  return guest ? sideOf(guest) : null;
 }
 
 function probableAttendeeLabel(bucket, slotIndex) {
@@ -137,6 +203,7 @@ function hydrateMemoryTable(table) {
     table_number: table.table_number,
     table_name: table.table_name,
     capacity: table.capacity,
+    side: sideOf(table),
     seats: table.seats.map((seat) => ({
       id: seat.id,
       seatNumber: seat.seatNumber,
@@ -147,6 +214,8 @@ function hydrateMemoryTable(table) {
       inviteeId: seat.inviteeId || null,
       inviteeName: inviteeNameFor(seat.inviteeId),
       inviteeGuestName: inviteeGuestNameFor(seat.inviteeId),
+      inviteeGuestId: invitees.find((entry) => entry.id === seat.inviteeId)?.guestId ?? null,
+      occupantSide: occupantSideFor(seat),
       dietaryRequirements: seat.dietaryRequirements,
       specialNotes: seat.specialNotes,
     })),
@@ -200,7 +269,7 @@ export async function listSeatingTables() {
 
   const { rows } = await query(`
     ${TABLE_SELECT}
-    GROUP BY st.id, st.table_number, st.table_name, st.capacity
+    ${TABLE_GROUP_BY}
     ORDER BY st.table_number
   `);
   return rows;
@@ -208,16 +277,18 @@ export async function listSeatingTables() {
 
 /**
  * Get a single seating table with all its seats.
+ * `exec` (optional, last) is a query function, used by tests; production omits it.
  */
-export async function getSeatingTableById(tableId) {
-  if (!useDb) {
+export async function getSeatingTableById(tableId, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     return hydrateMemoryTable(seatingTables.find((table) => table.id === tableId));
   }
 
-  const { rows } = await query(`
+  const { rows } = await run(`
     ${TABLE_SELECT}
     WHERE st.id = $1
-    GROUP BY st.id, st.table_number, st.table_name, st.capacity
+    ${TABLE_GROUP_BY}
   `, [tableId]);
   return rows[0] || null;
 }
@@ -227,20 +298,35 @@ export async function getSeatingTableById(tableId) {
  *
  * The SQL path does both inserts in one statement so a table can never be
  * left behind with a partial seat set.
+ *
+ * `party` is the table's side: 'bride', 'groom' or 'common' (Action 68). Table
+ * numbers are unique per side; names are unique across the whole venue,
+ * ignoring capital letters, and a table with no name is exempt — the route
+ * requires one for every new table (validateNewTable), this function does not,
+ * so tables created before names were required, and the legacy prototype's,
+ * still work. On Postgres the two rules are migration 022's constraint and
+ * migration 023's index, so two simultaneous creates cannot both pass.
+ * `exec` (optional, last) is a query function, used by tests; production omits it.
  */
-export async function createSeatingTable({ tableNumber, tableName, capacity = 10, party = 'bride' }) {
+export async function createSeatingTable({ tableNumber, tableName, capacity = 10, party = 'bride' }, exec) {
   const number = Number(tableNumber);
   const seatCount = Number(capacity);
+  const name = storedTableName(tableName);
+  assertKnownSide(party);
 
-  if (!useDb) {
-    if (seatingTables.some((table) => table.table_number === number && (table.assignedToParty ?? 'bride') === party)) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
+    if (seatingTables.some((table) => table.table_number === number && sideOf(table) === party)) {
       throw new Error(DUPLICATE_TABLE_NUMBER);
+    }
+    if (name && seatingTables.some((table) => sameTableName(table.table_name, name))) {
+      throw new Error(DUPLICATE_TABLE_NAME);
     }
 
     const table = {
       id: crypto.randomUUID(),
       table_number: number,
-      table_name: tableName || null,
+      table_name: name,
       assignedToParty: party,
       capacity: seatCount,
       seats: Array.from({ length: seatCount }, (_, index) => ({
@@ -260,7 +346,7 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
 
   let created;
   try {
-    const { rows } = await query(`
+    const { rows } = await run(`
       WITH new_table AS (
         INSERT INTO seating_tables (table_number, table_name, capacity, assigned_to_party)
         VALUES ($1, $2, $3, $4)
@@ -270,53 +356,115 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
         SELECT id, generate_series(1, $3) FROM new_table
       )
       SELECT id FROM new_table
-    `, [number, tableName || null, seatCount, party]);
+    `, [number, name, seatCount, party]);
     created = rows[0];
   } catch (error) {
     if (error.code === UNIQUE_VIOLATION) {
-      throw new Error(DUPLICATE_TABLE_NUMBER);
+      throw duplicateTableError(error);
     }
     throw error;
   }
 
-  return getSeatingTableById(created.id);
+  return getSeatingTableById(created.id, exec);
 }
 
 /**
- * Update a seating table's basic info.
+ * Rename a seating table and/or change its side (Action 68).
+ *
+ * A blank or missing name leaves the name as it is. A new side is refused while
+ * anyone — a guest, one of their people, or a placeholder — sits at the table
+ * (SIDE_CHANGE_NOT_EMPTY, which routes answer with 409): the owner's rule is
+ * that a table's side is locked once anyone is seated. On Postgres the "empty"
+ * test is part of the UPDATE itself, so it is decided in one statement. Moving
+ * a table onto a side that already has its number, or renaming it to a name
+ * another table has, is refused like creating one would be.
+ *
+ * Returns null when the table does not exist.
+ * `exec` (optional, last) is a query function, used by tests; production omits it.
  */
-export async function updateSeatingTable(tableId, { tableName }) {
-  if (!useDb) {
+export async function updateSeatingTable(tableId, { tableName, side } = {}, exec) {
+  const name = storedTableName(tableName);
+  if (side !== undefined) assertKnownSide(side);
+
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const table = seatingTables.find((entry) => entry.id === tableId);
     if (!table) return null;
-    if (tableName !== undefined && tableName !== null) {
-      table.table_name = tableName;
+
+    if (name && seatingTables.some((other) => other.id !== table.id && sameTableName(other.table_name, name))) {
+      throw new Error(DUPLICATE_TABLE_NAME);
     }
+    const sideChanges = side !== undefined && side !== sideOf(table);
+    if (sideChanges) {
+      if (table.seats.some(isSeatOccupied)) throw new Error(SIDE_CHANGE_NOT_EMPTY);
+      if (seatingTables.some((other) => other.id !== table.id && other.table_number === table.table_number && sideOf(other) === side)) {
+        throw new Error(DUPLICATE_TABLE_NUMBER);
+      }
+    }
+
+    if (name) table.table_name = name;
+    if (sideChanges) table.assignedToParty = side;
     return hydrateMemoryTable(table);
   }
 
-  const { rowCount } = await query(`
-    UPDATE seating_tables
-    SET table_name = COALESCE($2, table_name),
-        updated_at = now()
-    WHERE id = $1
-  `, [tableId, tableName ?? null]);
+  let rows;
+  try {
+    ({ rows } = await run(`
+      UPDATE seating_tables st
+      SET table_name = COALESCE($2, st.table_name),
+          assigned_to_party = COALESCE($3::text, st.assigned_to_party),
+          updated_at = now()
+      WHERE st.id = $1
+        AND ($3::text IS NULL OR $3::text = st.assigned_to_party OR NOT ${TABLE_HAS_OCCUPANT})
+      RETURNING st.id
+    `, [tableId, name, side ?? null]));
+  } catch (error) {
+    if (error.code === UNIQUE_VIOLATION) {
+      throw duplicateTableError(error);
+    }
+    throw error;
+  }
 
-  if (rowCount === 0) return null;
-  return getSeatingTableById(tableId);
+  if (!rows[0]) {
+    // No row changed: either there is no such table, or the side change was
+    // refused because someone is seated there.
+    const { rows: existing } = await run('SELECT id FROM seating_tables WHERE id = $1', [tableId]);
+    if (existing[0]) throw new Error(SIDE_CHANGE_NOT_EMPTY);
+    return null;
+  }
+  return getSeatingTableById(tableId, exec);
 }
 
 /**
  * Delete a seating table and all its seats.
+ *
+ * With `onlyIfEmpty` — how a Common table is deleted (Action 68) — a table that
+ * anyone sits at is refused (COMMON_TABLE_NOT_EMPTY, a 409): either admin may
+ * delete an empty Common table, but neither may unseat the other side's people
+ * by deleting the table under them. A side's own table is deleted as before and
+ * its people become unseated.
+ * `exec` (optional, last) is a query function, used by tests; production omits it.
  */
-export async function deleteSeatingTable(tableId) {
-  if (!useDb) {
+export async function deleteSeatingTable(tableId, { onlyIfEmpty = false } = {}, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
     const index = seatingTables.findIndex((table) => table.id === tableId);
-    if (index !== -1) seatingTables.splice(index, 1);
+    if (index === -1) return { success: true };
+    if (onlyIfEmpty && seatingTables[index].seats.some(isSeatOccupied)) {
+      throw new Error(COMMON_TABLE_NOT_EMPTY);
+    }
+    seatingTables.splice(index, 1);
     return { success: true };
   }
 
-  await query('DELETE FROM seating_tables WHERE id = $1', [tableId]);
+  const { rows } = await run(
+    `DELETE FROM seating_tables st WHERE st.id = $1 ${onlyIfEmpty ? `AND NOT ${TABLE_HAS_OCCUPANT}` : ''} RETURNING st.id`,
+    [tableId]
+  );
+  if (!rows[0] && onlyIfEmpty) {
+    const { rows: existing } = await run('SELECT id FROM seating_tables WHERE id = $1', [tableId]);
+    if (existing[0]) throw new Error(COMMON_TABLE_NOT_EMPTY);
+  }
   return { success: true };
 }
 
@@ -970,20 +1118,72 @@ export async function listUnassignedProbableAttendees() {
  * Filter table arrangement data by party (bride or groom).
  */
 
-/** Get all seating tables for a specific party. */
+/**
+ * The tables one side works with: its own, then every Common table (Action 68),
+ * each in number order and labelled with its `side`. The other side's own
+ * tables are never returned. A Common table comes back with everyone seated at
+ * it — the owner's decision is that both admins see who sits there.
+ */
 export async function listSeatingTablesByParty(party) {
   if (!useDb) {
     return [...seatingTables]
-      .filter((t) => (t.assignedToParty ?? 'bride') === party)
-      .sort((a, b) => a.table_number - b.table_number)
+      .filter((t) => sideOf(t) === party || sideOf(t) === COMMON)
+      .sort((a, b) => (sideOf(a) === COMMON) - (sideOf(b) === COMMON) || a.table_number - b.table_number)
       .map(hydrateMemoryTable);
   }
 
   const { rows } = await query(`
     ${TABLE_SELECT}
-    WHERE st.assigned_to_party = $1
-    GROUP BY st.id, st.table_number, st.table_name, st.capacity
-    ORDER BY st.table_number
+    WHERE st.assigned_to_party = $1 OR st.assigned_to_party = '${COMMON}'
+    ${TABLE_GROUP_BY}
+    ORDER BY (st.assigned_to_party = '${COMMON}'), st.table_number
+  `, [party]);
+  return rows;
+}
+
+/**
+ * One side's individually accepted people with no seat yet — `listUnassignedInvitees`
+ * filtered in SQL by their guest's side, the only place the side is reliable
+ * (`mapGuestRow` drops `assigned_to_party`). Feeds the seat picker, Balance to
+ * Arrange and the leftover summary (Action 68).
+ */
+export async function listUnassignedInviteesByParty(party) {
+  if (!useDb) {
+    const seated = new Set(
+      seatingTables.flatMap((table) => table.seats.map((seat) => seat.inviteeId).filter(Boolean))
+    );
+    const sideGuestIds = new Set(
+      guestStore
+        .filter((guest) => guest.isDeleted !== true && sideOf(guest) === party)
+        .map((guest) => guest.id)
+    );
+    return invitees
+      .filter(
+        (invitee) =>
+          invitee.approvalStatus === 'approved' &&
+          invitee.rsvpStatus === 'accepted' &&
+          !seated.has(invitee.id) &&
+          sideGuestIds.has(invitee.guestId)
+      )
+      .map((invitee) => ({
+        id: invitee.id,
+        name: invitee.name,
+        guestId: invitee.guestId,
+        guestName: guestNameFor(invitee.guestId),
+      }))
+      .sort((a, b) => (a.guestName || '').localeCompare(b.guestName || '') || a.name.localeCompare(b.name));
+  }
+
+  const { rows } = await query(`
+    SELECT i.id, i.name, i.guest_id AS "guestId", g.name AS "guestName"
+    FROM invitees i
+    JOIN guests g ON g.id = i.guest_id
+    WHERE g.assigned_to_party = $1
+      AND i.approval_status = 'approved'
+      AND i.rsvp_status = 'accepted'
+      AND g.is_deleted = false
+      AND NOT EXISTS (SELECT 1 FROM table_seats ts WHERE ts.invitee_id = i.id)
+    ORDER BY g.name, i.name
   `, [party]);
   return rows;
 }

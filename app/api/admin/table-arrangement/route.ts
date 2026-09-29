@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSeatingTable, isUserFacingError } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { loadTableArrangementView } from '@/src/table-arrangement/loadTableArrangementView.js';
+import { validateNewTable } from '@/src/table-arrangement/tableSides.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -14,6 +15,8 @@ import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
  * moment an admin seated anyone.
  *
  * Updated 2026-09-20: Filtered by party (bride or groom) for multi-admin support (P1-14H).
+ * Updated 2026-09-28 (Action 68): the side's own tables plus every Common table,
+ * each labelled with its `side`, and the leftover summary (counts only).
  */
 export async function GET(): Promise<NextResponse> {
   const session = await getAdminSession();
@@ -23,7 +26,13 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json({ success: true, ...view });
 }
 
-/** Creates a seating table with `capacity` empty seats for the logged-in admin's party (P1-14, P1-14H). */
+/**
+ * Creates a seating table with `capacity` empty seats (P1-14). It needs a name,
+ * unique across the venue ignoring capital letters, and a side: `side: "own"`
+ * (the signed-in admin's side — the default) or `side: "common"` (Action 68).
+ * A raw "bride" or "groom" is refused, so neither admin can make a table for the
+ * other side.
+ */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const session = await getAdminSession();
   if (!session) return unauthorizedResponse();
@@ -45,24 +54,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { tableNumber, tableName, capacity } = body as {
-    tableNumber?: number;
-    tableName?: string;
-    capacity?: number;
-  };
-
-  if (!tableNumber || tableNumber < 1) {
-    return NextResponse.json({ success: false, message: 'Valid table number required.' }, { status: 400 });
-  }
-  if (!capacity || capacity < 1 || capacity > 100) {
-    return NextResponse.json({ success: false, message: 'Capacity must be between 1 and 100.' }, { status: 400 });
+  const checked = validateNewTable(body, session.party);
+  if (!checked.ok) {
+    return NextResponse.json({ success: false, message: checked.message }, { status: 400 });
   }
 
   try {
-    const table = await createSeatingTable({ tableNumber, tableName, capacity, party: session.party });
+    const table = await createSeatingTable(checked.value);
     return NextResponse.json({ success: true, table }, { status: 201 });
   } catch (error) {
-    // Domain errors ("that table number is taken") are written for the admin
+    // Domain errors ("that table number/name is taken") are written for the admin
     // and pass through; anything else is a fault whose text could carry
     // Postgres detail, so it is logged and replaced (Next Action 34).
     if (isUserFacingError(error)) {

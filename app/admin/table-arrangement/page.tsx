@@ -31,6 +31,7 @@ export default async function AdminTableArrangementPage() {
           Organize guest seating and manage dietary requirements.
         </p>
         <TableArrangement
+          party={session.party}
           initialTables={view.tables}
           initialUnassignedGuests={view.unassignedGuests}
           initialUnassignedInvitees={view.unassignedInvitees}
@@ -38,6 +39,7 @@ export default async function AdminTableArrangementPage() {
           initialProbableAttendanceSummary={view.probableAttendanceSummary}
           initialDashboardStats={view.dashboardStats}
           initialOverallDashboardStats={view.overallDashboardStats}
+          initialLeftoverSummary={view.leftoverSummary}
         />
       </main>
     </>

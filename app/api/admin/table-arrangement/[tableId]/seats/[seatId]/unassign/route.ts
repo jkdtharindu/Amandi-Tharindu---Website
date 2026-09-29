@@ -3,13 +3,18 @@ import {
   unassignGuestFromSeat,
   isUserFacingError,
 } from '@/src/table-arrangement/tableArrangementRepo.js';
-import { seatIsOnSideTable } from '@/src/admin/sideAccess.js';
+import { seatRemovalRefusal } from '@/src/table-arrangement/seatingRules.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type RouteContext = { params: Promise<{ tableId: string; seatId: string }> };
 
-/** Frees a seat on one of the signed-in side's tables so its guest can be reassigned elsewhere (P1-14). */
+/**
+ * Frees a seat so its guest can be reassigned elsewhere (P1-14). Any seat at the
+ * signed-in side's own tables; at a Common table only the side's own people and
+ * placeholders — the other side's person there is refused with 403 (PRD §20,
+ * Action 68 — src/table-arrangement/seatingRules.js).
+ */
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   const session = await getAdminSession();
   if (!session) return unauthorizedResponse();
@@ -22,9 +27,8 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
   }
 
   const { tableId, seatId } = await context.params;
-  if (!(await seatIsOnSideTable(tableId, seatId, session.party))) {
-    return NextResponse.json({ success: false, message: 'Seat not found.' }, { status: 404 });
-  }
+  const refusal = await seatRemovalRefusal({ tableId, seatId, party: session.party });
+  if (refusal) return NextResponse.json({ success: false, message: refusal.message }, { status: refusal.status });
 
   try {
     const seat = await unassignGuestFromSeat(seatId);
