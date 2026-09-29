@@ -11,6 +11,7 @@ import CustomSections from "@/components/public/CustomSections";
 import FaqAccordion from "@/components/public/FaqAccordion";
 import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
 import { listGalleryPhotos } from "@/src/gallery/galleryPhotosRepo.js";
+import { computeOverlayFromColor } from "@/src/theme/heroOverlay.js";
 import type { CelebrationEvent } from "@/components/admin/EventManager";
 import type { Section } from "@/components/admin/SectionManager";
 
@@ -148,7 +149,10 @@ export default async function HomePage() {
     ? "hero-panel hero-panel--photo"
     : "hero-panel";
   const heroStyle = settings.heroImageUrl
-    ? ({ "--hero-image-url": `url(${JSON.stringify(settings.heroImageUrl)})` } as CSSProperties)
+    ? ({
+        "--hero-image-url": `url(${JSON.stringify(settings.heroImageUrl)})`,
+        "--hero-overlay": computeOverlayFromColor(settings.heroDominantColor),
+      } as CSSProperties)
     : undefined;
 
   return (

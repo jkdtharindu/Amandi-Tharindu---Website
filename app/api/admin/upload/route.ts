@@ -1,11 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { validateImageFile, uploadImage, isStorageConfigured } from '@/src/storage/blobStorage.js';
+import { computeDominantColor } from '@/src/storage/dominantColor.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
-/** Shared image upload endpoint for Sections and Event venue photos, backed
- * by Vercel Blob. See src/storage/blobStorage.js for validation/upload. */
+/**
+ * Shared image upload endpoint for Sections, Event venue and hero background
+ * photos, backed by Vercel Blob. See src/storage/blobStorage.js for
+ * validation/upload.
+ *
+ * A `computeDominantColor` form field (any truthy string) makes this also
+ * return the uploaded image's average color as `dominantColor` — used only by
+ * the hero background picker (PRD §18, Action 65) to size the overlay. It
+ * runs on the buffer already in memory (no extra fetch) and never fails the
+ * upload itself: a color-extraction error is logged and the field is simply
+ * omitted, so every other caller of this route is unaffected either way.
+ */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
 
@@ -56,7 +67,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const { url } = await uploadImage({ buffer, mimeType: file.type, filename: randomUUID() });
-    return NextResponse.json({ success: true, url });
+
+    let dominantColor: string | undefined;
+    if (formData.get('computeDominantColor')) {
+      try {
+        dominantColor = await computeDominantColor(buffer);
+      } catch (error) {
+        console.error('computeDominantColor failed:', error);
+      }
+    }
+
+    return NextResponse.json({ success: true, url, dominantColor });
   } catch (error) {
     console.error('uploadImage failed:', error);
     return NextResponse.json(

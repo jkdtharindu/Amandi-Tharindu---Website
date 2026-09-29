@@ -9,6 +9,7 @@ const HEX_COLOR_FIELDS = [
   'baseTextColor',
   'invertedTextColor',
   'surfaceColor',
+  'heroDominantColor',
 ];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -20,6 +21,7 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
  */
 export const FIELD_LABELS = {
   heroImageUrl: { label: 'Hero image link', hint: 'Web address of the large photo on the home page' },
+  heroDominantColor: { label: 'Hero image — overlay color', hint: 'Auto-filled from the hero photo when you choose one; sets how dark the overlay is' },
   invitationTemplateUrl: { label: 'Invitation card image link', hint: 'Web address of the invitation design' },
   invitationNameTop: { label: 'Guest name — distance from top', hint: 'For example 45%' },
   invitationNameLeft: { label: 'Guest name — distance from left', hint: 'For example 50%' },
@@ -60,7 +62,7 @@ export const THEME_FIELD_GROUPS = [
   {
     id: 'hero',
     label: 'Hero Image',
-    fields: ['heroImageUrl'],
+    fields: ['heroImageUrl', 'heroDominantColor'],
   },
   {
     id: 'invitation-template',

@@ -307,7 +307,10 @@ button {
     z-index: -1;
     inset: 0;
     border-radius: inherit;
-    background: rgba(0, 0, 0, 0.45);
+    /* Adapted to the photo's own color (Action 65) -- see
+       src/theme/heroOverlay.js. Falls back to this project's original fixed
+       45% black for a hero photo with no computed color. */
+    background: var(--hero-overlay, rgba(0, 0, 0, 0.45));
   }
   .hero-panel--photo h1,
   .hero-panel--photo p {

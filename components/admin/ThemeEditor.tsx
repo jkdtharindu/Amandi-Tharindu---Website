@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import ImageUploadField from './ImageUploadField';
+import HeroBackgroundField from './HeroBackgroundField';
 import { useToast } from '@/components/Toast';
 
 export type ThemeSettings = {
@@ -16,6 +17,7 @@ export type ThemeSettings = {
   weddingDate: string;
   weddingTime: string;
   heroImageUrl: string;
+  heroDominantColor: string;
   brideName: string;
   bridePhotoUrl: string;
   brideBio: string;
@@ -313,14 +315,16 @@ export default function ThemeEditor({
 
         <h2 className="font-semibold mb-4">Hero Photo</h2>
         <div className="mb-6">
-          <ImageUploadField
-            label="Home page hero background"
+          <HeroBackgroundField
             imageUrl={form.heroImageUrl}
-            onChange={(url) => setForm({ ...form, heroImageUrl: url })}
+            onChange={(url, dominantColor) =>
+              setForm({ ...form, heroImageUrl: url, heroDominantColor: dominantColor })
+            }
             csrfToken={csrfToken}
           />
           <p className="mt-1 text-xs text-slate-500">
-            Shown behind the countdown on the home page. Leave empty to use the default design.
+            Shown behind the countdown on the home page. The dark overlay adjusts automatically to
+            the photo&apos;s own color. Leave empty to use the default design.
           </p>
         </div>
 

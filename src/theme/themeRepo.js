@@ -38,6 +38,7 @@ export function mapRow(row) {
     fontFamily: row.font_family,
     fontStyle: row.font_style,
     heroImageUrl: row.hero_image_url || '',
+    heroDominantColor: row.hero_dominant_color || '',
     invitationTemplateUrl: row.invitation_template_url || '',
     invitationNameTop: row.invitation_name_top,
     invitationNameLeft: row.invitation_name_left,
@@ -91,7 +92,8 @@ export async function updateThemeSettings(patch) {
       invitation_code_surname_position = $19, invitation_code_group_prefix = $20,
       base_text_color = $21, inverted_text_color = $22, surface_color = $23,
       bride_name = $24, bride_photo_url = $25, bride_bio = $26,
-      groom_name = $27, groom_photo_url = $28, groom_bio = $29
+      groom_name = $27, groom_photo_url = $28, groom_bio = $29,
+      hero_dominant_color = $31
     WHERE id = $30`,
     [
       settings.paletteName,
@@ -124,6 +126,7 @@ export async function updateThemeSettings(patch) {
       settings.groomPhotoUrl,
       settings.groomBio,
       settings.id,
+      settings.heroDominantColor,
     ]
   );
 

@@ -12,6 +12,7 @@ export const themeSettings = (globalThis.__themeSettings ??= {
   fontFamily: 'Cormorant Garamond',
   fontStyle: 'italic',
   heroImageUrl: '',
+  heroDominantColor: '',
   invitationTemplateUrl: '',
   invitationNameTop: '45%',
   invitationNameLeft: '50%',

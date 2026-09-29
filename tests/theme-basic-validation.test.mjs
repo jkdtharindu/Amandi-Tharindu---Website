@@ -19,6 +19,7 @@ const VALID_INPUT = {
   weddingDate: '2026-12-14',
   weddingTime: '15:00',
   heroImageUrl: '',
+  heroDominantColor: '',
   brideName: '',
   bridePhotoUrl: '',
   brideBio: '',

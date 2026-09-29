@@ -79,6 +79,11 @@ export function validateThemeInput(input = {}) {
   // clearing it, never free-typed.
   const heroImageUrl = String(input.heroImageUrl ?? '').trim();
 
+  // Auto-filled by the hero photo picker (Action 65), never free-typed. Empty
+  // clears along with heroImageUrl; a non-empty value's hex format is checked
+  // downstream in mergeThemeUpdate.js, same as every other color field.
+  const heroDominantColor = String(input.heroDominantColor ?? '').trim();
+
   // Bride & Groom profiles (PRD §17) — all optional, free text/upload, no
   // format check, same treatment as heroImageUrl above. The homepage section
   // only renders a profile once its name is set, so there's no "required"
@@ -109,6 +114,7 @@ export function validateThemeInput(input = {}) {
       weddingDate,
       weddingTime,
       heroImageUrl,
+      heroDominantColor,
       brideName,
       bridePhotoUrl,
       brideBio,
