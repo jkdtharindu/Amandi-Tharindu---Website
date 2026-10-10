@@ -969,6 +969,32 @@ The existing `UNIQUE (table_number, assigned_to_party)` from migration 022 alrea
 
 ---
 
+## 21. Table Arrangement: Sticky Summary Column (Grill Me sessions 2026-10-10, two rounds)
+
+The owner found the top of the Table Arrangement page too tall: the stat cards, Probable attendance, Leftover seating and Add a table all sit above the tables, so the table details need a long scroll. The summary panels move into a left column that stays on screen while the tables scroll on the right. Layout only — no data, route or database change.
+
+### Grill Me session — 2026-10-10 (owner answers)
+
+| Question | Answer |
+|---|---|
+| Which panels go in the sticky left column? | **All four:** the stats, Leftover seating, Probable attendance and Add a table. |
+| How does the column stay compact? | **No font shrinking.** Use a table layout where it helps. |
+| Round 2: what does "table version" mean? | **Only the Stats become a table** (rows Accepted / Arranged / Balance / Not Accepted; columns Your Party / Overall). Leftover seating and Probable attendance stay as cards. |
+| Add a table form | **Always open** as a compact form (name, size, side, Add). |
+| Column taller than the screen | **The column scrolls on its own**, separate from the tables. |
+| Phone / narrow window | **The summary becomes one collapsible bar at the top**, closed by default, scrolling away with the page. |
+| Top of the page (title, description, hints) | **Left as it is.** The stat cards leaving the top is expected to shorten it; revisit only if it still feels too tall. |
+
+### Acceptance Criteria
+- [ ] On a wide screen the page has two columns; the left column is sticky and the tables scroll on the right.
+- [ ] The left column holds the Stats table, Leftover seating, Probable attendance (Pending feedback above Declined) and the Add a table form.
+- [ ] The Stats panel is one table: rows Accepted, Arranged, Balance, Not Accepted; columns Your Party and Overall. "Side assigned" is shown in that panel's heading. A single-admin view with no Overall data shows only the Your Party column.
+- [ ] If the left column is taller than the screen it scrolls on its own, with the sticky offset clearing the admin header.
+- [ ] On a narrow screen the same panels sit in one collapsible bar above the tables, closed by default.
+- [ ] No behaviour change: every existing action (add table, seat, remove, change side, delete, set estimate) works as before.
+
+---
+
 *Document version: 1.0 | Created: August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*
