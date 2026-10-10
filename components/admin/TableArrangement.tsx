@@ -72,7 +72,17 @@ type NewTableForm = { tableNumber: string; tableName: string; capacity: string; 
 type AssignChoice = { guestId?: string; probableAttendeeId?: string; inviteeId?: string };
 
 const EMPTY_FORM: NewTableForm = { tableNumber: '', tableName: '', capacity: '10', side: 'own' };
-const BUCKET_LABEL: Record<ProbableBucket, string> = { declined: 'Declined', pending: 'Pending' };
+const BUCKET_LABEL: Record<ProbableBucket, string> = { declined: 'Declined', pending: 'Pending feedback' };
+
+// Pending sits above Declined on the Probable attendance panel (Action 64).
+const BUCKET_ORDER: ProbableBucket[] = ['pending', 'declined'];
+
+// Header-band colours per table side (Action 64): bride rose, groom sky, common amber.
+const SIDE_BAND: Record<string, string> = {
+  bride: 'bg-rose-50 text-rose-900 border-rose-200 border-l-rose-500',
+  groom: 'bg-sky-50 text-sky-900 border-sky-200 border-l-sky-500',
+  common: 'bg-amber-50 text-amber-900 border-amber-200 border-l-amber-500',
+};
 
 export default function TableArrangement({
   party,
@@ -309,7 +319,12 @@ export default function TableArrangement({
     <div>
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-slate-500 mb-3">Your Party</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="bg-white rounded-xl border border-slate-200 p-5" data-testid="side-assigned">
+            <p className="text-sm text-slate-500">Side assigned</p>
+            <p className="mt-1 text-3xl font-bold">{sideLabel(party)}</p>
+            <p className="mt-1 text-xs text-slate-400">Your guests and tables</p>
+          </div>
           <StatCard label="RSVP Accepted" value={dashboardStats.accepted} />
           <StatCard label="Table Arranged" value={dashboardStats.tableArranged} />
           <StatCard label="Balance to Arrange" value={dashboardStats.balanceToArrange} hint="Accepted, not yet seated" />
@@ -520,8 +535,10 @@ function ProbableAttendancePanel({
         Anonymous placeholders for Guests who might attend despite declining or not responding —
         just a capacity buffer, never a real name.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {summary.map((row) => (
+      <div className="grid gap-3">
+        {[...summary]
+          .sort((a, b) => BUCKET_ORDER.indexOf(a.bucket) - BUCKET_ORDER.indexOf(b.bucket))
+          .map((row) => (
           <div key={row.bucket} className="rounded-lg border border-slate-200 p-3">
             <p className="text-xs font-semibold text-slate-500 mb-2">{BUCKET_LABEL[row.bucket]}</p>
             <p className="text-xs text-slate-500 mb-2">
@@ -586,21 +603,23 @@ function TableCard({
   const empty = filled === 0;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <h3 className="font-semibold">
-          {tableLabel(table)}
-          <span className="ml-2 text-xs font-normal text-slate-500">No. {table.table_number}</span>
-          <span
-            className={`ml-2 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
-              isCommon ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      {/* Header band: the table's identity first, coloured by side so the
+          page can be scanned by colour (bride / groom / common). */}
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 mb-4 border-b border-l-8 ${
+          SIDE_BAND[table.side] ?? SIDE_BAND.common
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-sm font-bold uppercase tracking-wide opacity-70">Table {table.table_number}</span>
+          <h3 className="text-xl font-bold">{tableLabel(table)}</h3>
+          <span className="inline-block rounded-full bg-white/70 px-2.5 py-0.5 text-xs font-semibold">
             {sideLabel(table.side)}
           </span>
-        </h3>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-semibold text-slate-500">
+          <span className="text-sm font-bold">
             {filled}/{table.capacity} filled{isCommon ? ` · ${yours} yours` : ''}
           </span>
           {empty && (
@@ -626,7 +645,7 @@ function TableCard({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 px-4 pb-4 sm:grid-cols-2 lg:grid-cols-3">
         {table.seats.map((seat) => (
           <SeatCard
             key={seat.id}
