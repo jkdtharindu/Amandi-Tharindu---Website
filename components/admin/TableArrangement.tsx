@@ -124,6 +124,7 @@ export default function TableArrangement({
   );
   const [form, setForm] = useState<NewTableForm>(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
   const showToast = useToast();
 
@@ -315,51 +316,75 @@ export default function TableArrangement({
     }
   }
 
-  return (
-    <div>
-      <div className="mb-6">
-        <h2 className="text-sm font-semibold text-slate-500 mb-3">Your Party</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5" data-testid="side-assigned">
-            <p className="text-sm text-slate-500">Side assigned</p>
-            <p className="mt-1 text-3xl font-bold">{sideLabel(party)}</p>
-            <p className="mt-1 text-xs text-slate-400">Your guests and tables</p>
-          </div>
-          <StatCard label="RSVP Accepted" value={dashboardStats.accepted} />
-          <StatCard label="Table Arranged" value={dashboardStats.tableArranged} />
-          <StatCard label="Balance to Arrange" value={dashboardStats.balanceToArrange} hint="Accepted, not yet seated" />
-          <StatCard
-            label="RSVP Not Accepted"
-            value={dashboardStats.declined + dashboardStats.pending}
-            hint={`${dashboardStats.declined} declined, ${dashboardStats.pending} pending`}
-          />
-        </div>
-      </div>
+  const statRows = [
+    { label: 'RSVP Accepted', hint: '', yours: dashboardStats.accepted, overall: overallDashboardStats?.accepted },
+    { label: 'Table Arranged', hint: '', yours: dashboardStats.tableArranged, overall: overallDashboardStats?.tableArranged },
+    { label: 'Balance to Arrange', hint: 'Accepted, not yet seated', yours: dashboardStats.balanceToArrange, overall: overallDashboardStats?.balanceToArrange },
+    {
+      label: 'RSVP Not Accepted',
+      hint: `${dashboardStats.declined} declined, ${dashboardStats.pending} pending`,
+      yours: dashboardStats.declined + dashboardStats.pending,
+      overall: overallDashboardStats ? overallDashboardStats.declined + overallDashboardStats.pending : undefined,
+    },
+  ];
 
-      {overallDashboardStats && (
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-slate-500 mb-3">Overall (Both Parties)</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="RSVP Accepted" value={overallDashboardStats.accepted} />
-            <StatCard label="Table Arranged" value={overallDashboardStats.tableArranged} />
-            <StatCard label="Balance to Arrange" value={overallDashboardStats.balanceToArrange} hint="Accepted, not yet seated" />
-            <StatCard
-              label="RSVP Not Accepted"
-              value={overallDashboardStats.declined + overallDashboardStats.pending}
-              hint={`${overallDashboardStats.declined} declined, ${overallDashboardStats.pending} pending`}
-            />
-          </div>
-        </div>
-      )}
+  return (
+    <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+      {/* Summary column (Action 78, PRD §21): sticky beside the tables on a wide
+          screen; on a narrow one it is a collapsible bar above them. One copy of
+          the panels, so the form's ids stay unique. */}
+      <aside className="mb-6 lg:mb-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto" data-testid="summary-column">
+        <button
+          type="button"
+          onClick={() => setSummaryOpen((open) => !open)}
+          aria-expanded={summaryOpen}
+          aria-controls="summary-panels"
+          className="lg:hidden w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold"
+        >
+          <span>Summary &amp; add a table</span>
+          <span aria-hidden="true">{summaryOpen ? '−' : '+'}</span>
+        </button>
+        <div id="summary-panels" className={`${summaryOpen ? 'mt-4 block' : 'hidden'} lg:mt-0 lg:block`}>
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4" data-testid="stats-table">
+        <h2 className="font-semibold mb-3 flex flex-wrap items-center justify-between gap-2" data-testid="side-assigned">
+          <span>Guest stats</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+            Side assigned: {sideLabel(party)}
+          </span>
+        </h2>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-500">
+              <th scope="col" className="pb-2 font-semibold">&nbsp;</th>
+              <th scope="col" className="pb-2 text-right font-semibold">Your Party</th>
+              {overallDashboardStats && <th scope="col" className="pb-2 text-right font-semibold">Overall</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {statRows.map((row) => (
+              <tr key={row.label}>
+                <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
+                  {row.label}
+                  {row.hint && <span className="block text-xs text-slate-400">{row.hint}</span>}
+                </th>
+                <td className="py-2 text-right text-lg font-bold tabular-nums">{row.yours}</td>
+                {overallDashboardStats && (
+                  <td className="py-2 text-right text-lg font-bold tabular-nums">{row.overall}</td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <ProbableAttendancePanel summary={probableAttendanceSummary} busy={busy} onSetBuffer={handleSetBuffer} />
 
       <LeftoverPanel summary={leftoverSummary} party={party} />
 
-      <div className="mb-6">
-        <form onSubmit={handleAddTable} className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold mb-4">Add a table</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4">
+        <form onSubmit={handleAddTable} className="bg-white rounded-xl border border-slate-200 p-4">
+          <h2 className="font-semibold mb-3">Add a table</h2>
+          <div className="grid gap-3 grid-cols-2">
             <div>
               <label htmlFor="tableNumber" className="block text-xs font-semibold text-slate-500 mb-1">
                 Table number
@@ -429,7 +454,10 @@ export default function TableArrangement({
           </button>
         </form>
       </div>
+        </div>
+      </aside>
 
+      <div className="min-w-0">
       {tables.length === 0 ? (
         <p className="text-sm text-slate-500">No tables created yet.</p>
       ) : (
@@ -467,6 +495,7 @@ export default function TableArrangement({
             </section>
           ))
       )}
+      </div>
     </div>
   );
 }
@@ -480,13 +509,13 @@ function LeftoverPanel({ summary, party }: { summary: LeftoverSummary; party: Pa
   const sides: Party[] = party === 'bride' ? ['bride', 'groom'] : ['groom', 'bride'];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6" data-testid="leftover-summary">
+    <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4" data-testid="leftover-summary">
       <h2 className="font-semibold mb-1">Leftover seating</h2>
       <p className="text-sm text-slate-500 mb-4">
         Accepted guests each side still has to seat, against the empty seats at that side&apos;s own tables.
         Whoever does not fit goes to a Common table.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2 mb-3">
+      <div className="grid gap-3 mb-3">
         {sides.map((side) => (
           <div key={side} className="rounded-lg border border-slate-200 p-3">
             <p className="text-xs font-semibold text-slate-500 mb-2">
@@ -499,7 +528,7 @@ function LeftoverPanel({ summary, party }: { summary: LeftoverSummary; party: Pa
           </div>
         ))}
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1">
         <StatCard label="Combined leftover" value={summary.combinedLeftover} hint="Both sides, after their own tables" />
         <StatCard label="Free seats at Common tables" value={summary.commonFreeSeats} />
         <StatCard
@@ -529,7 +558,7 @@ function ProbableAttendancePanel({
   });
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+    <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
       <h2 className="font-semibold mb-1">Probable attendance</h2>
       <p className="text-sm text-slate-500 mb-4">
         Anonymous placeholders for Guests who might attend despite declining or not responding —
@@ -544,7 +573,7 @@ function ProbableAttendancePanel({
             <p className="text-xs text-slate-500 mb-2">
               {row.seatedCount}/{row.bufferCount} seated · {row.unseatedCount} unseated
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <label htmlFor={`buffer-${row.bucket}`} className="text-xs text-slate-500">
                 Estimate likely to attend anyway
               </label>
