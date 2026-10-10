@@ -36,7 +36,7 @@ The good news: **almost everything in P0 and P1 is already built.** What's left 
 | Admin event manager | ✅ Done at MVP scope, including venue photo upload — icon picker not built |
 | Admin messaging (WhatsApp reminders) | ✅ Done — manual `wa.me` links only, no auto-send |
 | Table planning & seating | ✅ Done |
-| Image uploads (sections/events) | ✅ Done (Vercel Blob) |
+| Image uploads (hero, bride & groom, gallery, events, sections) | ⚠️ Built (Vercel Blob) but **not working until a Public Blob store replaces the current Private one** — owner-only, TASKS.md Action 78 (checked 2026-10-10) |
 | Admin gallery manager (upload, reorder, delete) | ✅ Done |
 | Security & logic audit fixes (Next Actions 28–36, 38, 40) | ✅ Deployed 2026-09-20; migrations 017–018 applied (owner-reported) |
 | Mobile responsiveness | ✅ Reviewed, one real defect fixed — not yet proven on a true 375px phone |
