@@ -10,6 +10,7 @@ import { listEvents } from '@/src/celebration-events/celebrationEventsRepo.js';
 import { formatWeddingDate } from '@/src/theme/formatWeddingDate.js';
 import type { CelebrationEvent } from '@/components/admin/EventManager';
 import InvitationClient from './InvitationClient';
+import EnvelopeIntro from '@/components/guest/EnvelopeIntro';
 
 export default async function InvitationPage({
   params,
@@ -83,6 +84,12 @@ export default async function InvitationPage({
     <div>
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
         <div className="space-y-6">
+          <EnvelopeIntro
+            guestName={guest.name}
+            coupleNames={settings.coupleNames}
+            weddingDate={settings.weddingDate ? formatWeddingDate(settings.weddingDate) : ''}
+          />
+
           {/* Guest Info Card */}
           <div className="bg-white rounded-3xl shadow-lg p-8">
             <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
