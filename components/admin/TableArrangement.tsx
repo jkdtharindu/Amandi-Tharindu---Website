@@ -330,7 +330,7 @@ export default function TableArrangement({
 
   return (
     <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6">
-      {/* Summary column (Action 78, PRD §21): sticky beside the tables on a wide
+      {/* Summary column (Action 79, PRD §21): sticky beside the tables on a wide
           screen; on a narrow one it is a collapsible bar above them. One copy of
           the panels, so the form's ids stay unique. */}
       <aside className="mb-6 lg:mb-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto" data-testid="summary-column">
