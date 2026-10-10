@@ -1,6 +1,7 @@
 import AdminNav from '@/components/admin/AdminNav';
 import TableArrangement from '@/components/admin/TableArrangement';
 import { requireAdminPage } from '@/lib/adminGuard';
+import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { loadTableArrangementView } from '@/src/table-arrangement/loadTableArrangementView.js';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +9,18 @@ export const dynamic = 'force-dynamic';
 export default async function AdminTableArrangementPage() {
   const session = await requireAdminPage();
   const view = await loadTableArrangementView(session.party);
+
+  // The two names label the summary columns. A theme read must never take the
+  // page down, so a failure just falls back to "Bride" / "Groom".
+  let brideName = '';
+  let groomName = '';
+  try {
+    const settings = await getThemeSettings();
+    brideName = settings.brideName || '';
+    groomName = settings.groomName || '';
+  } catch (error) {
+    console.error('getThemeSettings failed, using Bride/Groom labels:', error);
+  }
 
   return (
     <>
@@ -32,6 +45,8 @@ export default async function AdminTableArrangementPage() {
         </p>
         <TableArrangement
           party={session.party}
+          brideName={brideName}
+          groomName={groomName}
           initialTables={view.tables}
           initialUnassignedGuests={view.unassignedGuests}
           initialUnassignedInvitees={view.unassignedInvitees}

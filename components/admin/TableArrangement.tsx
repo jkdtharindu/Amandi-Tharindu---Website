@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import StatCard from './StatCard';
 import { useToast } from '@/components/Toast';
 import { seatOccupantLabel } from '@/src/table-arrangement/seatLabel.js';
 import { sideLabel, tableLabel } from '@/src/table-arrangement/tableSides.js';
@@ -86,6 +85,8 @@ const SIDE_BAND: Record<string, string> = {
 
 export default function TableArrangement({
   party,
+  brideName = '',
+  groomName = '',
   initialTables,
   initialUnassignedGuests,
   initialUnassignedInvitees,
@@ -96,6 +97,8 @@ export default function TableArrangement({
   initialLeftoverSummary,
 }: {
   party: Party;
+  brideName?: string;
+  groomName?: string;
   initialTables: SeatingTable[];
   initialUnassignedGuests: UnassignedGuest[];
   initialUnassignedInvitees: UnassignedInvitee[];
@@ -316,6 +319,12 @@ export default function TableArrangement({
     }
   }
 
+  // Short display name for a side: the first word of the name set in the theme
+  // editor, or "Bride" / "Groom" when none is set.
+  const nameOf = (side: Party) =>
+    ((side === 'bride' ? brideName : groomName).trim().split(/s+/)[0] || sideLabel(side));
+  const otherParty: Party = party === 'bride' ? 'groom' : 'bride';
+
   const statRows = [
     { label: 'RSVP Accepted', hint: '', yours: dashboardStats.accepted, overall: overallDashboardStats?.accepted },
     { label: 'Table Arranged', hint: '', yours: dashboardStats.tableArranged, overall: overallDashboardStats?.tableArranged },
@@ -356,8 +365,10 @@ export default function TableArrangement({
           <thead>
             <tr className="text-left text-xs text-slate-500">
               <th scope="col" className="pb-2 font-semibold">&nbsp;</th>
-              <th scope="col" className="pb-2 text-right font-semibold">Your Party</th>
-              {overallDashboardStats && <th scope="col" className="pb-2 text-right font-semibold">Overall</th>}
+              <th scope="col" className="pb-2 text-right font-semibold">{nameOf(party)}</th>
+              {overallDashboardStats && <th scope="col" className="pb-2 pl-2 text-right font-semibold">
+                  Overall - including {nameOf(otherParty)}&apos;s party
+                </th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -379,7 +390,7 @@ export default function TableArrangement({
 
       <ProbableAttendancePanel summary={probableAttendanceSummary} busy={busy} onSetBuffer={handleSetBuffer} />
 
-      <LeftoverPanel summary={leftoverSummary} party={party} />
+      <LeftoverPanel summary={leftoverSummary} party={party} nameOf={nameOf} />
 
       <div className="mb-4">
         <form onSubmit={handleAddTable} className="bg-white rounded-xl border border-slate-200 p-4">
@@ -505,38 +516,69 @@ export default function TableArrangement({
  * people still without a seat, the empty seats on that side's own tables, and
  * the people who will not fit there; then what the Common tables still need.
  */
-function LeftoverPanel({ summary, party }: { summary: LeftoverSummary; party: Party }) {
+function LeftoverPanel({
+  summary,
+  party,
+  nameOf,
+}: {
+  summary: LeftoverSummary;
+  party: Party;
+  nameOf: (side: Party) => string;
+}) {
   const sides: Party[] = party === 'bride' ? ['bride', 'groom'] : ['groom', 'bride'];
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4" data-testid="leftover-summary">
       <h2 className="font-semibold mb-1">Leftover seating</h2>
-      <p className="text-sm text-slate-500 mb-4">
-        Accepted guests each side still has to seat, against the empty seats at that side&apos;s own tables.
+      <p className="text-xs text-slate-500 mb-3">
+        People each side still has to seat, against the empty seats at that side&apos;s own tables.
         Whoever does not fit goes to a Common table.
       </p>
-      <div className="grid gap-3 mb-3">
-        {sides.map((side) => (
-          <div key={side} className="rounded-lg border border-slate-200 p-3">
-            <p className="text-xs font-semibold text-slate-500 mb-2">
-              {sideLabel(side)}&apos;s side{side === party ? ' (you)' : ''}
-            </p>
-            <p className="text-sm text-slate-700">
-              {summary[side].unseated} not seated yet · {summary[side].freeSeats} free seats at own tables
-            </p>
-            <p className="text-sm font-semibold text-slate-900">{summary[side].leftover} left over</p>
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-3 grid-cols-1">
-        <StatCard label="Combined leftover" value={summary.combinedLeftover} hint="Both sides, after their own tables" />
-        <StatCard label="Free seats at Common tables" value={summary.commonFreeSeats} />
-        <StatCard
-          label="Common tables still needed"
-          value={summary.commonTablesNeeded}
-          hint={`Roughly, at ${summary.seatsPerCommonTable} seats each`}
-        />
-      </div>
+      <table className="w-full text-sm mb-4">
+        <thead>
+          <tr className="text-left text-xs text-slate-500">
+            <th scope="col" className="pb-2 font-semibold">&nbsp;</th>
+            <th scope="col" className="pb-2 text-right font-semibold">Not seated</th>
+            <th scope="col" className="pb-2 pl-2 text-right font-semibold">Free seats</th>
+            <th scope="col" className="pb-2 pl-2 text-right font-semibold">Left over</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {sides.map((side) => (
+            <tr key={side}>
+              <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
+                {nameOf(side)}
+                {side === party && <span className="block text-xs text-slate-400">you</span>}
+              </th>
+              <td className="py-2 text-right text-lg font-bold tabular-nums">{summary[side].unseated}</td>
+              <td className="py-2 pl-2 text-right text-lg font-bold tabular-nums">{summary[side].freeSeats}</td>
+              <td className="py-2 pl-2 text-right text-lg font-bold tabular-nums">{summary[side].leftover}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <table className="w-full text-sm">
+        <tbody className="divide-y divide-slate-100">
+          <tr>
+            <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
+              Combined leftover
+              <span className="block text-xs text-slate-400">Both sides, after their own tables</span>
+            </th>
+            <td className="py-2 text-right text-lg font-bold tabular-nums">{summary.combinedLeftover}</td>
+          </tr>
+          <tr>
+            <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">Free seats at Common tables</th>
+            <td className="py-2 text-right text-lg font-bold tabular-nums">{summary.commonFreeSeats}</td>
+          </tr>
+          <tr>
+            <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
+              Common tables still needed
+              <span className="block text-xs text-slate-400">Roughly, at {summary.seatsPerCommonTable} seats each</span>
+            </th>
+            <td className="py-2 text-right text-lg font-bold tabular-nums">{summary.commonTablesNeeded}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
