@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import EnvelopeReveal, { type InvitationCardSettings } from './EnvelopeReveal';
+import { useSiteText } from '@/components/SiteTextProvider';
 
 // Matches the envelope timeline in globals.css (`.envelope-*`), so the
 // invitation page opens as the card finishes growing.
@@ -10,16 +11,16 @@ const REVEAL_MS = 2500;
 
 type Revealed = { code: string; name: string };
 
-function errorMessageFor(status: number): string {
+function errorKeyFor(status: number): string {
   switch (status) {
     case 404:
-      return "We couldn't find that code. Please check your invitation card and try again.";
+      return 'gate.errorNotFound';
     case 429:
-      return 'Too many attempts. Please wait a few minutes, then try again.';
+      return 'gate.errorTooMany';
     case 403:
-      return 'This page has been open a while. Please refresh it and try again.';
+      return 'gate.errorExpired';
     default:
-      return 'Something went wrong. Please try again.';
+      return 'gate.errorGeneric';
   }
 }
 
@@ -36,6 +37,7 @@ export default function SiteGate({
   coupleNames: string;
   invitation: InvitationCardSettings;
 }) {
+  const t = useSiteText();
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -69,7 +71,7 @@ export default function SiteGate({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!code.trim()) {
-      setError('Please enter the code printed on your invitation.');
+      setError(t('gate.errorEmpty'));
       return;
     }
 
@@ -103,9 +105,9 @@ export default function SiteGate({
         setRevealed({ code: data.code, name: data.name ?? '' });
         return;
       }
-      setError(errorMessageFor(res.status));
+      setError(t(errorKeyFor(res.status)));
     } catch {
-      setError(errorMessageFor(0));
+      setError(t('gate.errorGeneric'));
     } finally {
       setSubmitting(false);
     }
@@ -148,14 +150,14 @@ export default function SiteGate({
 
           <form className="gate-form" onSubmit={handleSubmit} noValidate>
             <label htmlFor="gate-code" className="sr-only">
-              Invitation code
+              {t('gate.codeLabel')}
             </label>
             <input
               id="gate-code"
               name="code"
               type="text"
               className="gate-input"
-              placeholder="Enter your invitation code"
+              placeholder={t('gate.placeholder')}
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
@@ -166,7 +168,7 @@ export default function SiteGate({
               aria-describedby="gate-error"
             />
             <button type="submit" className="gate-button" disabled={submitting}>
-              {submitting ? 'Opening…' : 'Open'}
+              {submitting ? t('gate.buttonBusy') : t('gate.button')}
             </button>
             <p id="gate-error" className="gate-error" role="alert">
               {error}

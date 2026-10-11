@@ -70,3 +70,7 @@ The admin guest list has a "send RSVP reminder" button on pending guests with a 
   `npm run backup:encrypt`. But `--remove-plaintext` deletes a file, so it falls under
   "Deleting files or records" — the script verifies the encrypted copy decrypts byte-for-byte
   before it will delete anything, which mitigates but does not remove the need for care.
+
+## Migration 029 — `site_text` (added 2026-10-11)
+
+Migration `029_site_text.sql` (Action 81 part B, slice 2) creates one new table for admin-edited guest wording. The owner runs `npm run migrate` themselves, *before* the code that saves wording is pushed (see the 2026-09-12 clarification above). Reading is safe without it: the guest pages fall back to the default wording. Migration 028 (event notes and homepage section switches) followed the same rule.

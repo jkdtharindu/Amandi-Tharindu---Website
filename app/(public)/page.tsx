@@ -9,6 +9,8 @@ import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 import { listSections } from "@/src/sections/sectionsRepo.js";
 import CustomSections from "@/components/public/CustomSections";
 import FaqAccordion from "@/components/public/FaqAccordion";
+import { getSiteTextSafe } from "@/src/site-text/siteTextRepo.js";
+import { createT } from "@/src/site-text/siteTextRegistry.js";
 import { getHomeSectionVisibilitySafe } from "@/src/home-sections/homeSectionsRepo.js";
 import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
 import { listGalleryPhotos } from "@/src/gallery/galleryPhotosRepo.js";
@@ -38,27 +40,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await loadThemeSettings();
   return { title: `${settings.coupleNames} — Home` };
 }
-
-/**
- * Milestones for the inlined Our Story section below. Moved here from the
- * old standalone `/our-story` page (Phase 6: single-page homepage redesign)
- * — static, matching the prototype. Making them admin-managed via a
- * `story_milestones` table is deferred (PRD P1-02), same as before the move.
- */
-const STORY_MILESTONES = [
-  {
-    title: "2022 — First meeting",
-    body: "They met through mutual friends at a cozy café, and the rest was fate.",
-  },
-  {
-    title: "2024 — First trip together",
-    body: "A weekend escape to the coast brought them even closer and proved they were ready for the next chapter.",
-  },
-  {
-    title: "2025 — Engagement",
-    body: "A romantic proposal under the stars sealed their promise to spend forever together.",
-  },
-];
 
 /** Ports the prototype's `GET /home` route from src/server.js. */
 export default async function HomePage() {
@@ -143,6 +124,11 @@ export default async function HomePage() {
   }
 
   const visibility = await getHomeSectionVisibilitySafe();
+  const t = createT(await getSiteTextSafe());
+  const storyMilestones = [1, 2, 3].map((n) => ({
+    title: t(`story.m${n}.title`),
+    body: t(`story.m${n}.body`),
+  }));
   const hasFaq = visibility.faq && faqSections.some((section) => section.isVisible && section.title);
   const hasGalleryPhotos = visibility.gallery && galleryPhotos.length > 0;
   const hasCoupleProfiles =
@@ -174,22 +160,16 @@ export default async function HomePage() {
           <path d="M46 45 C58 40 66 44 71 54 C60 57 51 54 46 45Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
         </svg>
         <span className="hero-flag">
-          Save the date — {formatWeddingDate(settings.weddingDate)}
+          {t("hero.flag", { weddingDate: formatWeddingDate(settings.weddingDate) })}
         </span>
-        <h1>
-          Join us for a celebration of love, family, and new beginnings.
-        </h1>
-        <p>
-          Welcome to the wedding website for {settings.coupleNames}. Discover our
-          story, event details, gallery, wishes, and access your personalized
-          invitation.
-        </p>
+        <h1>{t("hero.heading")}</h1>
+        <p>{t("hero.intro", { coupleNames: settings.coupleNames })}</p>
         <div className="button-group">
           <Link className="button button-primary" href="/invitation">
-            View Your Invitation
+            {t("hero.buttonInvitation")}
           </Link>
           <Link className="button button-secondary" href="#our-story">
-            Our Story
+            {t("hero.buttonStory")}
           </Link>
         </div>
         <Countdown targetDate={`${settings.weddingDate}T${settings.weddingTime}:00+05:30`} />
@@ -197,15 +177,11 @@ export default async function HomePage() {
       {visibility["our-story"] && (
         <>
       <section id="our-story" className="hero-panel hero-panel--light hero-panel--wide">
-        <span className="hero-flag">Our story</span>
-        <h2>How our love story began and grew into a wedding celebration.</h2>
-        <p>
-          From a serendipitous first meeting to a joyful proposal under the
-          stars, our story is full of memorable moments we want to share with
-          you.
-        </p>
+        <span className="hero-flag">{t("story.flag")}</span>
+        <h2>{t("story.heading")}</h2>
+        <p>{t("story.intro")}</p>
         <div className="panel-cards grid-panel">
-          {STORY_MILESTONES.map((milestone) => (
+          {storyMilestones.map((milestone) => (
             <div className="story-card" key={milestone.title}>
               <h3>{milestone.title}</h3>
               <p>{milestone.body}</p>
@@ -219,8 +195,8 @@ export default async function HomePage() {
       {hasCoupleProfiles && (
         <>
           <section id="family-details" className="hero-panel hero-panel--light hero-panel--wide">
-            <span className="hero-flag">The couple</span>
-            <h2>Meet the bride and groom.</h2>
+            <span className="hero-flag">{t("couple.flag")}</span>
+            <h2>{t("couple.heading")}</h2>
           <div className="panel-cards section-grid">
             {settings.brideName && (
               <div className="couple-card">
@@ -259,12 +235,9 @@ export default async function HomePage() {
       {visibility["event-details"] && (
         <>
       <section id="event-details" className="hero-panel hero-panel--light hero-panel--wide">
-        <span className="hero-flag">Wedding events</span>
-        <h2>Celebrate with us at the ceremony and reception.</h2>
-        <p>
-          We are excited to welcome our family and friends for a day filled with
-          love, joy, and unforgettable moments.
-        </p>
+        <span className="hero-flag">{t("events.flag")}</span>
+        <h2>{t("events.heading")}</h2>
+        <p>{t("events.intro")}</p>
         <div className="panel-cards section-grid">
         {events.map((event) => (
           <div className="event-card" key={event.id}>
@@ -280,27 +253,27 @@ export default async function HomePage() {
             )}
             <h3>{event.name}</h3>
             <p>
-              <strong>Date:</strong> {formatWeddingDate(event.eventDate)}
+              <strong>{t("events.labelDate")}:</strong> {formatWeddingDate(event.eventDate)}
             </p>
             <p>
-              <strong>Time:</strong> {event.eventTime}
+              <strong>{t("events.labelTime")}:</strong> {event.eventTime}
             </p>
             <p>
-              <strong>Venue:</strong> {event.venueName}
+              <strong>{t("events.labelVenue")}:</strong> {event.venueName}
             </p>
             {event.venueAddress && (
               <p>
-                <strong>Address:</strong> {event.venueAddress}
+                <strong>{t("events.labelAddress")}:</strong> {event.venueAddress}
               </p>
             )}
             {event.parkingNote && (
               <p>
-                <strong>Parking:</strong> {event.parkingNote}
+                <strong>{t("events.labelParking")}:</strong> {event.parkingNote}
               </p>
             )}
             {event.dressCode && (
               <p>
-                <strong>Dress code:</strong> {event.dressCode}
+                <strong>{t("events.labelDressCode")}:</strong> {event.dressCode}
               </p>
             )}
             <p>
@@ -309,7 +282,7 @@ export default async function HomePage() {
                 target="_blank"
                 rel="noreferrer"
               >
-                View on Google Maps
+                {t("events.mapLink")}
               </a>
             </p>
           </div>
@@ -322,12 +295,9 @@ export default async function HomePage() {
       {hasGalleryPhotos && (
         <>
           <section id="gallery" className="hero-panel hero-panel--light hero-panel--wide">
-            <span className="hero-flag">Gallery</span>
-            <h2>Photos from our journey together.</h2>
-            <p>
-              Enjoy a curated collection of moments from our story, engagement,
-              and memories shared with loved ones.
-            </p>
+            <span className="hero-flag">{t("gallery.flag")}</span>
+            <h2>{t("gallery.heading")}</h2>
+            <p>{t("gallery.intro")}</p>
           <div className="panel-cards gallery-grid">
             {galleryPhotos.map((photo) => (
               <div key={photo.id} className="gallery-card">
@@ -348,27 +318,21 @@ export default async function HomePage() {
       <CustomSections sections={gallerySections} />
       {hasFaq && (
         <section id="faq" className="hero-panel hero-panel--light">
-          <span className="hero-flag">FAQ</span>
-          <h2>Frequently asked questions.</h2>
-          <p>
-            Answers to the questions we hear most often — reach out if yours
-            isn&rsquo;t here.
-          </p>
+          <span className="hero-flag">{t("faq.flag")}</span>
+          <h2>{t("faq.heading")}</h2>
+          <p>{t("faq.intro")}</p>
           <FaqAccordion sections={faqSections} />
         </section>
       )}
       {visibility.wishes && (
         <>
       <section id="wishes" className="hero-panel hero-panel--seal">
-        <span className="hero-flag">Wishes</span>
-        <h2>Thank you for being part of our story.</h2>
-        <p>
-          We can&rsquo;t wait to celebrate with you. View your personal
-          invitation to RSVP and see your event details.
-        </p>
+        <span className="hero-flag">{t("wishes.flag")}</span>
+        <h2>{t("wishes.heading")}</h2>
+        <p>{t("wishes.intro")}</p>
         <div className="button-group">
           <Link className="button button-primary" href="/invitation">
-            View Your Invitation
+            {t("wishes.button")}
           </Link>
         </div>
       </section>

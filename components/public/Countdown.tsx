@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSiteText } from "@/components/SiteTextProvider";
 
 /**
  * Ports the inline <script> countdown from the prototype's `/home` route
@@ -41,6 +42,7 @@ export default function Countdown({
 }: {
   targetDate?: string;
 }) {
+  const t = useSiteText();
   const [remaining, setRemaining] = useState<Remaining>(ZERO);
 
   useEffect(() => {
@@ -59,16 +61,16 @@ export default function Countdown({
   return (
     <div className="countdown" id="countdown">
       <div className="countdown-item">
-        <strong>{remaining.days}</strong>Days
+        <strong>{remaining.days}</strong>{t("countdown.days")}
       </div>
       <div className="countdown-item">
-        <strong>{remaining.hours}</strong>Hours
+        <strong>{remaining.hours}</strong>{t("countdown.hours")}
       </div>
       <div className="countdown-item">
-        <strong>{remaining.minutes}</strong>Minutes
+        <strong>{remaining.minutes}</strong>{t("countdown.minutes")}
       </div>
       <div className="countdown-item">
-        <strong>{remaining.seconds}</strong>Seconds
+        <strong>{remaining.seconds}</strong>{t("countdown.seconds")}
       </div>
     </div>
   );

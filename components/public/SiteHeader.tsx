@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useSiteText } from "@/components/SiteTextProvider";
 
 /**
  * Phase 6 (single-page homepage redesign): nav links now point at homepage
@@ -16,13 +17,13 @@ import Link from "next/link";
  * gate (PRD §15) — so "Invitation" goes straight to the guest's own card.
  */
 const NAV_LINKS: { href: string; label: string; sectionId?: string }[] = [
-  { href: "/#home", label: "Home", sectionId: "home" },
-  { href: "/#our-story", label: "Our Story", sectionId: "our-story" },
-  { href: "/#family-details", label: "Family Details", sectionId: "family-details" },
-  { href: "/#event-details", label: "Event Details", sectionId: "event-details" },
-  { href: "/#gallery", label: "Gallery", sectionId: "gallery" },
-  { href: "/#wishes", label: "Wishes", sectionId: "wishes" },
-  { href: "/invitation", label: "Invitation" },
+  { href: "/#home", label: "menu.home", sectionId: "home" },
+  { href: "/#our-story", label: "menu.ourStory", sectionId: "our-story" },
+  { href: "/#family-details", label: "menu.familyDetails", sectionId: "family-details" },
+  { href: "/#event-details", label: "menu.eventDetails", sectionId: "event-details" },
+  { href: "/#gallery", label: "menu.gallery", sectionId: "gallery" },
+  { href: "/#wishes", label: "menu.wishes", sectionId: "wishes" },
+  { href: "/invitation", label: "menu.invitation" },
 ];
 
 const DEFAULT_COUPLE_NAMES = "Amandi & Tharindu";
@@ -41,6 +42,7 @@ export default function SiteHeader({
     [hiddenKey],
   );
   const pathname = usePathname();
+  const t = useSiteText();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
@@ -129,7 +131,7 @@ export default function SiteHeader({
               className={isActive ? "active" : undefined}
               onClick={() => setIsMenuOpen(false)}
             >
-              {link.label}
+              {t(link.label)}
             </Link>
           );
         })}

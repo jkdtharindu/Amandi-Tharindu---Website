@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useSiteText } from '@/components/SiteTextProvider';
 
 interface EnvelopeIntroProps {
   guestName: string;
@@ -42,6 +43,7 @@ const SCROLL_DURATION_MS = 3200;
  * With "reduce motion" on, it shows the opened card and skips the confetti.
  */
 export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: EnvelopeIntroProps) {
+  const t = useSiteText();
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
@@ -189,7 +191,7 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
         className={`envelope-stage${reducedMotion ? ' envelope-static' : ''}`}
       >
         <div className="envelope-card">
-          <p className="envelope-kicker">You are invited</p>
+          <p className="envelope-kicker">{t('invitation.kicker')}</p>
           <p className="envelope-names">{coupleNames}</p>
           {weddingDate && <p className="envelope-date">{weddingDate}</p>}
           <p className="envelope-guest">{guestName}</p>

@@ -9,6 +9,8 @@
  * Theme Editor has set rather than a fixed ivory/gold/burgundy.
  */
 
+import { useSiteText } from '@/components/SiteTextProvider';
+
 export type InvitationCardSettings = {
   templateUrl: string;
   nameTop: string;
@@ -26,9 +28,10 @@ export default function EnvelopeReveal({
   coupleNames: string;
   invitation: InvitationCardSettings;
 }) {
+  const t = useSiteText();
   return (
     <div className="envelope-stage" role="status" aria-live="polite">
-      <span className="sr-only">Opening your invitation…</span>
+      <span className="sr-only">{t('gate.opening')}</span>
       <div className="envelope" aria-hidden="true">
         <div className="envelope-back" />
         <div className="envelope-card">
@@ -52,7 +55,7 @@ export default function EnvelopeReveal({
             </div>
           ) : (
             <div className="envelope-card-fallback">
-              <p className="envelope-card-eyebrow">You are invited</p>
+              <p className="envelope-card-eyebrow">{t('invitation.kicker')}</p>
               <p className="envelope-card-couple">{coupleNames}</p>
               <span className="envelope-card-rule" />
               <p className="envelope-card-guest">{guestName}</p>

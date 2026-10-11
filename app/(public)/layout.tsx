@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import SiteHeader from "@/components/public/SiteHeader";
 import PageFooter from "@/components/public/PageFooter";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
+import { SiteTextProvider } from "@/components/SiteTextProvider";
+import { getSiteTextSafe } from "@/src/site-text/siteTextRepo.js";
+import { createT } from "@/src/site-text/siteTextRegistry.js";
 import { getHomeSectionVisibilitySafe, HOME_SECTION_KEYS } from "@/src/home-sections/homeSectionsRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 
@@ -21,13 +24,16 @@ export default async function PublicLayout({ children }: { children: ReactNode }
   }
 
   const visibility = await getHomeSectionVisibilitySafe();
+  const texts = await getSiteTextSafe();
   const hiddenSections = HOME_SECTION_KEYS.filter((key) => !visibility[key]);
 
   return (
     <div className="page-shell">
-      <SiteHeader coupleNames={settings.coupleNames} hiddenSections={hiddenSections} />
-      {children}
-      <PageFooter coupleNames={settings.coupleNames} weddingDate={settings.weddingDate} />
+      <SiteTextProvider texts={texts}>
+        <SiteHeader coupleNames={settings.coupleNames} hiddenSections={hiddenSections} />
+        {children}
+        <PageFooter coupleNames={settings.coupleNames} weddingDate={settings.weddingDate} t={createT(texts)} />
+      </SiteTextProvider>
     </div>
   );
 }

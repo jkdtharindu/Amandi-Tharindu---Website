@@ -10,6 +10,8 @@ import { listEvents } from '@/src/celebration-events/celebrationEventsRepo.js';
 import { formatWeddingDate } from '@/src/theme/formatWeddingDate.js';
 import type { CelebrationEvent } from '@/components/admin/EventManager';
 import InvitationClient from './InvitationClient';
+import { getSiteTextSafe } from '@/src/site-text/siteTextRepo.js';
+import { createT } from '@/src/site-text/siteTextRegistry.js';
 import EnvelopeIntro from '@/components/guest/EnvelopeIntro';
 
 export default async function InvitationPage({
@@ -80,6 +82,8 @@ export default async function InvitationPage({
     events = [];
   }
 
+  const t = createT(await getSiteTextSafe());
+
   return (
     <div>
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
@@ -93,7 +97,7 @@ export default async function InvitationPage({
           {/* Guest Info Card */}
           <div className="bg-white rounded-3xl shadow-lg p-8">
             <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
-              Invitation for {guest.name}
+              {t('invitation.heading', { guestName: guest.name })}
             </h1>
 
             {tableViews.length > 0 && (
@@ -112,36 +116,33 @@ export default async function InvitationPage({
             {/* Current Status Message */}
             {hasResponded ? (
               <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-green-800">
-                <p>
-                  Thank you for your response! Your current status is <strong>{rsvpStatus}</strong>.
-                  You can still change your response if needed.
-                </p>
+                <p>{t('invitation.statusThanks', { status: rsvpStatus })}</p>
               </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800">
-                <p>We are looking forward to hearing from you about your attendance.</p>
+                <p>{t('invitation.statusWaiting')}</p>
               </div>
             )}
           </div>
 
           {/* Event Details */}
           <div className="bg-white rounded-3xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Event Details</h2>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">{t('invitation.eventsHeading')}</h2>
             <div className="grid md:grid-cols-2 gap-8">
               {events.map((event) => (
                 <div key={event.id}>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.name}</h3>
-                  <p className="text-gray-700 mb-1"><strong>Date:</strong> {formatWeddingDate(event.eventDate)}</p>
-                  <p className="text-gray-700 mb-1"><strong>Time:</strong> {event.eventTime}</p>
-                  <p className="text-gray-700 mb-1"><strong>Venue:</strong> {event.venueName}</p>
+                  <p className="text-gray-700 mb-1"><strong>{t('events.labelDate')}:</strong> {formatWeddingDate(event.eventDate)}</p>
+                  <p className="text-gray-700 mb-1"><strong>{t('events.labelTime')}:</strong> {event.eventTime}</p>
+                  <p className="text-gray-700 mb-1"><strong>{t('events.labelVenue')}:</strong> {event.venueName}</p>
                   {event.venueAddress && (
-                    <p className="text-gray-700 mb-1"><strong>Address:</strong> {event.venueAddress}</p>
+                    <p className="text-gray-700 mb-1"><strong>{t('events.labelAddress')}:</strong> {event.venueAddress}</p>
                   )}
                   {event.parkingNote && (
-                    <p className="text-gray-700 mb-1"><strong>Parking:</strong> {event.parkingNote}</p>
+                    <p className="text-gray-700 mb-1"><strong>{t('events.labelParking')}:</strong> {event.parkingNote}</p>
                   )}
                   {event.dressCode && (
-                    <p className="text-gray-700 mb-1"><strong>Dress code:</strong> {event.dressCode}</p>
+                    <p className="text-gray-700 mb-1"><strong>{t('events.labelDressCode')}:</strong> {event.dressCode}</p>
                   )}
                   <div className="mb-2" />
                   <a
@@ -151,7 +152,7 @@ export default async function InvitationPage({
                     className="font-semibold hover:underline"
                     style={{ color: 'var(--color-accent)' }}
                   >
-                    View on Google Maps →
+                    {t('events.mapLink')} →
                   </a>
                 </div>
               ))}

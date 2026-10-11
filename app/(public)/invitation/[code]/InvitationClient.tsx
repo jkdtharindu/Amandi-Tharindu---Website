@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
+import { useSiteText } from '@/components/SiteTextProvider';
 
 // After a saved RSVP the guest reads the thank-you pop-up, then lands on the
 // home page (where the countdown runs).
@@ -10,6 +11,7 @@ const REDIRECT_HOME_MS = 2200;
 
 /** Full-screen "saving" veil so a guest can see the RSVP is being processed. */
 function SavingOverlay({ show }: { show: boolean }) {
+  const t = useSiteText();
   if (!show) return null;
   return (
     <div
@@ -23,7 +25,7 @@ function SavingOverlay({ show }: { show: boolean }) {
         style={{ color: 'var(--color-accent)' }}
       />
       <p className="text-lg font-semibold" style={{ color: 'var(--color-brand)' }}>
-        Processing your RSVP…
+        {t('rsvp.overlay')}
       </p>
     </div>
   );
@@ -94,6 +96,7 @@ function LegacyRsvpForm({
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
   const router = useRouter();
+  const t = useSiteText();
   const [csrfToken, setCsrfToken] = useState<string>('');
   const showToast = useToast();
 
@@ -142,11 +145,11 @@ function LegacyRsvpForm({
       if (res.ok && data.success) {
         let msg: string;
         if (attending && weddingDate) {
-          msg = `RSVP submitted — see you on ${weddingDate}!`;
+          msg = t('rsvp.toastAccepted', { weddingDate });
         } else if (attending) {
-          msg = 'RSVP submitted. We look forward to seeing you!';
+          msg = t('rsvp.toastAcceptedNoDate');
         } else {
-          msg = 'Thank you for letting us know. We hope to celebrate together another time.';
+          msg = t('rsvp.toastDeclined');
         }
         saved = true;
         showToast({ kind: 'ok', text: msg });
@@ -173,7 +176,7 @@ function LegacyRsvpForm({
         <div className="fixed bottom-0 left-0 right-0 bg-amber-50 border-t border-amber-200 px-4 py-4 shadow-lg">
           <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <span className="text-gray-800 font-semibold">
-              {coupleNames} are waiting for your response 💍 — Will you join us?
+              {t('legacy.stickyBar', { coupleNames })}
             </span>
             <div className="flex gap-3">
               <button
@@ -183,7 +186,7 @@ function LegacyRsvpForm({
                 }}
                 className="py-2 px-6 rounded-full bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
               >
-                Accept
+                {t('rsvp.accept')}
               </button>
               <button
                 onClick={() => {
@@ -192,7 +195,7 @@ function LegacyRsvpForm({
                 }}
                 className="py-2 px-6 rounded-full bg-gray-500 text-white font-semibold hover:bg-gray-600 transition-colors"
               >
-                Decline
+                {t('rsvp.decline')}
               </button>
             </div>
           </div>
@@ -203,7 +206,7 @@ function LegacyRsvpForm({
       {(showForm || hasResponded) && (
         <div className="bg-white rounded-3xl shadow-lg p-8 mb-20 md:mb-0">
           <h2 className="text-2xl font-bold mb-6 text-gray-900">
-            {hasResponded && !showForm ? 'Your RSVP Response' : 'Respond to Invitation'}
+            {hasResponded && !showForm ? t('legacy.formTitleDone') : t('legacy.formTitle')}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -218,7 +221,7 @@ function LegacyRsvpForm({
                   onChange={(e) => setAttending(e.target.value === 'yes')}
                   className="w-4 h-4 text-green-600 cursor-pointer"
                 />
-                <span className="text-gray-900 font-semibold">I will attend and celebrate with you</span>
+                <span className="text-gray-900 font-semibold">{t('legacy.optionAttend')}</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -229,7 +232,7 @@ function LegacyRsvpForm({
                   onChange={(e) => setAttending(e.target.value === 'yes')}
                   className="w-4 h-4 text-red-600 cursor-pointer"
                 />
-                <span className="text-gray-900 font-semibold">I will not be able to attend</span>
+                <span className="text-gray-900 font-semibold">{t('legacy.optionDecline')}</span>
               </label>
             </div>
 
@@ -260,7 +263,7 @@ function LegacyRsvpForm({
               disabled={loading}
               className="button button-primary w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? 'Processing…' : 'Submit RSVP'}
+              {loading ? t('rsvp.submitBusy') : t('rsvp.submit')}
             </button>
 
             {/* Change Response Button - shown if already responded */}
@@ -270,7 +273,7 @@ function LegacyRsvpForm({
                 onClick={() => setShowForm(true)}
                 className="button button-secondary w-full"
               >
-                Change Your Response
+                {t('legacy.changeButton')}
               </button>
             )}
           </form>
@@ -313,6 +316,7 @@ function InviteeChecklist({
   const [saving, setSaving] = useState(false);
   const submittingRef = useRef(false);
   const router = useRouter();
+  const t = useSiteText();
   const [requesting, setRequesting] = useState(false);
   const showToast = useToast();
 
@@ -330,7 +334,7 @@ function InviteeChecklist({
 
     const unanswered = approved.filter((invitee) => responses[invitee.id] === null || responses[invitee.id] === undefined);
     if (unanswered.length > 0) {
-      showToast({ kind: 'error', text: 'Please accept or decline for everyone in the list.' });
+      showToast({ kind: 'error', text: t('rsvp.errorUnanswered') });
       return;
     }
 
@@ -352,11 +356,11 @@ function InviteeChecklist({
         const anyAccepted = approved.some((invitee) => responses[invitee.id] === true);
         let text: string;
         if (anyAccepted && weddingDate) {
-          text = `RSVP submitted — see you on ${weddingDate}!`;
+          text = t('rsvp.toastAccepted', { weddingDate });
         } else if (anyAccepted) {
-          text = 'RSVP submitted. We look forward to seeing you!';
+          text = t('rsvp.toastAcceptedNoDate');
         } else {
-          text = 'Thank you for letting us know. We hope to celebrate together another time.';
+          text = t('rsvp.toastDeclined');
         }
         saved = true;
         showToast({ kind: 'ok', text });
@@ -389,7 +393,7 @@ function InviteeChecklist({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        showToast({ kind: 'ok', text: `Request sent! ${coupleNames.split('&')[0].trim() || 'The couple'}'s admin will need to approve it before it's added.` });
+        showToast({ kind: 'ok', text: t('rsvp.toastRequestSent', { coupleFirstName: coupleNames.split('&')[0].trim() || 'The couple' }) });
         setNewPersonName('');
         setTimeout(() => window.location.reload(), 1500);
       } else {
@@ -405,9 +409,9 @@ function InviteeChecklist({
   return (
     <div className="bg-white rounded-3xl shadow-lg p-8">
       <SavingOverlay show={saving} />
-      <h2 className="text-2xl font-bold mb-2 text-gray-900">Who&apos;s Coming?</h2>
+      <h2 className="text-2xl font-bold mb-2 text-gray-900">{t('rsvp.title')}</h2>
       <p className="text-sm text-gray-600 mb-6">
-        Let {coupleNames} know who from your party will be attending.
+        {t('rsvp.intro', { coupleNames })}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -427,7 +431,7 @@ function InviteeChecklist({
                     : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                 }`}
               >
-                Accept
+                {t('rsvp.accept')}
               </button>
               <button
                 type="button"
@@ -438,7 +442,7 @@ function InviteeChecklist({
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Decline
+                {t('rsvp.decline')}
               </button>
             </div>
           </div>
@@ -450,7 +454,7 @@ function InviteeChecklist({
             className="flex items-center justify-between gap-3 border border-amber-200 bg-amber-50 rounded-2xl px-4 py-3"
           >
             <span className="font-semibold text-gray-700">{invitee.name}</span>
-            <span className="text-xs font-semibold text-amber-700">Waiting for admin approval</span>
+            <span className="text-xs font-semibold text-amber-700">{t('rsvp.pendingApproval')}</span>
           </div>
         ))}
 
@@ -459,20 +463,20 @@ function InviteeChecklist({
           disabled={saving}
           className="button button-primary w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {saving ? 'Processing…' : 'Submit RSVP'}
+          {saving ? t('rsvp.submitBusy') : t('rsvp.submit')}
         </button>
       </form>
 
       <div className="mt-6 pt-6 border-t border-gray-200">
         <label htmlFor="newPerson" className="block text-sm font-semibold text-gray-700 mb-2">
-          Need to add someone not on this list?
+          {t('rsvp.addPrompt')}
         </label>
         <div className="flex gap-2">
           <input
             id="newPerson"
             value={newPersonName}
             onChange={(e) => setNewPersonName(e.target.value)}
-            placeholder="Their full name"
+            placeholder={t('rsvp.addPlaceholder')}
             className="flex-1 px-4 py-2 rounded-full border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]"
           />
           <button
@@ -481,11 +485,11 @@ function InviteeChecklist({
             disabled={requesting || !newPersonName.trim()}
             className="button button-secondary disabled:opacity-50"
           >
-            {requesting ? 'Sending...' : 'Request'}
+            {requesting ? t('rsvp.addBusy') : t('rsvp.addButton')}
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          This needs a quick approval before it&apos;s added to your list.
+          {t('rsvp.addNote')}
         </p>
       </div>
     </div>

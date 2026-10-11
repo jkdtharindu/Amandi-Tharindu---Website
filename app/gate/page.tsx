@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import SiteGate from "@/components/public/SiteGate";
+import { SiteTextProvider } from "@/components/SiteTextProvider";
+import { getSiteTextSafe } from "@/src/site-text/siteTextRepo.js";
 import { verifySession } from "@/src/session.js";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
@@ -37,8 +39,10 @@ export default async function GatePage() {
   }
 
   const settings = await loadThemeSettings();
+  const texts = await getSiteTextSafe();
 
   return (
+    <SiteTextProvider texts={texts}>
     <SiteGate
       coupleNames={settings.coupleNames}
       invitation={{
@@ -49,5 +53,6 @@ export default async function GatePage() {
         nameColor: settings.invitationNameColor,
       }}
     />
+    </SiteTextProvider>
   );
 }

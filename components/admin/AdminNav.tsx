@@ -12,6 +12,7 @@ const LINKS = [
   { href: '/admin/theme', label: 'Theme' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/sections', label: 'Sections' },
+  { href: '/admin/site-wording', label: 'Site wording' },
   { href: '/admin/gallery', label: 'Gallery' },
   { href: '/admin/table-arrangement', label: 'Table Arrangement' },
 ];
