@@ -1287,3 +1287,59 @@ button {
     }
   }
 }
+
+/*
+ * Crystal depth (PRD §22, round 3, owner Grill Me 2026-10-11): the panels and
+ * the cards inside them read as thick crystal slabs stacked on the page.
+ * Static on purpose (owner chose "layered depth, no movement"), so there is no
+ * transform or animation here, nothing for reduced-motion settings to turn
+ * off, and the same data-glass="on" switch that controls the colour washes
+ * turns this off too. Only shadows, edges and highlights are added; colours
+ * and layout are untouched, so the 8:1 text-readability rule still holds.
+ *
+ * Each slab is built from, top to bottom: a bright top edge (inset), a faint
+ * dark underside (inset), a solid "thickness" edge, a tight contact shadow
+ * and a wide soft shadow tinted with the section's own second colour.
+ */
+@layer components {
+  html[data-glass="on"] .hero-panel--light,
+  html[data-glass="on"] .hero-panel--seal::before {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+      inset 0 -2px 6px color-mix(in srgb, var(--pb, var(--section-c2)) 40%, transparent),
+      0 3px 0 color-mix(in srgb, var(--pb, var(--section-c2)) 62%, #5a4538),
+      0 8px 12px -6px rgba(44, 29, 29, 0.28),
+      0 26px 40px -20px color-mix(in srgb, var(--pb, var(--section-c2)) 55%, #2c1d1d);
+  }
+
+  /* The photo hero is the top slab of the stack. */
+  html[data-glass="on"] .hero-panel--photo {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+      0 3px 0 color-mix(in srgb, var(--section-c2, #8a6b4a) 55%, #2c1d1d),
+      0 10px 14px -6px rgba(44, 29, 29, 0.35),
+      0 28px 44px -20px color-mix(in srgb, var(--section-c1, #8a6b4a) 55%, #2c1d1d);
+  }
+
+  /* Cards inside a panel: softly raised off it, a thin bright edge, a little thickness. */
+  html[data-glass="on"] .feature-card,
+  html[data-glass="on"] .event-card,
+  html[data-glass="on"] .gallery-card,
+  html[data-glass="on"] .wish-card,
+  html[data-glass="on"] .story-card,
+  html[data-glass="on"] .couple-card,
+  html[data-glass="on"] .faq-item {
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--color-surface) 100%, white) 0%,
+        color-mix(in srgb, var(--color-surface) 93%, var(--pb, var(--section-c2))) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 2px 0 color-mix(in srgb, var(--pb, var(--section-c2)) 50%, #8a7a70),
+      0 7px 12px -8px rgba(44, 29, 29, 0.35);
+  }
+}
