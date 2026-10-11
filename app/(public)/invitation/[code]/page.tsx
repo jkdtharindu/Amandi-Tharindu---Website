@@ -109,31 +109,6 @@ export default async function InvitationPage({
               </div>
             )}
 
-            <div className="grid md:grid-cols-2 gap-4 mb-6 text-gray-700">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Code</p>
-                <p className="text-lg font-mono">{guest.code}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Relationship</p>
-                <p className="text-lg">{guest.relationship}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Party Size</p>
-                <p className="text-lg">{guest.slotCount} people</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">RSVP Status</p>
-                <p className={`text-lg font-semibold ${
-                  rsvpStatus === 'accepted' ? 'text-green-600' :
-                  rsvpStatus === 'declined' ? 'text-red-600' :
-                  'text-yellow-600'
-                }`}>
-                  {rsvpStatus.charAt(0).toUpperCase() + rsvpStatus.slice(1)}
-                </p>
-              </div>
-            </div>
-
             {/* Current Status Message */}
             {hasResponded ? (
               <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-green-800">

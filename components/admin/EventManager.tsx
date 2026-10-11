@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import ImageUploadField from './ImageUploadField';
+import EventTimeInput from './EventTimeInput';
 import { useToast } from '@/components/Toast';
 
 export type CelebrationEvent = {
@@ -189,15 +190,13 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
           </div>
           <div>
             <label htmlFor="new-time" className="block text-xs font-semibold text-slate-500 mb-1">
-              Time
+              Time (Sri Lanka time)
             </label>
-            <input
+            <EventTimeInput
               id="new-time"
               required
               value={form.eventTime}
-              onChange={(e) => setForm({ ...form, eventTime: e.target.value })}
-              placeholder="e.g., 3:00 PM"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+              onChange={(eventTime) => setForm({ ...form, eventTime })}
             />
           </div>
           <div>
@@ -319,12 +318,7 @@ function EventRow({
           onChange={(e) => setEventDate(e.target.value)}
           className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
         />
-        <input
-          value={eventTime}
-          onChange={(e) => setEventTime(e.target.value)}
-          placeholder="Time"
-          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
-        />
+        <EventTimeInput value={eventTime} onChange={setEventTime} />
         <input
           value={venueName}
           onChange={(e) => setVenueName(e.target.value)}

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import LogoutButton from "@/components/guest/LogoutButton";
 
 /**
  * Phase 6 (single-page homepage redesign): nav links now point at homepage
@@ -126,7 +125,6 @@ export default function SiteHeader({
             </Link>
           );
         })}
-        <LogoutButton />
       </nav>
     </header>
   );

@@ -1,7 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
+
+// After a saved RSVP the guest reads the thank-you pop-up, then lands on the
+// home page (where the countdown runs).
+const REDIRECT_HOME_MS = 2200;
+
+/** Full-screen "saving" veil so a guest can see the RSVP is being processed. */
+function SavingOverlay({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white/80 backdrop-blur-sm"
+    >
+      <span
+        aria-hidden="true"
+        className="h-10 w-10 animate-spin rounded-full border-4 border-current border-t-transparent"
+        style={{ color: 'var(--color-accent)' }}
+      />
+      <p className="text-lg font-semibold" style={{ color: 'var(--color-brand)' }}>
+        Processing your RSVP…
+      </p>
+    </div>
+  );
+}
 
 export interface Invitee {
   id: string;
@@ -66,6 +92,8 @@ function LegacyRsvpForm({
   const [attending, setAttending] = useState(currentRsvpStatus !== 'declined');
   const [participantNames, setParticipantNames] = useState('');
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
+  const router = useRouter();
   const [csrfToken, setCsrfToken] = useState<string>('');
   const showToast = useToast();
 
@@ -79,13 +107,17 @@ function LegacyRsvpForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A double-tap must not send two requests (the server also guards this).
+    if (submittingRef.current) return;
 
     if (attending && !participantNames.trim()) {
       showToast({ kind: 'error', text: 'Please enter participant names or decline if you are not attending.' });
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
+    let saved = false;
     try {
       const names = participantNames
         .split(',')
@@ -116,22 +148,26 @@ function LegacyRsvpForm({
         } else {
           msg = 'Thank you for letting us know. We hope to celebrate together another time.';
         }
+        saved = true;
         showToast({ kind: 'ok', text: msg });
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+        setTimeout(() => router.push('/'), REDIRECT_HOME_MS);
       } else {
         showToast({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });
       }
     } catch {
       showToast({ kind: 'error', text: 'An error occurred. Please try again.' });
     } finally {
-      setLoading(false);
+      // Stay in the "saving" state once saved, until the home page opens.
+      if (!saved) {
+        submittingRef.current = false;
+        setLoading(false);
+      }
     }
   };
 
   return (
     <div>
+      <SavingOverlay show={loading} />
       {/* Sticky Bar */}
       {!hasResponded && (
         <div className="fixed bottom-0 left-0 right-0 bg-amber-50 border-t border-amber-200 px-4 py-4 shadow-lg">
@@ -209,7 +245,7 @@ function LegacyRsvpForm({
                   onChange={(e) => setParticipantNames(e.target.value)}
                   placeholder={`e.g., ${['Nimal Silva', 'Anu Silva', 'Ravi Silva'].slice(0, slotCount).join(', ')}`}
                   disabled={!attending || loading}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)] disabled:opacity-50"
                   rows={3}
                 />
                 <p className="text-sm text-gray-600 mt-2">
@@ -222,9 +258,9 @@ function LegacyRsvpForm({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-6 rounded-full bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="button button-primary w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? 'Saving...' : 'Submit RSVP'}
+              {loading ? 'Processing…' : 'Submit RSVP'}
             </button>
 
             {/* Change Response Button - shown if already responded */}
@@ -232,7 +268,7 @@ function LegacyRsvpForm({
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
-                className="w-full py-2 px-6 rounded-full border-2 border-blue-600 text-blue-600 font-bold hover:bg-blue-50 transition-colors"
+                className="button button-secondary w-full"
               >
                 Change Your Response
               </button>
@@ -275,6 +311,8 @@ function InviteeChecklist({
   const [newPersonName, setNewPersonName] = useState('');
   const [csrfToken, setCsrfToken] = useState('');
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
+  const router = useRouter();
   const [requesting, setRequesting] = useState(false);
   const showToast = useToast();
 
@@ -287,6 +325,8 @@ function InviteeChecklist({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // A double-tap must not send two requests (the server also guards this).
+    if (submittingRef.current) return;
 
     const unanswered = approved.filter((invitee) => responses[invitee.id] === null || responses[invitee.id] === undefined);
     if (unanswered.length > 0) {
@@ -294,7 +334,9 @@ function InviteeChecklist({
       return;
     }
 
+    submittingRef.current = true;
     setSaving(true);
+    let saved = false;
     try {
       const res = await fetch('/api/guest/rsvp', {
         method: 'POST',
@@ -316,15 +358,20 @@ function InviteeChecklist({
         } else {
           text = 'Thank you for letting us know. We hope to celebrate together another time.';
         }
+        saved = true;
         showToast({ kind: 'ok', text });
-        setTimeout(() => window.location.reload(), 1500);
+        setTimeout(() => router.push('/'), REDIRECT_HOME_MS);
       } else {
         showToast({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });
       }
     } catch {
       showToast({ kind: 'error', text: 'An error occurred. Please try again.' });
     } finally {
-      setSaving(false);
+      // Stay in the "saving" state once saved, until the home page opens.
+      if (!saved) {
+        submittingRef.current = false;
+        setSaving(false);
+      }
     }
   }
 
@@ -357,6 +404,7 @@ function InviteeChecklist({
 
   return (
     <div className="bg-white rounded-3xl shadow-lg p-8">
+      <SavingOverlay show={saving} />
       <h2 className="text-2xl font-bold mb-2 text-gray-900">Who&apos;s Coming?</h2>
       <p className="text-sm text-gray-600 mb-6">
         Let {coupleNames} know who from your party will be attending.
@@ -409,9 +457,9 @@ function InviteeChecklist({
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-3 px-6 rounded-full bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="button button-primary w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {saving ? 'Saving...' : 'Submit RSVP'}
+          {saving ? 'Processing…' : 'Submit RSVP'}
         </button>
       </form>
 
@@ -425,13 +473,13 @@ function InviteeChecklist({
             value={newPersonName}
             onChange={(e) => setNewPersonName(e.target.value)}
             placeholder="Their full name"
-            className="flex-1 px-4 py-2 rounded-full border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-4 py-2 rounded-full border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]"
           />
           <button
             type="button"
             onClick={handleRequestAddPerson}
             disabled={requesting || !newPersonName.trim()}
-            className="py-2 px-5 rounded-full border-2 border-blue-600 text-blue-600 font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors"
+            className="button button-secondary disabled:opacity-50"
           >
             {requesting ? 'Sending...' : 'Request'}
           </button>

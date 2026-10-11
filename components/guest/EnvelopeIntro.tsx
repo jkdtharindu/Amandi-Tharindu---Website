@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 interface EnvelopeIntroProps {
   guestName: string;
@@ -30,16 +30,18 @@ function subscribeReducedMotion(onChange: () => void) {
 const CONFETTI_COUNT = 70;
 const CONFETTI_MS = 3200;
 const CONFETTI_DELAY_MS = 1500;
+// The card finishes sliding out at ~1.9s; wait a beat, then drift down the page.
+const SCROLL_START_MS = 3000;
+const SCROLL_DURATION_MS = 3200;
 
 /**
  * Envelope animation for the guest invitation page (Action 66, PRD §19).
  * 2D flip of the flap (CSS 3D transform), the card sliding out, then a canvas
  * confetti burst. Colours come from the admin theme variables, so editing the
- * palette recolours the envelope. Plays on every load; the button replays it.
+ * palette recolours the envelope. Plays on every load, then scrolls slowly down to the details.
  * With "reduce motion" on, it shows the opened card and skips the confetti.
  */
 export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: EnvelopeIntroProps) {
-  const [playKey, setPlayKey] = useState(0);
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
@@ -131,19 +133,58 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
     frameRef.current = window.requestAnimationFrame(tick);
   }, []);
 
-  // Each play (first load and every replay) schedules one burst, timed to
-  // land as the card finishes sliding out.
+  // One burst, timed to land as the card finishes sliding out.
   useEffect(() => {
     stopConfetti();
     if (reducedMotion) return;
     timerRef.current = window.setTimeout(burst, CONFETTI_DELAY_MS);
     return stopConfetti;
-  }, [playKey, reducedMotion, burst, stopConfetti]);
+  }, [reducedMotion, burst, stopConfetti]);
+
+  // After the animation ends, drift slowly down to the invitation details so
+  // the guest does not have to scroll. Any touch, wheel or key press by the
+  // guest cancels it straight away.
+  useEffect(() => {
+    if (reducedMotion) return;
+    let frame: number | null = null;
+    let cancelled = false;
+
+    const cancel = () => {
+      cancelled = true;
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+    const events = ['wheel', 'touchstart', 'keydown', 'mousedown'] as const;
+    events.forEach((name) => window.addEventListener(name, cancel, { passive: true }));
+
+    const startTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      const next = stageRef.current?.closest('section')?.nextElementSibling;
+      if (!next) return;
+      const startY = window.scrollY;
+      const targetY = Math.max(0, next.getBoundingClientRect().top + window.scrollY - 24);
+      const distance = targetY - startY;
+      if (distance <= 0) return;
+      const startedAt = performance.now();
+      const step = (now: number) => {
+        if (cancelled) return;
+        const t = Math.min(1, (now - startedAt) / SCROLL_DURATION_MS);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        window.scrollTo(0, startY + distance * eased);
+        if (t < 1) frame = window.requestAnimationFrame(step);
+      };
+      frame = window.requestAnimationFrame(step);
+    }, SCROLL_START_MS);
+
+    return () => {
+      window.clearTimeout(startTimer);
+      cancel();
+      events.forEach((name) => window.removeEventListener(name, cancel));
+    };
+  }, [reducedMotion]);
 
   return (
     <section aria-label="Your invitation" className="envelope-intro">
       <div
-        key={playKey}
         ref={stageRef}
         className={`envelope-stage${reducedMotion ? ' envelope-static' : ''}`}
       >
@@ -157,11 +198,6 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
         <div className="envelope-front" aria-hidden="true" />
         <div className="envelope-flap" aria-hidden="true" />
         <canvas ref={canvasRef} className="envelope-confetti" aria-hidden="true" />
-      </div>
-      <div className="envelope-replay-row">
-        <button type="button" className="button button-secondary" onClick={() => setPlayKey((n) => n + 1)}>
-          Replay animation
-        </button>
       </div>
       <style>{`
         .envelope-intro { padding: 0 0 8px; }
@@ -230,7 +266,6 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
           pointer-events: none;
           z-index: 6;
         }
-        .envelope-replay-row { display: flex; justify-content: center; margin-top: 16px; }
         @keyframes envelope-flap-open {
           0% { transform: rotateX(0deg); z-index: 4; }
           49% { z-index: 4; }
