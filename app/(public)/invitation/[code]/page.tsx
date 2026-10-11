@@ -133,12 +133,23 @@ export default async function InvitationPage({
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.name}</h3>
                   <p className="text-gray-700 mb-1"><strong>Date:</strong> {formatWeddingDate(event.eventDate)}</p>
                   <p className="text-gray-700 mb-1"><strong>Time:</strong> {event.eventTime}</p>
-                  <p className="text-gray-700 mb-3"><strong>Venue:</strong> {event.venueName}</p>
+                  <p className="text-gray-700 mb-1"><strong>Venue:</strong> {event.venueName}</p>
+                  {event.venueAddress && (
+                    <p className="text-gray-700 mb-1"><strong>Address:</strong> {event.venueAddress}</p>
+                  )}
+                  {event.parkingNote && (
+                    <p className="text-gray-700 mb-1"><strong>Parking:</strong> {event.parkingNote}</p>
+                  )}
+                  {event.dressCode && (
+                    <p className="text-gray-700 mb-1"><strong>Dress code:</strong> {event.dressCode}</p>
+                  )}
+                  <div className="mb-2" />
                   <a
                     href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline font-semibold"
+                    className="font-semibold hover:underline"
+                    style={{ color: 'var(--color-accent)' }}
                   >
                     View on Google Maps →
                   </a>

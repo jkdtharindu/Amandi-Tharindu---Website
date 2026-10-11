@@ -16,6 +16,8 @@ function mapRow(row) {
     venueName: row.venue_name,
     venueAddress: row.venue_address || '',
     imageUrl: row.image_url || '',
+    parkingNote: row.parking_note || '',
+    dressCode: row.dress_code || '',
     displayOrder: row.display_order,
   };
 }
@@ -41,8 +43,8 @@ export async function createEvent(input) {
   }
 
   const { rows } = await query(
-    `INSERT INTO celebration_events (name, event_date, event_time, venue_name, venue_address, image_url, display_order)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    `INSERT INTO celebration_events (name, event_date, event_time, venue_name, venue_address, image_url, parking_note, dress_code, display_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [
       event.name,
       event.eventDate,
@@ -50,6 +52,8 @@ export async function createEvent(input) {
       event.venueName,
       event.venueAddress,
       event.imageUrl,
+      event.parkingNote,
+      event.dressCode,
       event.displayOrder,
     ]
   );
@@ -67,6 +71,8 @@ export async function updateEvent(id, patch) {
     if (patch.venueName !== undefined) existing.venueName = String(patch.venueName).trim();
     if (patch.venueAddress !== undefined) existing.venueAddress = String(patch.venueAddress).trim();
     if (patch.imageUrl !== undefined) existing.imageUrl = String(patch.imageUrl).trim();
+    if (patch.parkingNote !== undefined) existing.parkingNote = String(patch.parkingNote).trim();
+    if (patch.dressCode !== undefined) existing.dressCode = String(patch.dressCode).trim();
     if (patch.displayOrder !== undefined) existing.displayOrder = Number(patch.displayOrder) || 0;
 
     return { success: true, event: existing };
@@ -83,12 +89,14 @@ export async function updateEvent(id, patch) {
     venueName: patch.venueName !== undefined ? String(patch.venueName).trim() : current.venueName,
     venueAddress: patch.venueAddress !== undefined ? String(patch.venueAddress).trim() : current.venueAddress,
     imageUrl: patch.imageUrl !== undefined ? String(patch.imageUrl).trim() : current.imageUrl,
+    parkingNote: patch.parkingNote !== undefined ? String(patch.parkingNote).trim() : current.parkingNote,
+    dressCode: patch.dressCode !== undefined ? String(patch.dressCode).trim() : current.dressCode,
     displayOrder: patch.displayOrder !== undefined ? Number(patch.displayOrder) || 0 : current.displayOrder,
   };
 
   const { rows } = await query(
-    `UPDATE celebration_events SET name = $1, event_date = $2, event_time = $3, venue_name = $4, venue_address = $5, image_url = $6, display_order = $7
-     WHERE id = $8 RETURNING *`,
+    `UPDATE celebration_events SET name = $1, event_date = $2, event_time = $3, venue_name = $4, venue_address = $5, image_url = $6, parking_note = $7, dress_code = $8, display_order = $9
+     WHERE id = $10 RETURNING *`,
     [
       next.name,
       next.eventDate,
@@ -96,6 +104,8 @@ export async function updateEvent(id, patch) {
       next.venueName,
       next.venueAddress,
       next.imageUrl,
+      next.parkingNote,
+      next.dressCode,
       next.displayOrder,
       id,
     ]

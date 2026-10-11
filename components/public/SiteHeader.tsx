@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -29,9 +29,17 @@ const DEFAULT_COUPLE_NAMES = "Amandi & Tharindu";
 
 export default function SiteHeader({
   coupleNames = DEFAULT_COUPLE_NAMES,
+  hiddenSections = [],
 }: {
   coupleNames?: string;
+  /** Section ids the admin has hidden; their nav links are left out. */
+  hiddenSections?: string[];
 }) {
+  const hiddenKey = hiddenSections.join(",");
+  const navLinks = useMemo(
+    () => NAV_LINKS.filter((link) => !link.sectionId || !hiddenKey.split(",").includes(link.sectionId)),
+    [hiddenKey],
+  );
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -47,7 +55,7 @@ export default function SiteHeader({
       return () => clearTimeout(clear);
     }
 
-    const sections = NAV_LINKS.map((link) => link.sectionId)
+    const sections = navLinks.map((link) => link.sectionId)
       .filter((id): id is string => Boolean(id))
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null);
@@ -71,7 +79,7 @@ export default function SiteHeader({
 
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
-  }, [pathname]);
+  }, [pathname, navLinks]);
 
   // A stale open mobile menu shouldn't survive a navigation (e.g. the browser
   // back button). Deferred for the same react-hooks/set-state-in-effect
@@ -109,7 +117,7 @@ export default function SiteHeader({
         </button>
       </div>
       <nav id="site-nav" className={`site-nav${isMenuOpen ? " site-nav--open" : ""}`}>
-        {NAV_LINKS.map((link) => {
+        {navLinks.map((link) => {
           const isActive = link.sectionId
             ? activeSection === link.sectionId
             : // "Invitation" resolves to /invitation/[code] once signed in.

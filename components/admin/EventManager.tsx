@@ -13,6 +13,8 @@ export type CelebrationEvent = {
   venueName: string;
   venueAddress: string;
   imageUrl: string;
+  parkingNote: string;
+  dressCode: string;
   displayOrder: number;
 };
 
@@ -23,6 +25,8 @@ type FormState = {
   venueName: string;
   venueAddress: string;
   imageUrl: string;
+  parkingNote: string;
+  dressCode: string;
   displayOrder: string;
 };
 
@@ -33,6 +37,8 @@ const EMPTY_FORM: FormState = {
   venueName: '',
   venueAddress: '',
   imageUrl: '',
+  parkingNote: '',
+  dressCode: '',
   displayOrder: '0',
 };
 
@@ -224,6 +230,30 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
             />
           </div>
           <div>
+            <label htmlFor="new-parking" className="block text-xs font-semibold text-slate-500 mb-1">
+              Parking note <span className="font-normal">(optional)</span>
+            </label>
+            <input
+              id="new-parking"
+              value={form.parkingNote}
+              onChange={(e) => setForm({ ...form, parkingNote: e.target.value })}
+              placeholder="e.g., Free parking behind the hotel"
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="new-dress" className="block text-xs font-semibold text-slate-500 mb-1">
+              Dress code <span className="font-normal">(optional)</span>
+            </label>
+            <input
+              id="new-dress"
+              value={form.dressCode}
+              onChange={(e) => setForm({ ...form, dressCode: e.target.value })}
+              placeholder="e.g., Traditional or formal"
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+            />
+          </div>
+          <div>
             <label htmlFor="new-order" className="block text-xs font-semibold text-slate-500 mb-1">
               Display order
             </label>
@@ -294,6 +324,8 @@ function EventRow({
   const [venueName, setVenueName] = useState(event.venueName);
   const [venueAddress, setVenueAddress] = useState(event.venueAddress);
   const [imageUrl, setImageUrl] = useState(event.imageUrl);
+  const [parkingNote, setParkingNote] = useState(event.parkingNote);
+  const [dressCode, setDressCode] = useState(event.dressCode);
 
   const dirty =
     name !== event.name ||
@@ -301,7 +333,9 @@ function EventRow({
     eventTime !== event.eventTime ||
     venueName !== event.venueName ||
     venueAddress !== event.venueAddress ||
-    imageUrl !== event.imageUrl;
+    imageUrl !== event.imageUrl ||
+    parkingNote !== event.parkingNote ||
+    dressCode !== event.dressCode;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -333,6 +367,21 @@ function EventRow({
         />
       </div>
 
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <input
+          value={parkingNote}
+          onChange={(e) => setParkingNote(e.target.value)}
+          placeholder="Parking note (optional)"
+          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+        />
+        <input
+          value={dressCode}
+          onChange={(e) => setDressCode(e.target.value)}
+          placeholder="Dress code (optional)"
+          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+        />
+      </div>
+
       <div className="mt-3">
         <ImageUploadField label="Venue photo" imageUrl={imageUrl} onChange={setImageUrl} csrfToken={csrfToken} />
       </div>
@@ -342,7 +391,7 @@ function EventRow({
           <button
             type="button"
             disabled={busy}
-            onClick={() => onSave({ name, eventDate, eventTime, venueName, venueAddress, imageUrl })}
+            onClick={() => onSave({ name, eventDate, eventTime, venueName, venueAddress, imageUrl, parkingNote, dressCode })}
             className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
           >
             Save

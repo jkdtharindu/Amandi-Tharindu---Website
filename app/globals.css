@@ -241,6 +241,24 @@ button {
    * pages alongside First Light below): an organic, hand-stamped silhouette
    * in place of the rounded rectangle, for The Celebration and Gallery.
    */
+  /* A section's heading and its cards live in one panel, so they read as one block. */
+  .hero-panel--wide {
+    max-width: 1040px;
+  }
+
+  .page-shell > .hero-panel {
+    margin-bottom: 2.5rem;
+  }
+
+  .hero-panel .panel-cards {
+    margin-top: 2rem;
+    text-align: left;
+  }
+
+  .hero-panel .panel-cards .couple-card {
+    text-align: center;
+  }
+
   .hero-panel--seal {
     background: none;
     box-shadow: none;
@@ -677,6 +695,11 @@ button {
 
   .hero-panel {
     padding: 1.75rem;
+  }
+
+  /* Panels that hold cards give the cards the room instead. */
+  .hero-panel--wide {
+    padding: 1.25rem;
   }
 
   /* Plain text link (event card's "View on Google Maps") rendered at its

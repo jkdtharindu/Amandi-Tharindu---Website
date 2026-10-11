@@ -9,6 +9,7 @@ import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 import { listSections } from "@/src/sections/sectionsRepo.js";
 import CustomSections from "@/components/public/CustomSections";
 import FaqAccordion from "@/components/public/FaqAccordion";
+import { getHomeSectionVisibilitySafe } from "@/src/home-sections/homeSectionsRepo.js";
 import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
 import { listGalleryPhotos } from "@/src/gallery/galleryPhotosRepo.js";
 import { computeOverlayFromColor } from "@/src/theme/heroOverlay.js";
@@ -141,9 +142,11 @@ export default async function HomePage() {
     wishesSections = [];
   }
 
-  const hasFaq = faqSections.some((section) => section.isVisible && section.title);
-  const hasGalleryPhotos = galleryPhotos.length > 0;
-  const hasCoupleProfiles = Boolean(settings.brideName || settings.groomName);
+  const visibility = await getHomeSectionVisibilitySafe();
+  const hasFaq = visibility.faq && faqSections.some((section) => section.isVisible && section.title);
+  const hasGalleryPhotos = visibility.gallery && galleryPhotos.length > 0;
+  const hasCoupleProfiles =
+    visibility["family-details"] && Boolean(settings.brideName || settings.groomName);
 
   const heroClassName = settings.heroImageUrl
     ? "hero-panel hero-panel--photo"
@@ -191,7 +194,9 @@ export default async function HomePage() {
         </div>
         <Countdown targetDate={`${settings.weddingDate}T${settings.weddingTime}:00+05:30`} />
       </section>
-      <section id="our-story" className="hero-panel hero-panel--light">
+      {visibility["our-story"] && (
+        <>
+      <section id="our-story" className="hero-panel hero-panel--light hero-panel--wide">
         <span className="hero-flag">Our story</span>
         <h2>How our love story began and grew into a wedding celebration.</h2>
         <p>
@@ -199,23 +204,24 @@ export default async function HomePage() {
           stars, our story is full of memorable moments we want to share with
           you.
         </p>
-      </section>
-      <section className="grid-panel">
-        {STORY_MILESTONES.map((milestone) => (
-          <div className="story-card" key={milestone.title}>
-            <h3>{milestone.title}</h3>
-            <p>{milestone.body}</p>
-          </div>
-        ))}
+        <div className="panel-cards grid-panel">
+          {STORY_MILESTONES.map((milestone) => (
+            <div className="story-card" key={milestone.title}>
+              <h3>{milestone.title}</h3>
+              <p>{milestone.body}</p>
+            </div>
+          ))}
+        </div>
       </section>
       <CustomSections sections={ourStorySections} />
+        </>
+      )}
       {hasCoupleProfiles && (
         <>
-          <section id="family-details" className="hero-panel hero-panel--light">
+          <section id="family-details" className="hero-panel hero-panel--light hero-panel--wide">
             <span className="hero-flag">The couple</span>
             <h2>Meet the bride and groom.</h2>
-          </section>
-          <section className="section-grid">
+          <div className="panel-cards section-grid">
             {settings.brideName && (
               <div className="couple-card">
                 {settings.bridePhotoUrl && (
@@ -246,18 +252,20 @@ export default async function HomePage() {
                 {settings.groomBio && <p>{settings.groomBio}</p>}
               </div>
             )}
+          </div>
           </section>
         </>
       )}
-      <section id="event-details" className="hero-panel hero-panel--seal">
+      {visibility["event-details"] && (
+        <>
+      <section id="event-details" className="hero-panel hero-panel--light hero-panel--wide">
         <span className="hero-flag">Wedding events</span>
         <h2>Celebrate with us at the ceremony and reception.</h2>
         <p>
           We are excited to welcome our family and friends for a day filled with
           love, joy, and unforgettable moments.
         </p>
-      </section>
-      <section className="section-grid">
+        <div className="panel-cards section-grid">
         {events.map((event) => (
           <div className="event-card" key={event.id}>
             {event.imageUrl && (
@@ -280,6 +288,21 @@ export default async function HomePage() {
             <p>
               <strong>Venue:</strong> {event.venueName}
             </p>
+            {event.venueAddress && (
+              <p>
+                <strong>Address:</strong> {event.venueAddress}
+              </p>
+            )}
+            {event.parkingNote && (
+              <p>
+                <strong>Parking:</strong> {event.parkingNote}
+              </p>
+            )}
+            {event.dressCode && (
+              <p>
+                <strong>Dress code:</strong> {event.dressCode}
+              </p>
+            )}
             <p>
               <a
                 href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
@@ -291,19 +314,21 @@ export default async function HomePage() {
             </p>
           </div>
         ))}
+        </div>
       </section>
       <CustomSections sections={celebrationSections} />
+        </>
+      )}
       {hasGalleryPhotos && (
         <>
-          <section id="gallery" className="hero-panel hero-panel--light">
+          <section id="gallery" className="hero-panel hero-panel--light hero-panel--wide">
             <span className="hero-flag">Gallery</span>
             <h2>Photos from our journey together.</h2>
             <p>
               Enjoy a curated collection of moments from our story, engagement,
               and memories shared with loved ones.
             </p>
-          </section>
-          <section className="gallery-grid">
+          <div className="panel-cards gallery-grid">
             {galleryPhotos.map((photo) => (
               <div key={photo.id} className="gallery-card">
                 <Image
@@ -316,6 +341,7 @@ export default async function HomePage() {
                 {photo.caption && <p className="gallery-caption">{photo.caption}</p>}
               </div>
             ))}
+          </div>
           </section>
         </>
       )}
@@ -331,6 +357,8 @@ export default async function HomePage() {
           <FaqAccordion sections={faqSections} />
         </section>
       )}
+      {visibility.wishes && (
+        <>
       <section id="wishes" className="hero-panel hero-panel--seal">
         <span className="hero-flag">Wishes</span>
         <h2>Thank you for being part of our story.</h2>
@@ -345,6 +373,8 @@ export default async function HomePage() {
         </div>
       </section>
       <CustomSections sections={wishesSections} />
+        </>
+      )}
       <CustomSections sections={sections} />
     </>
   );

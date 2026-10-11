@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import SiteHeader from "@/components/public/SiteHeader";
 import PageFooter from "@/components/public/PageFooter";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
+import { getHomeSectionVisibilitySafe, HOME_SECTION_KEYS } from "@/src/home-sections/homeSectionsRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 
 /**
@@ -19,9 +20,12 @@ export default async function PublicLayout({ children }: { children: ReactNode }
     settings = { ...defaultThemeSettings };
   }
 
+  const visibility = await getHomeSectionVisibilitySafe();
+  const hiddenSections = HOME_SECTION_KEYS.filter((key) => !visibility[key]);
+
   return (
     <div className="page-shell">
-      <SiteHeader coupleNames={settings.coupleNames} />
+      <SiteHeader coupleNames={settings.coupleNames} hiddenSections={hiddenSections} />
       {children}
       <PageFooter coupleNames={settings.coupleNames} weddingDate={settings.weddingDate} />
     </div>

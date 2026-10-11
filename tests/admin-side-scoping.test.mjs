@@ -54,6 +54,7 @@ test('no admin page or route reads an all-sides list, except for wedding-wide co
 // owner chose to keep shared (Action 68). Every other admin route acts on one side's data.
 const SHARED_ROUTES = [
   'app/api/admin/events/route.ts',
+  'app/api/admin/home-sections/route.ts',
   'app/api/admin/events/[id]/route.ts',
   'app/api/admin/gallery/route.ts',
   'app/api/admin/gallery/[id]/route.ts',
