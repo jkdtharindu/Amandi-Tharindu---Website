@@ -312,9 +312,20 @@ button {
        45% black for a hero photo with no computed color. */
     background: var(--hero-overlay, rgba(0, 0, 0, 0.45));
   }
-  .hero-panel--photo h1,
-  .hero-panel--photo p {
-    color: var(--color-surface);
+  /*
+   * Text on the dark photo uses the admin's "Inverted text" colour (it used
+   * to borrow Surface, which is a card background and can be any colour).
+   * The doubled class beats `.hero-panel p` further down, which was
+   * turning the paragraph dark-on-dark.
+   */
+  .hero-panel.hero-panel--photo h1,
+  .hero-panel.hero-panel--photo h2,
+  .hero-panel.hero-panel--photo p {
+    color: var(--color-text-inverted, #ffffff);
+  }
+  .hero-panel--photo .button-secondary {
+    color: var(--color-text-inverted, #ffffff);
+    border-color: color-mix(in srgb, var(--color-text-inverted, #ffffff) 70%, transparent);
   }
 
   /*
@@ -400,7 +411,7 @@ button {
 
   .button-primary {
     background: var(--color-accent);
-    color: var(--color-surface);
+    color: var(--color-text-inverted, #ffffff);
   }
 
   .button-secondary {
@@ -524,7 +535,7 @@ button {
 
   .countdown-item {
     background: var(--color-accent-deep);
-    color: var(--color-surface);
+    color: var(--color-text-inverted, #ffffff);
     border-radius: var(--radius-countdown);
     padding: 1.3rem;
     text-align: center;
