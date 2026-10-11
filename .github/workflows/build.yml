@@ -13,8 +13,13 @@ jobs:
       - name: Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
       - name: Install dependencies
         run: npm install
       - name: Build
         run: npm run build
+        env:
+          # Placeholders only: the app refuses to build in production mode
+          # without these set. The build never connects to a real database.
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+          SESSION_SECRET: ci-build-placeholder-secret

@@ -17,6 +17,18 @@ export const FONT_FAMILY_OPTIONS = [
   'Cormorant Garamond',
   'Playfair Display',
   'Cinzel',
+  'EB Garamond',
+  'Lora',
+  'Libre Baskerville',
+  'Bodoni Moda',
+  'Marcellus',
+  'Cardo',
+  'Great Vibes',
+  'Dancing Script',
+  'Parisienne',
+  'Montserrat',
+  'Josefin Sans',
+  'Raleway',
 ];
 
 export const FONT_STYLE_OPTIONS = ['italic', 'normal'];
