@@ -1034,6 +1034,23 @@ Round 1 worked, but the tint read as a faint shadow. The owner asked for the her
 - **Migration 027** (`hero_palette text NOT NULL DEFAULT ''`) must be applied by the owner before this code is merged, same rule as 025 and 026.
 - **Not asked:** this round was owner feedback, not a new Grill Me. The five-colour count, the section-to-colour rotation, the 8:1 target and the facet styling are the designer's choices (single constants in `src/theme/` and `app/globals.css`).
 
+### Round 3 — 3D depth (Grill Me session 2026-10-11)
+
+After round 2 worked, the owner asked for the sections to feel 3D, in a crystal way, throughout the site.
+
+| Question | Answer |
+|---|---|
+| What kind of 3D? | **Layered depth, no movement:** panels look like thick crystal slabs stacked on the page (bright top edge, solid thickness edge, layered shadows). No tilt, scroll reveal or animation. |
+| How strong? | **Elegant and subtle.** |
+| Inner cards? | **Yes, softly raised** (thin bright edge, a little thickness). |
+| Devices / motion | **Mostly phones; respect reduced-motion.** Nothing moves, so there is nothing to disable. |
+
+- [ ] Big panels and the photo hero show the slab look; the cards inside them (feature, event, gallery, wish, story, couple, FAQ items) look softly raised.
+- [ ] Shadows, edges and highlights only: no colour or layout change, no `transform`, no `animation`.
+- [ ] The same "Section tint & glass" switch turns it off; with the switch off the page looks as it did before.
+- [ ] No schema change and no new setting.
+- Assumed without asking: the exact shadow sizes and thickness (3px), and no overlap between sections (it risked covering text). Single block at the end of `app/globals.css`.
+
 ### Assumptions made without asking (owner can overrule)
 - (Round 1, superseded by round 2 above for the tint colour) The 40/60 photo-to-Accent split, the blur size and the shine strength were chosen by the designer, not asked. They are single constants in `src/theme/sectionTint.js` and `app/globals.css`.
 - The page background's fixed blue glow is replaced by a soft glow of the same tint while the switch is on, so the glass has something to refract.
