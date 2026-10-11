@@ -26,12 +26,12 @@ function gitDiffFiles() {
     const out = execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf8' });
     if (out) return out.split(/\r?\n/).filter(Boolean);
     return execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
-  } catch (err) {
+  } catch {
     // best-effort: list staged/changed files
     try {
       const out = execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' });
       return out.split(/\r?\n/).filter(Boolean);
-    } catch (err2) {
+    } catch {
       return [];
     }
   }
