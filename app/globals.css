@@ -24,14 +24,28 @@
    * is ever unset (e.g. a page that doesn't go through app/layout.tsx).
    */
   --color-ink: var(--color-text-base, #1f2937);
-  --color-heading: var(--color-text-base, #0f172a);
+  --color-heading: var(--color-brand, #4a1525);
   --color-body: color-mix(in srgb, var(--color-text-base, #1f2937) 82%, var(--color-canvas));
   --color-brand: #334155;
-  --color-muted: color-mix(in srgb, var(--color-text-base, #1f2937) 60%, var(--color-canvas));
+  --color-muted: color-mix(in srgb, var(--color-text-base, #1f2937) 72%, var(--color-canvas));
   --color-canvas: #f8fafc;
   --color-surface: #ffffff;
   --color-accent: #2563eb;
   --color-accent-deep: #1d4ed8;
+  /* Gold used as *text* (nav, small labels): the accent darkened so it stays
+     readable on the cream page. The raw accent is for lines, fills and icons. */
+  --color-accent-text: color-mix(in srgb, var(--color-accent) 78%, black);
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+  --color-accent-line: color-mix(in srgb, var(--color-accent) 35%, var(--color-surface));
+  --color-brand-hover: color-mix(in srgb, var(--color-brand) 82%, black);
+  --color-brand-soft: color-mix(in srgb, var(--color-brand) 8%, var(--color-surface));
+  /* Status colours, kept soft so they sit inside the burgundy/gold palette
+     (sage = accepted, rose = declined). Both clear 4.5:1 on white. */
+  --color-sage: #4f6349;
+  --color-sage-soft: color-mix(in srgb, #4f6349 10%, var(--color-surface));
+  --color-sage-line: color-mix(in srgb, #4f6349 30%, var(--color-surface));
+  --color-rose: #9b3d4b;
+  --color-shadow: color-mix(in srgb, var(--color-brand) 14%, transparent);
   --color-hairline: color-mix(in srgb, var(--color-text-base, #1f2937) 12%, var(--color-canvas));
   --color-field-border: color-mix(in srgb, var(--color-text-base, #1f2937) 24%, var(--color-canvas));
 
@@ -46,6 +60,10 @@
 }
 
 :root {
+  /* Heading face and style come from the Theme Editor (set on <html> in
+     app/layout.tsx); these are only the fallbacks. */
+  --font-display: Georgia, "Times New Roman", serif;
+  --display-font-style: normal;
   color-scheme: light;
   font-family: var(--font-sans);
   color: var(--color-ink);
@@ -71,7 +89,7 @@ html {
 body {
   background: radial-gradient(
       circle at top,
-      rgba(59, 130, 246, 0.12),
+      color-mix(in srgb, var(--color-accent) 14%, transparent),
       transparent 30%
     ),
     var(--color-canvas);
@@ -133,6 +151,24 @@ button {
 }
 
 @layer components {
+  /*
+   * Two-font system: the admin-chosen display face (default Cormorant, italic)
+   * is for headings, the couple's names and big numbers only. Everything else
+   * -- paragraphs, labels, buttons, form fields -- stays in Inter so small text
+   * is easy to read. Scoped to the guest-facing shells so the admin portal
+   * keeps its plain sans-serif.
+   */
+  .page-shell :is(h1, h2, h3, h4),
+  .site-gate :is(h1, h2, h3, h4),
+  .site-brand,
+  .gate-names,
+  .countdown-item strong,
+  .envelope-card-couple,
+  .envelope-names {
+    font-family: var(--font-display);
+    font-style: var(--display-font-style);
+  }
+
   .skip-to-content {
     position: absolute;
     top: -9999px;
@@ -220,7 +256,7 @@ button {
 
   .site-nav a:hover,
   .site-nav a.active {
-    color: var(--color-accent);
+    color: var(--color-accent-text);
   }
 
   /* The prototype declared .hero-panel twice; merged here. */
@@ -230,7 +266,7 @@ button {
     background: var(--color-surface);
     border-radius: var(--radius-hero);
     padding: 2.5rem;
-    box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 30px 90px color-mix(in srgb, var(--color-shadow) 60%, transparent);
     text-align: center;
     max-width: 900px;
     margin: 0 auto;
@@ -256,7 +292,7 @@ button {
   }
   .hero-panel--seal::before {
     background: var(--color-surface);
-    box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 30px 90px color-mix(in srgb, var(--color-shadow) 60%, transparent);
     transform: rotate(-1.2deg);
   }
   .hero-panel--seal::after {
@@ -315,6 +351,10 @@ button {
   .hero-panel--photo h1,
   .hero-panel--photo p {
     color: var(--color-surface);
+  }
+  .hero-panel--photo .button-secondary {
+    color: var(--color-surface);
+    border-color: var(--color-surface);
   }
 
   /*
@@ -399,14 +439,19 @@ button {
   }
 
   .button-primary {
-    background: var(--color-accent);
+    background: var(--color-brand);
     color: var(--color-surface);
+    transition: background-color 0.2s ease;
+  }
+
+  .button-primary:hover {
+    background: var(--color-brand-hover);
   }
 
   .button-secondary {
     background: transparent;
     color: var(--color-brand);
-    border: 1px solid color-mix(in srgb, var(--color-text-base, #64748b) 22%, transparent);
+    border: 1px solid var(--color-accent);
   }
 
   /*
@@ -436,7 +481,7 @@ button {
     background: var(--color-surface);
     border-radius: var(--radius-card);
     padding: 1.75rem;
-    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 18px 36px color-mix(in srgb, var(--color-shadow) 45%, transparent);
   }
 
   /*
@@ -495,6 +540,16 @@ button {
     margin: 0 0 0.75rem;
   }
 
+  /* Card titles were body-sized; in the display face they need to be a
+     clear step above the text beneath them. */
+  .event-card h3,
+  .story-card h3,
+  .couple-card h3 {
+    font-size: 1.6rem;
+    line-height: 1.15;
+    color: var(--color-heading);
+  }
+
   .feature-card p,
   .event-card p,
   .story-card p,
@@ -523,8 +578,9 @@ button {
   }
 
   .countdown-item {
-    background: var(--color-accent-deep);
-    color: var(--color-surface);
+    background: var(--color-brand-soft);
+    color: var(--color-brand);
+    border: 1px solid var(--color-accent-line);
     border-radius: var(--radius-countdown);
     padding: 1.3rem;
     text-align: center;
@@ -566,7 +622,7 @@ button {
     background: var(--color-surface);
     border-radius: var(--radius-card);
     padding: 0.25rem 1.25rem;
-    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 18px 36px color-mix(in srgb, var(--color-shadow) 45%, transparent);
   }
 
   .faq-question {
@@ -590,7 +646,7 @@ button {
     flex-shrink: 0;
     font-size: 1.25rem;
     line-height: 1;
-    color: var(--color-accent);
+    color: var(--color-accent-text);
     transition: transform 0.2s ease;
   }
 
@@ -910,7 +966,7 @@ button {
   .gate-error {
     min-height: 1.5em;
     margin: 0;
-    color: #b42318;
+    color: var(--color-rose);
     font-size: 0.95rem;
     font-style: normal;
   }
@@ -1057,7 +1113,7 @@ button {
     font-style: normal;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: var(--color-accent);
+    color: var(--color-accent-text);
   }
 
   .envelope-card-couple {

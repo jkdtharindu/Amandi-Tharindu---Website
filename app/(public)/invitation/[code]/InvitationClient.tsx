@@ -134,9 +134,9 @@ function LegacyRsvpForm({
     <div>
       {/* Sticky Bar */}
       {!hasResponded && (
-        <div className="fixed bottom-0 left-0 right-0 bg-amber-50 border-t border-amber-200 px-4 py-4 shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 bg-accent-soft border-t border-accent-line px-4 py-4 shadow-lg">
           <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="text-gray-800 font-semibold">
+            <span className="text-heading font-semibold">
               {coupleNames} are waiting for your response 💍 — Will you join us?
             </span>
             <div className="flex gap-3">
@@ -145,7 +145,7 @@ function LegacyRsvpForm({
                   setAttending(true);
                   setShowForm(true);
                 }}
-                className="py-2 px-6 rounded-full bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
+                className="py-2 px-6 rounded-full bg-sage text-surface font-semibold hover:brightness-110 transition-colors"
               >
                 Accept
               </button>
@@ -154,7 +154,7 @@ function LegacyRsvpForm({
                   setAttending(false);
                   setShowForm(true);
                 }}
-                className="py-2 px-6 rounded-full bg-gray-500 text-white font-semibold hover:bg-gray-600 transition-colors"
+                className="py-2 px-6 rounded-full bg-body text-surface font-semibold hover:bg-heading transition-colors"
               >
                 Decline
               </button>
@@ -165,8 +165,8 @@ function LegacyRsvpForm({
 
       {/* RSVP Form - shown when user clicks Accept/Decline or wants to change */}
       {(showForm || hasResponded) && (
-        <div className="bg-white rounded-3xl shadow-lg p-8 mb-20 md:mb-0">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">
+        <div className="bg-surface rounded-3xl shadow-lg p-8 mb-20 md:mb-0">
+          <h2 className="text-2xl font-bold mb-6 text-heading">
             {hasResponded && !showForm ? 'Your RSVP Response' : 'Respond to Invitation'}
           </h2>
 
@@ -180,9 +180,9 @@ function LegacyRsvpForm({
                   value="yes"
                   checked={attending}
                   onChange={(e) => setAttending(e.target.value === 'yes')}
-                  className="w-4 h-4 text-green-600 cursor-pointer"
+                  className="w-4 h-4 text-sage cursor-pointer"
                 />
-                <span className="text-gray-900 font-semibold">I will attend and celebrate with you</span>
+                <span className="text-heading font-semibold">I will attend and celebrate with you</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -191,16 +191,16 @@ function LegacyRsvpForm({
                   value="no"
                   checked={!attending}
                   onChange={(e) => setAttending(e.target.value === 'yes')}
-                  className="w-4 h-4 text-red-600 cursor-pointer"
+                  className="w-4 h-4 text-rose cursor-pointer"
                 />
-                <span className="text-gray-900 font-semibold">I will not be able to attend</span>
+                <span className="text-heading font-semibold">I will not be able to attend</span>
               </label>
             </div>
 
             {/* Participant Names - shown only if attending */}
             {attending && (
               <div>
-                <label htmlFor="participants" className="block text-sm font-semibold text-gray-700 mb-3">
+                <label htmlFor="participants" className="block text-sm font-semibold text-body mb-3">
                   Participant Names (comma-separated, {slotCount} available)
                 </label>
                 <textarea
@@ -209,10 +209,10 @@ function LegacyRsvpForm({
                   onChange={(e) => setParticipantNames(e.target.value)}
                   placeholder={`e.g., ${['Nimal Silva', 'Anu Silva', 'Ravi Silva'].slice(0, slotCount).join(', ')}`}
                   disabled={!attending || loading}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="w-full px-4 py-3 rounded-2xl border border-field-border text-heading placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
                   rows={3}
                 />
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-body mt-2">
                   Please list all attendees from your party (up to {slotCount} people).
                 </p>
               </div>
@@ -222,7 +222,7 @@ function LegacyRsvpForm({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-6 rounded-full bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 px-6 rounded-full bg-brand text-surface font-bold text-lg hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Saving...' : 'Submit RSVP'}
             </button>
@@ -232,7 +232,7 @@ function LegacyRsvpForm({
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
-                className="w-full py-2 px-6 rounded-full border-2 border-blue-600 text-blue-600 font-bold hover:bg-blue-50 transition-colors"
+                className="w-full py-2 px-6 rounded-full border-2 border-brand text-brand font-bold hover:bg-brand-soft transition-colors"
               >
                 Change Your Response
               </button>
@@ -356,9 +356,9 @@ function InviteeChecklist({
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-lg p-8">
-      <h2 className="text-2xl font-bold mb-2 text-gray-900">Who&apos;s Coming?</h2>
-      <p className="text-sm text-gray-600 mb-6">
+    <div className="bg-surface rounded-3xl shadow-lg p-8">
+      <h2 className="text-2xl font-bold mb-2 text-heading">Who&apos;s Coming?</h2>
+      <p className="text-sm text-body mb-6">
         Let {coupleNames} know who from your party will be attending.
       </p>
 
@@ -366,17 +366,17 @@ function InviteeChecklist({
         {approved.map((invitee) => (
           <div
             key={invitee.id}
-            className="flex flex-wrap items-center justify-between gap-3 border border-gray-200 rounded-2xl px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-3 border border-hairline rounded-2xl px-4 py-3"
           >
-            <span className="font-semibold text-gray-900">{invitee.name}</span>
+            <span className="font-semibold text-heading">{invitee.name}</span>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setResponses((prev) => ({ ...prev, [invitee.id]: true }))}
                 className={`py-1.5 px-4 rounded-full text-sm font-semibold transition-colors ${
                   responses[invitee.id] === true
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                    ? 'bg-sage text-surface'
+                    : 'bg-hairline text-body hover:bg-sage-soft'
                 }`}
               >
                 Accept
@@ -386,8 +386,8 @@ function InviteeChecklist({
                 onClick={() => setResponses((prev) => ({ ...prev, [invitee.id]: false }))}
                 className={`py-1.5 px-4 rounded-full text-sm font-semibold transition-colors ${
                   responses[invitee.id] === false
-                    ? 'bg-gray-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-body text-surface'
+                    : 'bg-hairline text-body hover:bg-field-border'
                 }`}
               >
                 Decline
@@ -399,24 +399,24 @@ function InviteeChecklist({
         {pendingRequests.map((invitee) => (
           <div
             key={invitee.id}
-            className="flex items-center justify-between gap-3 border border-amber-200 bg-amber-50 rounded-2xl px-4 py-3"
+            className="flex items-center justify-between gap-3 border border-accent-line bg-accent-soft rounded-2xl px-4 py-3"
           >
-            <span className="font-semibold text-gray-700">{invitee.name}</span>
-            <span className="text-xs font-semibold text-amber-700">Waiting for admin approval</span>
+            <span className="font-semibold text-body">{invitee.name}</span>
+            <span className="text-xs font-semibold text-accent-text">Waiting for admin approval</span>
           </div>
         ))}
 
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-3 px-6 rounded-full bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-3 px-6 rounded-full bg-brand text-surface font-bold text-lg hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? 'Saving...' : 'Submit RSVP'}
         </button>
       </form>
 
-      <div className="mt-6 pt-6 border-t border-gray-200">
-        <label htmlFor="newPerson" className="block text-sm font-semibold text-gray-700 mb-2">
+      <div className="mt-6 pt-6 border-t border-hairline">
+        <label htmlFor="newPerson" className="block text-sm font-semibold text-body mb-2">
           Need to add someone not on this list?
         </label>
         <div className="flex gap-2">
@@ -425,18 +425,18 @@ function InviteeChecklist({
             value={newPersonName}
             onChange={(e) => setNewPersonName(e.target.value)}
             placeholder="Their full name"
-            className="flex-1 px-4 py-2 rounded-full border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-4 py-2 rounded-full border border-field-border text-heading placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             type="button"
             onClick={handleRequestAddPerson}
             disabled={requesting || !newPersonName.trim()}
-            className="py-2 px-5 rounded-full border-2 border-blue-600 text-blue-600 font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors"
+            className="py-2 px-5 rounded-full border-2 border-brand text-brand font-semibold hover:bg-brand-soft disabled:opacity-50 transition-colors"
           >
             {requesting ? 'Sending...' : 'Request'}
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-muted mt-2">
           This needs a quick approval before it&apos;s added to your list.
         </p>
       </div>

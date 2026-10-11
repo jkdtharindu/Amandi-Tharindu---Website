@@ -91,43 +91,43 @@ export default async function InvitationPage({
           />
 
           {/* Guest Info Card */}
-          <div className="bg-white rounded-3xl shadow-lg p-8">
-            <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
+          <div className="bg-surface rounded-3xl shadow-lg p-8">
+            <h1 className={`text-3xl md:text-4xl font-bold text-heading ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
               Invitation for {guest.name}
             </h1>
 
             {tableViews.length > 0 && (
               <div className="mb-6" data-testid="table-assignment">
                 {tableViews.map((view, index) => (
-                  <p key={`${index}-${view.label}`} className="text-gray-700">
-                    <span className="text-lg font-semibold text-gray-900">{view.label}</span>
+                  <p key={`${index}-${view.label}`} className="text-body">
+                    <span className="text-lg font-semibold text-heading">{view.label}</span>
                     {view.mates.length > 0 && (
-                      <span className="text-sm text-gray-600"> — with {view.mates.join(', ')}</span>
+                      <span className="text-sm text-body"> — with {view.mates.join(', ')}</span>
                     )}
                   </p>
                 ))}
               </div>
             )}
 
-            <div className="grid md:grid-cols-2 gap-4 mb-6 text-gray-700">
+            <div className="grid md:grid-cols-2 gap-4 mb-6 text-body">
               <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Code</p>
-                <p className="text-lg font-mono">{guest.code}</p>
+                <p className="text-sm font-semibold text-body mb-1">Code</p>
+                <p className="text-lg font-semibold tracking-wide">{guest.code}</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Relationship</p>
+                <p className="text-sm font-semibold text-body mb-1">Relationship</p>
                 <p className="text-lg">{guest.relationship}</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Party Size</p>
+                <p className="text-sm font-semibold text-body mb-1">Party Size</p>
                 <p className="text-lg">{guest.slotCount} people</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">RSVP Status</p>
+                <p className="text-sm font-semibold text-body mb-1">RSVP Status</p>
                 <p className={`text-lg font-semibold ${
-                  rsvpStatus === 'accepted' ? 'text-green-600' :
-                  rsvpStatus === 'declined' ? 'text-red-600' :
-                  'text-yellow-600'
+                  rsvpStatus === 'accepted' ? 'text-sage' :
+                  rsvpStatus === 'declined' ? 'text-rose' :
+                  'text-accent-text'
                 }`}>
                   {rsvpStatus.charAt(0).toUpperCase() + rsvpStatus.slice(1)}
                 </p>
@@ -136,34 +136,34 @@ export default async function InvitationPage({
 
             {/* Current Status Message */}
             {hasResponded ? (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-green-800">
+              <div className="bg-sage-soft border border-sage-line rounded-2xl p-4 text-sage">
                 <p>
                   Thank you for your response! Your current status is <strong>{rsvpStatus}</strong>.
                   You can still change your response if needed.
                 </p>
               </div>
             ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800">
+              <div className="bg-accent-soft border border-accent-line rounded-2xl p-4 text-accent-text">
                 <p>We are looking forward to hearing from you about your attendance.</p>
               </div>
             )}
           </div>
 
           {/* Event Details */}
-          <div className="bg-white rounded-3xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Event Details</h2>
+          <div className="bg-surface rounded-3xl shadow-lg p-8">
+            <h2 className="text-2xl font-bold mb-6 text-heading">Event Details</h2>
             <div className="grid md:grid-cols-2 gap-8">
               {events.map((event) => (
                 <div key={event.id}>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.name}</h3>
-                  <p className="text-gray-700 mb-1"><strong>Date:</strong> {formatWeddingDate(event.eventDate)}</p>
-                  <p className="text-gray-700 mb-1"><strong>Time:</strong> {event.eventTime}</p>
-                  <p className="text-gray-700 mb-3"><strong>Venue:</strong> {event.venueName}</p>
+                  <h3 className="text-lg font-semibold text-heading mb-2">{event.name}</h3>
+                  <p className="text-body mb-1"><strong>Date:</strong> {formatWeddingDate(event.eventDate)}</p>
+                  <p className="text-body mb-1"><strong>Time:</strong> {event.eventTime}</p>
+                  <p className="text-body mb-3"><strong>Venue:</strong> {event.venueName}</p>
                   <a
                     href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline font-semibold"
+                    className="text-brand underline underline-offset-2 hover:underline font-semibold"
                   >
                     View on Google Maps →
                   </a>

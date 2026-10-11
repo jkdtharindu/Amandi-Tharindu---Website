@@ -175,14 +175,14 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
         .envelope-body, .envelope-front, .envelope-flap { position: absolute; left: 0; width: 100%; }
         .envelope-body {
           inset: 0;
-          background: color-mix(in srgb, var(--color-accent, #b45309) 78%, black);
+          background: color-mix(in srgb, var(--color-brand, #4a1525) 82%, black);
           border-radius: 6px;
           box-shadow: 0 18px 36px rgba(0,0,0,0.22);
           z-index: 0;
         }
         .envelope-front {
           inset: 0;
-          background: var(--color-accent, #b45309);
+          background: var(--color-brand, #4a1525);
           border-radius: 6px;
           clip-path: polygon(0 0, 50% 52%, 100% 0, 100% 100%, 0 100%);
           filter: drop-shadow(0 -2px 3px rgba(0,0,0,0.18));
@@ -191,7 +191,7 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
         .envelope-flap {
           top: 0;
           height: 56%;
-          background: color-mix(in srgb, var(--color-accent, #b45309) 88%, white);
+          background: color-mix(in srgb, var(--color-brand, #4a1525) 84%, white);
           clip-path: polygon(0 0, 100% 0, 50% 100%);
           transform-origin: top center;
           z-index: 4;

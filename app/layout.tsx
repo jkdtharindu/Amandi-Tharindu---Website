@@ -40,7 +40,7 @@ function fontFamilyFor(fontFamily: string): string {
     case "Cormorant Garamond":
     case "Playfair Display":
     case "Cinzel":
-      return `'${fontFamily}', serif`;
+      return `'${fontFamily}', Georgia, serif`;
     default:
       return DEFAULT_FONT_SANS;
   }
@@ -62,8 +62,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     "--color-text-base": settings.baseTextColor,
     "--color-text-inverted": settings.invertedTextColor,
     "--color-surface": settings.surfaceColor,
-    "--font-sans": fontFamilyFor(settings.fontFamily),
-    fontStyle: settings.fontStyle,
+    // Body text is always the clean sans-serif; the admin's font choice only
+    // drives headings, names and numbers (see --font-display in globals.css).
+    "--font-display": fontFamilyFor(settings.fontFamily),
+    "--display-font-style": settings.fontStyle,
   };
 
   return (
