@@ -60,6 +60,7 @@ const SHARED_ROUTES = [
   'app/api/admin/sections/route.ts',
   'app/api/admin/sections/[id]/route.ts',
   'app/api/admin/theme/route.ts',
+  'app/api/admin/theme/palette/route.ts',
   'app/api/admin/upload/route.ts',
   'app/api/admin/login/route.ts',
   'app/api/admin/logout/route.ts',

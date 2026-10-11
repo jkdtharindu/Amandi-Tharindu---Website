@@ -20,6 +20,7 @@ const VALID_INPUT = {
   weddingTime: '15:00',
   heroImageUrl: '',
   heroDominantColor: '',
+  heroPalette: '',
   sectionGlassEnabled: true,
   sectionGlassStrength: 60,
   brideName: '',

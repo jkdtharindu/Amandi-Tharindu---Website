@@ -13,6 +13,7 @@ export const themeSettings = (globalThis.__themeSettings ??= {
   fontStyle: 'italic',
   heroImageUrl: '',
   heroDominantColor: '',
+  heroPalette: '',
   sectionGlassEnabled: true,
   sectionGlassStrength: 60,
   invitationTemplateUrl: '',

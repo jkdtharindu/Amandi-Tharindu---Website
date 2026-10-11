@@ -19,6 +19,7 @@ export type ThemeSettings = {
   weddingTime: string;
   heroImageUrl: string;
   heroDominantColor: string;
+  heroPalette: string;
   sectionGlassEnabled: boolean;
   sectionGlassStrength: number;
   brideName: string;
@@ -42,6 +43,7 @@ export default function ThemeEditor({
   const [form, setForm] = useState<ThemeSettings>(initialSettings);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [paletteBusy, setPaletteBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
   const showToast = useToast();
 
@@ -77,6 +79,27 @@ export default function ThemeEditor({
       showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function readPalette() {
+    setPaletteBusy(true);
+    try {
+      const res = await fetch('/api/admin/theme/palette', {
+        method: 'POST',
+        headers: { 'x-csrf-token': csrfToken },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setForm((current) => ({ ...current, heroPalette: (data.palette as string[]).join(',') }));
+        showToast({ kind: 'ok', text: 'Colours read. Press Save to publish them.' });
+      } else {
+        showToast({ kind: 'error', text: data.message || 'Could not read colours from the photo.' });
+      }
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setPaletteBusy(false);
     }
   }
 
@@ -172,6 +195,38 @@ export default function ThemeEditor({
               </span>
             </span>
           </label>
+          <div>
+            <p className="block text-xs font-semibold text-slate-500 mb-1">
+              Colours read from the hero photo
+            </p>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {form.heroPalette ? (
+                form.heroPalette.split(',').map((color) => (
+                  <span
+                    key={color}
+                    title={color}
+                    className="h-8 w-8 rounded-full border border-slate-300"
+                    style={{ backgroundColor: color }}
+                  />
+                ))
+              ) : (
+                <span className="text-xs text-slate-500">
+                  None yet. Sections use your Accent colour until the photo&apos;s colours are read.
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={!form.heroImageUrl || paletteBusy}
+              onClick={readPalette}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"
+            >
+              {paletteBusy ? 'Reading…' : 'Read colours from my hero photo'}
+            </button>
+            <p className="mt-1 text-xs text-slate-500">
+              Happens automatically when you upload a photo. Press Save afterwards to publish.
+            </p>
+          </div>
           <div>
             <label
               htmlFor="sectionGlassStrength"
@@ -301,8 +356,13 @@ export default function ThemeEditor({
         <div className="mb-6">
           <HeroBackgroundField
             imageUrl={form.heroImageUrl}
-            onChange={(url, dominantColor) =>
-              setForm({ ...form, heroImageUrl: url, heroDominantColor: dominantColor })
+            onChange={(url, dominantColor, palette) =>
+              setForm({
+                ...form,
+                heroImageUrl: url,
+                heroDominantColor: dominantColor,
+                heroPalette: palette,
+              })
             }
             csrfToken={csrfToken}
           />
