@@ -149,6 +149,18 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Do not call it: `section`, `component`, `widget`
 - Example: A custom SiteSection can be added under the admin section manager.
 
+### HomeSectionSwitch
+- Canonical name: `HomeSectionSwitch`
+- Definition: The admin's show/hide setting for one built-in homepage section (Our Story, The couple, Wedding events, Gallery, FAQ, Wishes). A hidden section and its menu link disappear for guests; nothing is deleted.
+- Do not call it: `toggle` (in guest-facing copy), `delete`, `disable`
+- Example: The Gallery HomeSectionSwitch stays off until the pre-shoot photos are uploaded.
+
+### SiteWording
+- Canonical name: `SiteWording`
+- Definition: A piece of guest-facing text (heading, paragraph, menu name, button label or message) that has a default in `src/site-text/siteTextRegistry.js` and may be replaced by the admin in Admin > Site wording. It can contain {tags} the site fills in. Names, dates, photos and events are not SiteWording.
+- Do not call it: `copy`, `translation`, `content` (too broad)
+- Example: Renaming the menu's "Gallery" to "Pre-shoot photos" edits the SiteWording key `menu.gallery`.
+
 ### SeatingTable
 - Canonical name: `SeatingTable`
 - Definition: A physical table at the reception, with a name/number and a seat capacity, to which the Admin assigns Guests.
