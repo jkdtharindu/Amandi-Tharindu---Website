@@ -204,7 +204,7 @@ function LegacyRsvpForm({
 
       {/* RSVP Form - shown when user clicks Accept/Decline or wants to change */}
       {(showForm || hasResponded) && (
-        <div className="bg-white rounded-3xl shadow-lg p-8 mb-20 md:mb-0">
+        <div className="bg-white rounded-3xl shadow-lg p-5 sm:p-8 mb-20 md:mb-0">
           <h2 className="text-2xl font-bold mb-6 text-gray-900">
             {hasResponded && !showForm ? t('legacy.formTitleDone') : t('legacy.formTitle')}
           </h2>
@@ -407,7 +407,7 @@ function InviteeChecklist({
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-lg p-8">
+    <div className="bg-white rounded-3xl shadow-lg p-5 sm:p-8">
       <SavingOverlay show={saving} />
       <h2 className="text-2xl font-bold mb-2 text-gray-900">{t('rsvp.title')}</h2>
       <p className="text-sm text-gray-600 mb-6">

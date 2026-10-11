@@ -86,8 +86,8 @@ export default async function InvitationPage({
 
   return (
     <div>
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
-        <div className="space-y-6">
+      <main className="flex-1 mx-auto w-full py-4" style={{ maxWidth: 'var(--content-width, 1040px)' }}>
+        <div className="space-y-10">
           <EnvelopeIntro
             guestName={guest.name}
             coupleNames={settings.coupleNames}
@@ -95,7 +95,7 @@ export default async function InvitationPage({
           />
 
           {/* Guest Info Card */}
-          <div className="bg-white rounded-3xl shadow-lg p-8">
+          <div className="bg-white rounded-3xl shadow-lg p-5 sm:p-8">
             <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
               {t('invitation.heading', { guestName: guest.name })}
             </h1>
@@ -126,7 +126,7 @@ export default async function InvitationPage({
           </div>
 
           {/* Event Details */}
-          <div className="bg-white rounded-3xl shadow-lg p-8">
+          <div className="bg-white rounded-3xl shadow-lg p-5 sm:p-8">
             <h2 className="text-2xl font-bold mb-6 text-gray-900">{t('invitation.eventsHeading')}</h2>
             <div className="grid md:grid-cols-2 gap-8">
               {events.map((event) => (

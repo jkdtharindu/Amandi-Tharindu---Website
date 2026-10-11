@@ -46,6 +46,7 @@
 }
 
 :root {
+  --content-width: 1040px; /* one width for every guest-page panel and card */
   color-scheme: light;
   font-family: var(--font-sans);
   color: var(--color-ink);
@@ -171,6 +172,7 @@ button {
     align-items: center;
     gap: 1rem;
     padding: 1rem 0;
+    margin-bottom: 0.75rem;
   }
 
   .site-header-row {
@@ -232,7 +234,7 @@ button {
     padding: 2.5rem;
     box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08);
     text-align: center;
-    max-width: 900px;
+    max-width: var(--content-width, 1040px);
     margin: 0 auto;
   }
 
@@ -243,7 +245,7 @@ button {
    */
   /* A section's heading and its cards live in one panel, so they read as one block. */
   .hero-panel--wide {
-    max-width: 1040px;
+    max-width: var(--content-width, 1040px);
   }
 
   .page-shell > .hero-panel {
@@ -262,7 +264,7 @@ button {
   .hero-panel--seal {
     background: none;
     box-shadow: none;
-    padding: clamp(3.6rem, 9vw, 4.6rem) clamp(3.2rem, 9vw, 4.2rem);
+    padding: 3rem 2.5rem;
   }
   .hero-panel--seal::before,
   .hero-panel--seal::after {
@@ -513,10 +515,6 @@ button {
     border: 3px solid var(--color-accent);
   }
 
-  .story-card {
-    padding: 1.5rem;
-  }
-
   .feature-card h2,
   .event-card h3,
   .story-card h3,
@@ -638,7 +636,7 @@ button {
   .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
+    gap: 1.25rem;
   }
 
   .responsive-stack {
@@ -693,13 +691,21 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .hero-panel {
-    padding: 1.75rem;
+  .hero-panel,
+  .hero-panel--seal {
+    padding: 1.5rem;
   }
 
-  /* Panels that hold cards give the cards the room instead. */
-  .hero-panel--wide {
+  .event-card,
+  .story-card,
+  .couple-card,
+  .feature-card,
+  .wish-card {
     padding: 1.25rem;
+  }
+
+  .hero-panel .panel-cards {
+    margin-top: 1.5rem;
   }
 
   /* Plain text link (event card's "View on Google Maps") rendered at its
