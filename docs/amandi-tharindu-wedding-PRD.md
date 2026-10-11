@@ -1022,8 +1022,20 @@ The owner re-did the hero photo and chose a new palette (burgundy / champagne / 
 - Migration `026_add_section_glass.sql`: `theme_settings.section_glass_enabled boolean NOT NULL DEFAULT true` and `section_glass_strength integer NOT NULL DEFAULT 60`.
 - **HITL ordering:** the owner applies 026 to the live database **before** the code is merged. Reading is safe without it (defaults apply), but saving the Theme page writes both columns and fails until they exist.
 
+### Round 2 — owner feedback 2026-10-11 (after seeing round 1 live)
+
+Round 1 worked, but the tint read as a faint shadow. The owner asked for the hero photo's **actual colours** to be read automatically and applied to each section, "like crystal", in a well-matched layout. This replaces round 1's single blended tint:
+
+- **Colours:** up to five real colours are read from the hero photo (`src/theme/paletteExtract.js`) when a photo is uploaded, or on demand from the saved photo ("Read colours from my hero photo" on the Theme page). Stored in `theme_settings.hero_palette` (migration 027).
+- **Per section:** each big panel gets its own pair of those colours (Our Story, Family, Event Details, Gallery, FAQ, Wishes in a fixed rotation), washed into a crystal look: a colour-to-colour gradient, a bright diagonal sheen and a conic facet catching light in the corner.
+- **Readability rule:** every wash is a mix of a photo colour and Surface, lightened until Base text reads on it at 8:1 or better (`src/theme/sectionPalette.js`). A deep wine swatch therefore becomes a pale rose wash, never a dark panel.
+- **Slider:** 0-100 now sets how colourful the washes start (before the readability rule pulls dark ones back).
+- **No palette yet:** falls back to washes made from the theme's own Accent, Main and hero colours.
+- **Migration 027** (`hero_palette text NOT NULL DEFAULT ''`) must be applied by the owner before this code is merged, same rule as 025 and 026.
+- **Not asked:** this round was owner feedback, not a new Grill Me. The five-colour count, the section-to-colour rotation, the 8:1 target and the facet styling are the designer's choices (single constants in `src/theme/` and `app/globals.css`).
+
 ### Assumptions made without asking (owner can overrule)
-- The 40/60 photo-to-Accent split, the blur size and the shine strength were chosen by the designer, not asked. They are single constants in `src/theme/sectionTint.js` and `app/globals.css`.
+- (Round 1, superseded by round 2 above for the tint colour) The 40/60 photo-to-Accent split, the blur size and the shine strength were chosen by the designer, not asked. They are single constants in `src/theme/sectionTint.js` and `app/globals.css`.
 - The page background's fixed blue glow is replaced by a soft glow of the same tint while the switch is on, so the glass has something to refract.
 
 ---

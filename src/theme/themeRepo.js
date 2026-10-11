@@ -2,6 +2,7 @@ import { query } from '../db.js';
 import { themeSettings } from '../data/themeStore.js';
 import { mergeThemeUpdate } from './mergeThemeUpdate.js';
 import { normaliseGlassStrength } from './sectionTint.js';
+import { serialisePalette } from './sectionPalette.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -40,6 +41,7 @@ export function mapRow(row) {
     fontStyle: row.font_style,
     heroImageUrl: row.hero_image_url || '',
     heroDominantColor: row.hero_dominant_color || '',
+    heroPalette: row.hero_palette || '',
     sectionGlassEnabled: row.section_glass_enabled !== false,
     sectionGlassStrength: normaliseGlassStrength(row.section_glass_strength),
     invitationTemplateUrl: row.invitation_template_url || '',
@@ -97,7 +99,8 @@ export async function updateThemeSettings(patch) {
       bride_name = $24, bride_photo_url = $25, bride_bio = $26,
       groom_name = $27, groom_photo_url = $28, groom_bio = $29,
       hero_dominant_color = $31,
-      section_glass_enabled = $32, section_glass_strength = $33
+      section_glass_enabled = $32, section_glass_strength = $33,
+      hero_palette = $34
     WHERE id = $30`,
     [
       settings.paletteName,
@@ -133,6 +136,7 @@ export async function updateThemeSettings(patch) {
       settings.heroDominantColor,
       settings.sectionGlassEnabled !== false,
       normaliseGlassStrength(settings.sectionGlassStrength),
+      serialisePalette(settings.heroPalette),
     ]
   );
 

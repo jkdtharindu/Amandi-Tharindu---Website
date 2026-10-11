@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { validateImageFile, uploadImage, isStorageConfigured } from '@/src/storage/blobStorage.js';
 import { computeDominantColor } from '@/src/storage/dominantColor.js';
+import { extractPalette } from '@/src/theme/paletteExtract.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -69,15 +70,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { url } = await uploadImage({ buffer, mimeType: file.type, filename: randomUUID() });
 
     let dominantColor: string | undefined;
+    let palette: string[] | undefined;
     if (formData.get('computeDominantColor')) {
       try {
         dominantColor = await computeDominantColor(buffer);
       } catch (error) {
         console.error('computeDominantColor failed:', error);
       }
+      try {
+        palette = await extractPalette(buffer);
+      } catch (error) {
+        console.error('extractPalette failed:', error);
+      }
     }
 
-    return NextResponse.json({ success: true, url, dominantColor });
+    return NextResponse.json({ success: true, url, dominantColor, palette });
   } catch (error) {
     console.error('uploadImage failed:', error);
     return NextResponse.json(

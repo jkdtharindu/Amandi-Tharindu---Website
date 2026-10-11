@@ -1,3 +1,4 @@
+import { isValidPaletteString } from './sectionPalette.js';
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const WEDDING_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WEDDING_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -84,6 +85,12 @@ export function validateThemeInput(input = {}) {
   // downstream in mergeThemeUpdate.js, same as every other color field.
   const heroDominantColor = String(input.heroDominantColor ?? '').trim();
 
+  // Colours read from the hero photo (PRD §22): auto-filled, never free-typed.
+  const heroPalette = String(input.heroPalette ?? '').trim();
+  if (!isValidPaletteString(heroPalette)) {
+    errors.heroPalette = 'Hero colours must be up to 6 hex values separated by commas.';
+  }
+
   // Section tint & glass (PRD §22). The checkbox sends a real boolean; the
   // slider sends a whole number 0-100. A missing value (an older client that
   // predates the controls) keeps the shipped default instead of failing.
@@ -125,6 +132,7 @@ export function validateThemeInput(input = {}) {
       weddingTime,
       heroImageUrl,
       heroDominantColor,
+      heroPalette: heroPalette.toUpperCase(),
       sectionGlassEnabled,
       sectionGlassStrength,
       brideName,

@@ -1,3 +1,5 @@
+import { buildSectionColors } from './sectionPalette.js';
+
 /**
  * The colour behind the section panels' tint (PRD §22, Action 80).
  *
@@ -63,18 +65,23 @@ export function normaliseGlassStrength(value) {
   return Math.min(100, Math.max(0, Math.round(number)));
 }
 
-/** Inline-style variables + the on/off flag the root layout puts on <html>. */
+/**
+ * Inline-style variables + the on/off flag the root layout puts on <html>.
+ * --section-c1..c5 are the five contrast-safe washes (src/theme/sectionPalette.js)
+ * that globals.css hands out to the homepage sections.
+ */
 export function buildSectionGlassVars(settings) {
   const enabled = settings.sectionGlassEnabled !== false;
-  return {
-    enabled,
-    vars: {
-      '--section-tint': computeSectionTint(
-        settings.heroDominantColor,
-        settings.accentColor,
-        settings.secondaryColor
-      ),
-      '--glass-strength': String(normaliseGlassStrength(settings.sectionGlassStrength)),
-    },
+  const vars = {
+    '--section-tint': computeSectionTint(
+      settings.heroDominantColor,
+      settings.accentColor,
+      settings.secondaryColor
+    ),
+    '--glass-strength': String(normaliseGlassStrength(settings.sectionGlassStrength)),
   };
+  buildSectionColors(settings).forEach((color, i) => {
+    vars[`--section-c${i + 1}`] = color;
+  });
+  return { enabled, vars };
 }
