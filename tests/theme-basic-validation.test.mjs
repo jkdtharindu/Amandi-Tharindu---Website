@@ -179,6 +179,18 @@ test('exposes the curated font options', () => {
     'Cormorant Garamond',
     'Playfair Display',
     'Cinzel',
+    'EB Garamond',
+    'Lora',
+    'Libre Baskerville',
+    'Bodoni Moda',
+    'Marcellus',
+    'Cardo',
+    'Great Vibes',
+    'Dancing Script',
+    'Parisienne',
+    'Montserrat',
+    'Josefin Sans',
+    'Raleway',
   ]);
   assert.deepEqual([...FONT_STYLE_OPTIONS], ['italic', 'normal']);
 });

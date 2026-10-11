@@ -41,7 +41,21 @@ function fontFamilyFor(fontFamily: string): string {
     case "Cormorant Garamond":
     case "Playfair Display":
     case "Cinzel":
+    case "EB Garamond":
+    case "Lora":
+    case "Libre Baskerville":
+    case "Bodoni Moda":
+    case "Marcellus":
+    case "Cardo":
       return `'${fontFamily}', serif`;
+    case "Great Vibes":
+    case "Dancing Script":
+    case "Parisienne":
+      return `'${fontFamily}', cursive`;
+    case "Montserrat":
+    case "Josefin Sans":
+    case "Raleway":
+      return `'${fontFamily}', sans-serif`;
     default:
       return DEFAULT_FONT_SANS;
   }

@@ -14,6 +14,18 @@ const SOURCES = [
   { pkg: '@fontsource/playfair-display', files: ['400', '500', '600', '700'].map((w) => `playfair-display-latin-${w}-normal`) },
   { pkg: '@fontsource/cinzel', files: ['400', '500', '600', '700'].map((w) => `cinzel-latin-${w}-normal`) },
   { pkg: '@fontsource/inter', files: ['400', '500', '600', '700'].map((w) => `inter-latin-${w}-normal`) },
+  { pkg: '@fontsource/eb-garamond', files: ['400', '500', '600', '700'].map((w) => `eb-garamond-latin-${w}-normal`) },
+  { pkg: '@fontsource/lora', files: ['400', '500', '600', '700'].map((w) => `lora-latin-${w}-normal`) },
+  { pkg: '@fontsource/libre-baskerville', files: ['400', '700'].map((w) => `libre-baskerville-latin-${w}-normal`) },
+  { pkg: '@fontsource/bodoni-moda', files: ['400', '500', '600', '700'].map((w) => `bodoni-moda-latin-${w}-normal`) },
+  { pkg: '@fontsource/marcellus', files: ['400'].map((w) => `marcellus-latin-${w}-normal`) },
+  { pkg: '@fontsource/cardo', files: ['400', '700'].map((w) => `cardo-latin-${w}-normal`) },
+  { pkg: '@fontsource/great-vibes', files: ['400'].map((w) => `great-vibes-latin-${w}-normal`) },
+  { pkg: '@fontsource/dancing-script', files: ['400', '500', '600', '700'].map((w) => `dancing-script-latin-${w}-normal`) },
+  { pkg: '@fontsource/parisienne', files: ['400'].map((w) => `parisienne-latin-${w}-normal`) },
+  { pkg: '@fontsource/montserrat', files: ['400', '500', '600', '700'].map((w) => `montserrat-latin-${w}-normal`) },
+  { pkg: '@fontsource/josefin-sans', files: ['400', '500', '600', '700'].map((w) => `josefin-sans-latin-${w}-normal`) },
+  { pkg: '@fontsource/raleway', files: ['400', '500', '600', '700'].map((w) => `raleway-latin-${w}-normal`) },
 ];
 
 mkdirSync(outDir, { recursive: true });
