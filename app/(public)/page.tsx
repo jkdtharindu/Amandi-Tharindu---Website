@@ -143,6 +143,8 @@ export default async function HomePage() {
 
   const hasFaq = faqSections.some((section) => section.isVisible && section.title);
   const hasGalleryPhotos = galleryPhotos.length > 0;
+  // Venue under the date: the admin-set venue, else where the first event is.
+  const heroVenue = settings.venueName || events[0]?.venueName || "";
   const hasCoupleProfiles = Boolean(settings.brideName || settings.groomName);
 
   const heroClassName = settings.heroImageUrl
@@ -170,23 +172,21 @@ export default async function HomePage() {
           <path d="M44 30 C34 26 26 30 20 40 C30 42 38 40 44 30Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
           <path d="M46 45 C58 40 66 44 71 54 C60 57 51 54 46 45Z" fill="none" stroke="var(--color-accent-deep)" strokeWidth="1.1" />
         </svg>
-        <span className="hero-flag">
-          Save the date — {formatWeddingDate(settings.weddingDate)}
-        </span>
-        <h1>
-          Join us for a celebration of love, family, and new beginnings.
-        </h1>
-        <p>
-          Welcome to the wedding website for {settings.coupleNames}. Discover our
-          story, event details, gallery, wishes, and access your personalized
-          invitation.
+        <p className="hero-eyebrow">The wedding celebration of</p>
+        <h1>{settings.coupleNames}</h1>
+        <p className="hero-details">
+          <span>{formatWeddingDate(settings.weddingDate)}</span>
+          {heroVenue && <span>{heroVenue}</span>}
+        </p>
+        <p className="hero-invite">
+          Together with our families, we invite you to celebrate with us.
         </p>
         <div className="button-group">
-          <Link className="button button-primary" href="/invitation">
-            View Your Invitation
+          <Link className="button button-primary button-large" href="/invitation">
+            RSVP
           </Link>
-          <Link className="button button-secondary" href="#our-story">
-            Our Story
+          <Link className="hero-text-link" href="#our-story">
+            Read our story
           </Link>
         </div>
         <Countdown targetDate={`${settings.weddingDate}T${settings.weddingTime}:00+05:30`} />
