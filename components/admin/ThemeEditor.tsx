@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import ImageUploadField from './ImageUploadField';
 import HeroBackgroundField from './HeroBackgroundField';
+import ColorField from './ColorField';
 import { useToast } from '@/components/Toast';
 
 export type ThemeSettings = {
@@ -99,122 +100,56 @@ export default function ThemeEditor({
       >
         <h2 className="font-semibold mb-4">Colors</h2>
         <div className="grid gap-4 sm:grid-cols-3 mb-6">
-          <div>
-            <label
-              htmlFor="primaryColor"
-              className="block text-xs font-semibold text-slate-500 mb-1"
-            >
-              Primary
-            </label>
-            <input
-              id="primaryColor"
-              type="color"
-              value={form.primaryColor}
-              onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-              className="w-full h-10 rounded-lg border border-slate-300"
-            />
-            {fieldErrors.primaryColor && (
-              <p className="mt-1 text-xs text-red-700">{fieldErrors.primaryColor}</p>
-            )}
-          </div>
+          <ColorField
+            id="primaryColor"
+            label="Primary"
+            value={form.primaryColor}
+            onChange={(value) => setForm({ ...form, primaryColor: value })}
+            error={fieldErrors.primaryColor}
+          />
 
-          <div>
-            <label
-              htmlFor="secondaryColor"
-              className="block text-xs font-semibold text-slate-500 mb-1"
-            >
-              Secondary
-            </label>
-            <input
-              id="secondaryColor"
-              type="color"
-              value={form.secondaryColor}
-              onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })}
-              className="w-full h-10 rounded-lg border border-slate-300"
-            />
-            {fieldErrors.secondaryColor && (
-              <p className="mt-1 text-xs text-red-700">{fieldErrors.secondaryColor}</p>
-            )}
-          </div>
+          <ColorField
+            id="secondaryColor"
+            label="Secondary"
+            value={form.secondaryColor}
+            onChange={(value) => setForm({ ...form, secondaryColor: value })}
+            error={fieldErrors.secondaryColor}
+          />
 
-          <div>
-            <label
-              htmlFor="accentColor"
-              className="block text-xs font-semibold text-slate-500 mb-1"
-            >
-              Accent
-            </label>
-            <input
-              id="accentColor"
-              type="color"
-              value={form.accentColor}
-              onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
-              className="w-full h-10 rounded-lg border border-slate-300"
-            />
-            {fieldErrors.accentColor && (
-              <p className="mt-1 text-xs text-red-700">{fieldErrors.accentColor}</p>
-            )}
-          </div>
+          <ColorField
+            id="accentColor"
+            label="Accent"
+            value={form.accentColor}
+            onChange={(value) => setForm({ ...form, accentColor: value })}
+            error={fieldErrors.accentColor}
+          />
         </div>
 
         <h2 className="font-semibold mb-4">Text &amp; Surface Colours</h2>
         <div className="grid gap-4 sm:grid-cols-3 mb-6">
-          <div>
-            <label
-              htmlFor="baseTextColor"
-              className="block text-xs font-semibold text-slate-500 mb-1"
-            >
-              Base text
-            </label>
-            <input
-              id="baseTextColor"
-              type="color"
-              value={form.baseTextColor}
-              onChange={(e) => setForm({ ...form, baseTextColor: e.target.value })}
-              className="w-full h-10 rounded-lg border border-slate-300"
-            />
-            {fieldErrors.baseTextColor && (
-              <p className="mt-1 text-xs text-red-700">{fieldErrors.baseTextColor}</p>
-            )}
-          </div>
+          <ColorField
+            id="baseTextColor"
+            label="Base text"
+            value={form.baseTextColor}
+            onChange={(value) => setForm({ ...form, baseTextColor: value })}
+            error={fieldErrors.baseTextColor}
+          />
 
-          <div>
-            <label
-              htmlFor="invertedTextColor"
-              className="block text-xs font-semibold text-slate-500 mb-1"
-            >
-              Inverted text
-            </label>
-            <input
-              id="invertedTextColor"
-              type="color"
-              value={form.invertedTextColor}
-              onChange={(e) => setForm({ ...form, invertedTextColor: e.target.value })}
-              className="w-full h-10 rounded-lg border border-slate-300"
-            />
-            {fieldErrors.invertedTextColor && (
-              <p className="mt-1 text-xs text-red-700">{fieldErrors.invertedTextColor}</p>
-            )}
-          </div>
+          <ColorField
+            id="invertedTextColor"
+            label="Inverted text"
+            value={form.invertedTextColor}
+            onChange={(value) => setForm({ ...form, invertedTextColor: value })}
+            error={fieldErrors.invertedTextColor}
+          />
 
-          <div>
-            <label
-              htmlFor="surfaceColor"
-              className="block text-xs font-semibold text-slate-500 mb-1"
-            >
-              Surface
-            </label>
-            <input
-              id="surfaceColor"
-              type="color"
-              value={form.surfaceColor}
-              onChange={(e) => setForm({ ...form, surfaceColor: e.target.value })}
-              className="w-full h-10 rounded-lg border border-slate-300"
-            />
-            {fieldErrors.surfaceColor && (
-              <p className="mt-1 text-xs text-red-700">{fieldErrors.surfaceColor}</p>
-            )}
-          </div>
+          <ColorField
+            id="surfaceColor"
+            label="Surface"
+            value={form.surfaceColor}
+            onChange={(value) => setForm({ ...form, surfaceColor: value })}
+            error={fieldErrors.surfaceColor}
+          />
         </div>
 
         <h2 className="font-semibold mb-4">Typography</h2>
