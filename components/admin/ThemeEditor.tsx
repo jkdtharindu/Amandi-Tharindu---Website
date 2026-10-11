@@ -19,6 +19,8 @@ export type ThemeSettings = {
   weddingTime: string;
   heroImageUrl: string;
   heroDominantColor: string;
+  sectionGlassEnabled: boolean;
+  sectionGlassStrength: number;
   brideName: string;
   bridePhotoUrl: string;
   brideBio: string;
@@ -150,6 +152,53 @@ export default function ThemeEditor({
             onChange={(value) => setForm({ ...form, surfaceColor: value })}
             error={fieldErrors.surfaceColor}
           />
+        </div>
+
+        <h2 className="font-semibold mb-4">Section Tint &amp; Glass</h2>
+        <div className="mb-6 space-y-4">
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              id="sectionGlassEnabled"
+              type="checkbox"
+              checked={form.sectionGlassEnabled}
+              onChange={(e) => setForm({ ...form, sectionGlassEnabled: e.target.checked })}
+              className="mt-1 h-5 w-5"
+            />
+            <span>
+              <span className="font-semibold">Tint and frosted glass on section panels</span>
+              <span className="block text-xs text-slate-500">
+                Gives the big homepage sections a soft tint taken from your hero photo and
+                Accent colour, with a glassy shine.
+              </span>
+            </span>
+          </label>
+          <div>
+            <label
+              htmlFor="sectionGlassStrength"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Tint strength: {form.sectionGlassStrength}
+            </label>
+            <input
+              id="sectionGlassStrength"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              disabled={!form.sectionGlassEnabled}
+              value={form.sectionGlassStrength}
+              onChange={(e) =>
+                setForm({ ...form, sectionGlassStrength: Number(e.target.value) })
+              }
+              className="w-full disabled:opacity-40"
+            />
+            <p className="text-xs text-slate-500">
+              0 keeps the glass look with no tint. 100 is the strongest tint.
+            </p>
+            {fieldErrors.sectionGlassStrength && (
+              <p className="mt-1 text-xs text-red-700">{fieldErrors.sectionGlassStrength}</p>
+            )}
+          </div>
         </div>
 
         <h2 className="font-semibold mb-4">Typography</h2>
