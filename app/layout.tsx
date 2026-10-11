@@ -4,6 +4,7 @@ import "./globals.css";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { buildFontFaceCss } from "@/src/theme/fontFaces.js";
 import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
+import { buildSectionGlassVars } from "@/src/theme/sectionTint.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 import { ToastProvider } from "@/components/Toast";
 
@@ -54,6 +55,8 @@ function fontFamilyFor(fontFamily: string): string {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const settings = await loadThemeSettings();
 
+  const glass = buildSectionGlassVars(settings);
+
   const themeStyle: CSSProperties & Record<string, string> = {
     "--color-brand": settings.primaryColor,
     "--color-canvas": settings.secondaryColor,
@@ -63,11 +66,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     "--color-text-inverted": settings.invertedTextColor,
     "--color-surface": settings.surfaceColor,
     "--font-sans": fontFamilyFor(settings.fontFamily),
+    ...glass.vars,
     fontStyle: settings.fontStyle,
   };
 
   return (
-    <html lang="en" style={themeStyle}>
+    <html lang="en" style={themeStyle} data-glass={glass.enabled ? "on" : "off"}>
       <head>
         <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss() }} />
       </head>

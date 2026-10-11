@@ -1,6 +1,7 @@
 import { query } from '../db.js';
 import { themeSettings } from '../data/themeStore.js';
 import { mergeThemeUpdate } from './mergeThemeUpdate.js';
+import { normaliseGlassStrength } from './sectionTint.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -39,6 +40,8 @@ export function mapRow(row) {
     fontStyle: row.font_style,
     heroImageUrl: row.hero_image_url || '',
     heroDominantColor: row.hero_dominant_color || '',
+    sectionGlassEnabled: row.section_glass_enabled !== false,
+    sectionGlassStrength: normaliseGlassStrength(row.section_glass_strength),
     invitationTemplateUrl: row.invitation_template_url || '',
     invitationNameTop: row.invitation_name_top,
     invitationNameLeft: row.invitation_name_left,
@@ -93,7 +96,8 @@ export async function updateThemeSettings(patch) {
       base_text_color = $21, inverted_text_color = $22, surface_color = $23,
       bride_name = $24, bride_photo_url = $25, bride_bio = $26,
       groom_name = $27, groom_photo_url = $28, groom_bio = $29,
-      hero_dominant_color = $31
+      hero_dominant_color = $31,
+      section_glass_enabled = $32, section_glass_strength = $33
     WHERE id = $30`,
     [
       settings.paletteName,
@@ -127,6 +131,8 @@ export async function updateThemeSettings(patch) {
       settings.groomBio,
       settings.id,
       settings.heroDominantColor,
+      settings.sectionGlassEnabled !== false,
+      normaliseGlassStrength(settings.sectionGlassStrength),
     ]
   );
 

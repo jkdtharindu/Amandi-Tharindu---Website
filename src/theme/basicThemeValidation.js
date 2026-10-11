@@ -84,6 +84,16 @@ export function validateThemeInput(input = {}) {
   // downstream in mergeThemeUpdate.js, same as every other color field.
   const heroDominantColor = String(input.heroDominantColor ?? '').trim();
 
+  // Section tint & glass (PRD §22). The checkbox sends a real boolean; the
+  // slider sends a whole number 0-100. A missing value (an older client that
+  // predates the controls) keeps the shipped default instead of failing.
+  const sectionGlassEnabled = input.sectionGlassEnabled !== false;
+  const strengthInput = input.sectionGlassStrength ?? 60;
+  const sectionGlassStrength = Number(strengthInput);
+  if (!Number.isInteger(sectionGlassStrength) || sectionGlassStrength < 0 || sectionGlassStrength > 100) {
+    errors.sectionGlassStrength = 'Tint strength must be a whole number from 0 to 100.';
+  }
+
   // Bride & Groom profiles (PRD §17) — all optional, free text/upload, no
   // format check, same treatment as heroImageUrl above. The homepage section
   // only renders a profile once its name is set, so there's no "required"
@@ -115,6 +125,8 @@ export function validateThemeInput(input = {}) {
       weddingTime,
       heroImageUrl,
       heroDominantColor,
+      sectionGlassEnabled,
+      sectionGlassStrength,
       brideName,
       bridePhotoUrl,
       brideBio,

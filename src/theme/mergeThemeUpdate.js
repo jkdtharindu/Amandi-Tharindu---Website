@@ -48,6 +48,8 @@ export const FIELD_LABELS = {
   groomName: { label: "Groom's name", hint: 'Shown on the homepage Bride & Groom section' },
   groomPhotoUrl: { label: "Groom's photo link", hint: 'Web address of the groom’s portrait' },
   groomBio: { label: "Groom's short bio", hint: 'A sentence or two, shown under his name' },
+  sectionGlassEnabled: { label: 'Section tint & glass', hint: 'Tints the big section panels with the hero photo colour and gives them a frosted-glass look' },
+  sectionGlassStrength: { label: 'Tint strength', hint: '0 to 100 — how strongly the panels pick up the tint' },
   invitationCodeSurnamePosition: {
     label: 'Invitation code — which part of the name',
     hint: 'Sri Lankan names often put the family name first; pick whichever gives a recognisable code',
@@ -89,6 +91,11 @@ export const THEME_FIELD_GROUPS = [
     id: 'text-surface-colors',
     label: 'Text & Surface Colours',
     fields: ['baseTextColor', 'invertedTextColor', 'surfaceColor'],
+  },
+  {
+    id: 'section-glass',
+    label: 'Section Tint & Glass',
+    fields: ['sectionGlassEnabled', 'sectionGlassStrength'],
   },
   {
     id: 'font-choice',
@@ -186,6 +193,21 @@ export function mergeThemeUpdate(current, patch) {
 
     if (key === 'invitationCodeSurnamePosition' && !SURNAME_POSITIONS.includes(value)) {
       errors.push({ field: key, reason: 'invalid_surname_position' });
+      continue;
+    }
+
+    if (key === 'sectionGlassEnabled') {
+      next[key] = value === true || value === 'on' || value === 'true' || value === '1';
+      continue;
+    }
+
+    if (key === 'sectionGlassStrength') {
+      const strength = typeof value === 'number' ? value : Number(value);
+      if (!Number.isInteger(strength) || strength < 0 || strength > 100) {
+        errors.push({ field: key, reason: 'invalid_glass_strength' });
+        continue;
+      }
+      next[key] = strength;
       continue;
     }
 

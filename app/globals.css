@@ -1194,3 +1194,70 @@ button {
     animation: none;
   }
 }
+
+/*
+ * Section tint + frosted glass (PRD §22, TASKS.md Action 80).
+ * --section-tint is a blend of the hero photo's colour and the Accent colour
+ * (src/theme/sectionTint.js); --glass-strength is the admin's 0-100 slider.
+ * Both are set on <html> by app/layout.tsx, and data-glass="on" is the admin's
+ * on/off switch, so with the switch off none of these rules apply and the
+ * panels look exactly as they did before.
+ *
+ * Only the big section panels (.hero-panel--light and .hero-panel--seal) get
+ * the effect. The small cards inside them stay plain Surface so text keeps
+ * its contrast. The photo hero (.hero-panel--photo) is untouched.
+ */
+@layer components {
+  /* Soft tinted light behind the page, so the glass has something to refract.
+     Replaces the old fixed blue glow, which clashed with warm palettes. */
+  html[data-glass="on"] body {
+    background:
+      radial-gradient(
+        60rem 36rem at 12% 4%,
+        color-mix(in srgb, var(--section-tint) calc(var(--glass-strength) * 0.3%), transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        52rem 34rem at 92% 42%,
+        color-mix(in srgb, var(--section-tint) calc(var(--glass-strength) * 0.22%), transparent),
+        transparent 70%
+      ),
+      var(--color-canvas);
+  }
+
+  html[data-glass="on"] .hero-panel--light,
+  html[data-glass="on"] .hero-panel--seal::before {
+    background:
+      linear-gradient(
+        115deg,
+        transparent 28%,
+        rgba(255, 255, 255, 0.52) 46%,
+        rgba(255, 255, 255, 0.08) 54%,
+        transparent 68%
+      ),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-surface) 80%, transparent) 0%,
+        color-mix(in srgb, var(--section-tint) calc(var(--glass-strength) * 0.34%), var(--color-surface)) 100%
+      );
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      inset 0 -1px 0 color-mix(in srgb, var(--section-tint) 28%, transparent),
+      0 22px 60px color-mix(in srgb, var(--section-tint) calc(var(--glass-strength) * 0.28%), transparent);
+  }
+
+  html[data-glass="on"] .hero-panel--light {
+    border: 1px solid rgba(255, 255, 255, 0.65);
+  }
+
+  /* People who ask their device for less see-through UI get solid panels. */
+  @media (prefers-reduced-transparency: reduce) {
+    html[data-glass="on"] .hero-panel--light,
+    html[data-glass="on"] .hero-panel--seal::before {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}

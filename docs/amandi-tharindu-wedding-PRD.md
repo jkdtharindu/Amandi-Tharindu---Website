@@ -995,6 +995,39 @@ The owner found the top of the Table Arrangement page too tall: the stat cards, 
 
 ---
 
+## 22. Section Tint & Frosted-Glass Panels (Grill Me session 2026-10-11)
+
+The owner re-did the hero photo and chose a new palette (burgundy / champagne / antique gold). The big homepage section panels should now pick up the hero photo's colour automatically and look like frosted glass with a soft shine, so the whole page feels like one design. Theme and styling only — no guest data, route or messaging change.
+
+### Grill Me session — 2026-10-11 (owner answers)
+
+| Question | Answer |
+|---|---|
+| Where does the tint colour come from? | **A blend of the hero photo and the palette.** 40% photo colour (the stored average, `hero_dominant_color`) + 60% Accent colour. The photo's plain average is a dark brown that would look muddy on light panels, so it is never used alone. |
+| What does the "crystal reflection" look like? | **Frosted glass with a soft shine, no movement:** a translucent tinted panel, background blur, a thin bright edge and a faint diagonal light streak. |
+| Which parts get it? | **All the big section panels** (Our Story, Family, Gallery, FAQ, Wishes, Event Details). The small cards inside stay plain Surface so text keeps its contrast. The photo hero is untouched. |
+| Admin control? | **On/off switch plus a 0-100 strength slider** on the Theme page. |
+
+### Acceptance Criteria
+- [ ] The Theme page has a "Section Tint & Glass" switch and a 0-100 strength slider (steps of 5). The slider is greyed out while the switch is off.
+- [ ] Switch on: the big section panels show a tint made from the hero photo colour blended with Accent, the frosted-glass blur, a bright edge and a soft diagonal shine. With no hero photo the tint is the Accent colour alone.
+- [ ] Strength 0 keeps the glass look with no tint; 100 is the strongest tint. Switch off: the panels look exactly as they did before this feature.
+- [ ] The small cards inside panels, the photo hero, header, footer and the admin pages do not change.
+- [ ] Changing the hero photo or the palette changes the tint with no other step (read fresh from the saved theme; saving the theme already refreshes the homepage).
+- [ ] Devices that ask for reduced transparency get solid panels (no blur).
+- [ ] Defaults when nothing is saved yet: on, strength 60.
+- [ ] An invalid strength (not a whole number 0-100) is refused with a clear message, never a server error.
+
+### Schema Changes
+- Migration `026_add_section_glass.sql`: `theme_settings.section_glass_enabled boolean NOT NULL DEFAULT true` and `section_glass_strength integer NOT NULL DEFAULT 60`.
+- **HITL ordering:** the owner applies 026 to the live database **before** the code is merged. Reading is safe without it (defaults apply), but saving the Theme page writes both columns and fails until they exist.
+
+### Assumptions made without asking (owner can overrule)
+- The 40/60 photo-to-Accent split, the blur size and the shine strength were chosen by the designer, not asked. They are single constants in `src/theme/sectionTint.js` and `app/globals.css`.
+- The page background's fixed blue glow is replaced by a soft glow of the same tint while the switch is on, so the glass has something to refract.
+
+---
+
 *Document version: 1.0 | Created: August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*
