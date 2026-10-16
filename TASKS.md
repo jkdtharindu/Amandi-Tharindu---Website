@@ -638,6 +638,12 @@ of 2026-09-15, so it's dropped rather than logged as still open.
    - **Wording gaps:** the guest-facing text in `SiteGate` is covered, but the page `<title>`/metadata, the FAQ and custom-section content, the "table assignment" line ("— with …") and server error messages are not in the registry. Add rows to `src/site-text/siteTextRegistry.js` if the owner wants them editable.
    - **Process:** `npm run check-docs` reads the last commit, so it passed on a working tree whose real commit would fail. Consider making it also read staged and unstaged changes.
 
+83. Print the invitation QR code and settle Vercel preview builds (2026-10-16; **filed, owner steps, not started**) — Model: Haiku 4.5 (proposed, unconfirmed).
+   - **Owner:** send `tharinduamandi-qr.svg` (QR for `https://tharinduamandi.vercel.app/`, high error correction) to the print shop; ask for a printed proof and scan it on 2-3 phones before the full print run. The QR files live only in the 2026-10-16 session scratchpad, not in the repo — regenerate with `python3 -m pip install "qrcode[pil]"` if lost.
+   - **Never remove or rename** `tharinduamandi.vercel.app` in Vercel Domains — it is printed on the cards. Keep the old `amandi-tharindu-website.vercel.app` too.
+   - **Vercel Preview builds fail** with `DATABASE_URL is required in production` because the variable is set for Production only. Harmless to the live site and to merging. Fix only if wanted: add a `DATABASE_URL` for Preview pointing at a separate test database (e.g. a Neon branch) — never the live one.
+   - Old address is still written in earlier dated `MEMORY.md` entries on purpose (history).
+
 ## Notes
 - Mark tasks as done only after tests are written, run, and confirmed green.
 - Use `HITL.md` for any actions that require explicit human approval (deploys, migrations, pushes to main, sending messages).
