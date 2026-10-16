@@ -3,7 +3,7 @@
 How to put this site online, and what to check afterwards. Written to be followed
 step by step by a person, not run as a script.
 
-**Status: deployed 2026-09-10.** Live at **https://amandi-tharindu-website.vercel.app**
+**Status: deployed 2026-09-10.** Live at **https://tharinduamandi.vercel.app** (changed 2026-10-16; the original `amandi-tharindu-website.vercel.app` still works — do not remove either)
 (Vercel project `rangajeewa-s-projects/amandi-tharindu-website`). Every environment
 variable and file path here was read from the code on 2026-09-05 and re-checked
 2026-09-10 against the pre-login site gate. The steps below are now confirmed against a
@@ -90,7 +90,7 @@ reuse for a future redeploy.**
 5. Deploy.
 6. Point your domain at the project and confirm HTTPS is issued before sending anyone a
    link. (Not done as of 2026-09-10 — the site is live on its Vercel-assigned domain,
-   `https://amandi-tharindu-website.vercel.app`; a custom domain is optional and can be
+   `https://tharinduamandi.vercel.app`; a custom domain is optional and can be
    added later without touching any application code.)
 
 ---
@@ -149,7 +149,7 @@ credentials, so login-dependent items could not be); **3, 4 and 7 still need the
    signing in and checking the guest list needs the owner's password.
 7. ⬜ **The link check — do this before messaging anyone.** On `/admin/guests`, open the
    WhatsApp reminder for any guest and read the link in the message preview. It must
-   start with your real domain (`https://amandi-tharindu-website.vercel.app`). If it says
+   start with your real domain (`https://tharinduamandi.vercel.app`). If it says
    `localhost`, stop: `NEXT_PUBLIC_SITE_URL` is not set correctly (see §1) — though it was
    set and a redeploy triggered specifically so this check should pass; confirm anyway
    before sending anything. Separately, check the `reminder_2` template contains `[Code]`
