@@ -778,7 +778,7 @@ Also: a `next dev` server running during `npm run build` left a broken `.next/de
 
 [2026-10-16] Decision: the Theme page's font list grew from 4 to 16 choices (added EB Garamond, Lora, Libre Baskerville, Bodoni Moda, Marcellus, Cardo, Great Vibes, Dancing Script, Parisienne, Montserrat, Josefin Sans, Raleway), still a fixed list with each font's `.woff2` files committed to `public/fonts/` (from @fontsource, OFL licence), not Google Fonts and not free text.
 Reason: the owner asked for 12 more choices; self-hosting keeps the site working when Google Fonts is unreachable from Sri Lanka, and a fixed list means an admin can never pick a name that fails to render. Fonts that ship one or two weights (Marcellus, Cardo, Libre Baskerville, the three script fonts) show bold text lighter than the others.
-Alternative: load from Google Fonts at runtime (rejected, see the 2026-09-03 entry). Not yet checked by eye on the live Theme page.
+Alternative: load from Google Fonts at runtime (rejected, see the 2026-09-03 entry). Owner confirmed on 2026-10-16 that the new fonts work on the live Theme page.
 
 [2026-10-16] Decision: GitHub Actions now run on Node 22, and the build job sets placeholder `DATABASE_URL` and `SESSION_SECRET`.
 Reason: all four workflows pinned Node 18, but Next.js 16 needs 20.9 or newer and Node 18 cannot expand the `tests/**/*.test.mjs` pattern, so `build` and `test` failed on every PR. The app also throws in production mode without those two variables, even at build time; placeholders are enough because the build never connects to a database. Same PR cleared the two `require()` lint errors in `bin/append-memory.js` (eslint-disable comments) and two unused catch variables in `scripts/ci-check-docs.js`.
