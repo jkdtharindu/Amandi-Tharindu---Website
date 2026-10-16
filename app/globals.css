@@ -505,14 +505,24 @@ button {
     text-align: center;
   }
 
+  /* Full-bleed photo at the top of the card: negative margins cancel the
+     card padding so the image fills edge to edge. Same ratio/crop for both. */
+  .couple-card {
+    --couple-pad: 1.75rem;
+    overflow: hidden;
+  }
+
   .couple-photo {
     display: block;
-    width: 160px;
-    height: 160px;
-    margin: 0 auto 1rem;
-    border-radius: 50%;
+    width: calc(100% + 2 * var(--couple-pad));
+    max-width: none !important; /* beats the unlayered global img cap */
+    height: auto;
+    aspect-ratio: 4 / 5;
+    margin: calc(-1 * var(--couple-pad)) calc(-1 * var(--couple-pad)) 1.25rem;
     object-fit: cover;
-    border: 3px solid var(--color-accent);
+    object-position: center top;
+    border: 0;
+    border-radius: 0;
   }
 
   .feature-card h2,
@@ -702,6 +712,10 @@ button {
   .feature-card,
   .wish-card {
     padding: 1.25rem;
+  }
+
+  .couple-card {
+    --couple-pad: 1.25rem;
   }
 
   .hero-panel .panel-cards {

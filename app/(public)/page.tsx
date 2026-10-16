@@ -205,8 +205,9 @@ export default async function HomePage() {
                     src={settings.bridePhotoUrl}
                     alt={settings.brideName}
                     className="couple-photo"
-                    width={160}
-                    height={160}
+                    width={640}
+                    height={800}
+                    sizes="(max-width: 768px) 100vw, 50vw"
                   />
                 )}
                 <h3>{settings.brideName}</h3>
@@ -220,8 +221,9 @@ export default async function HomePage() {
                     src={settings.groomPhotoUrl}
                     alt={settings.groomName}
                     className="couple-photo"
-                    width={160}
-                    height={160}
+                    width={640}
+                    height={800}
+                    sizes="(max-width: 768px) 100vw, 50vw"
                   />
                 )}
                 <h3>{settings.groomName}</h3>
