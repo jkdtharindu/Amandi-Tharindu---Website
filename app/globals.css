@@ -515,7 +515,7 @@ button {
   .couple-photo {
     display: block;
     width: calc(100% + 2 * var(--couple-pad));
-    max-width: none;
+    max-width: none !important; /* beats the unlayered global img cap */
     height: auto;
     aspect-ratio: 4 / 5;
     margin: calc(-1 * var(--couple-pad)) calc(-1 * var(--couple-pad)) 1.25rem;
