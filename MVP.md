@@ -4,7 +4,7 @@ This file is the single place to check "what's actually still left before this s
 
 **Goal:** a working RSVP website for ~350 family-unit guests, live before the wedding on **Monday, 14 December 2026**.
 
-**Site is live:** https://amandi-tharindu-website.vercel.app
+**Site is live:** https://tharinduamandi.vercel.app (final address, printed as a QR code on the physical invitation card; the old amandi-tharindu-website.vercel.app address still works)
 
 ---
 
