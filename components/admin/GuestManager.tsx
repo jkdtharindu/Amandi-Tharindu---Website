@@ -71,6 +71,14 @@ export default function GuestManager({
   const [removingInviteeId, setRemovingInviteeId] = useState<string | null>(null);
   const [newInviteeNames, setNewInviteeNames] = useState<string[]>([]);
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    body: string[];
+    confirmLabel: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
+
   const [busy, setBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
   const showToast = useToast();
@@ -141,16 +149,21 @@ export default function GuestManager({
     setShowForm(true);
   }
 
-  async function handleRemoveInvitee(invitee: ExistingInvitee) {
+  function handleRemoveInvitee(invitee: ExistingInvitee) {
     if (!editing) return;
-    const confirmed = window.confirm(
-      'Remove ' +
-        invitee.name +
-        ' from this party?\n\n' +
-        'If they were already seated, their seat becomes open again.'
-    );
-    if (!confirmed) return;
+    setConfirmDialog({
+      title: 'Remove ' + invitee.name + '?',
+      body: [
+        'This removes them from this party.',
+        'If they were already seated, their seat becomes open again.',
+      ],
+      confirmLabel: 'Yes, remove',
+      onConfirm: () => doRemoveInvitee(invitee),
+    });
+  }
 
+  async function doRemoveInvitee(invitee: ExistingInvitee) {
+    if (!editing) return;
     setRemovingInviteeId(invitee.id);
 
     try {
@@ -301,41 +314,83 @@ export default function GuestManager({
     }
   }
 
-  async function handleDelete(guest: Guest) {
-    const confirmed = window.confirm(
-      'Remove ' +
-        guest.name +
-        ' (' +
-        guest.code +
-        ') from the guest list?\n\n' +
-        'Any table seats they hold become open again.\n\n' +
-        'Their RSVP history is kept in the database and can be restored.'
-    );
-    if (!confirmed) return;
+  function handleDelete(guest: Guest) {
+    setConfirmDialog({
+      title: 'Remove ' + guest.name + ' (' + guest.code + ')?',
+      body: [
+        'Any table seats they hold become open again.',
+        'Their RSVP history is kept in the database and can be restored.',
+      ],
+      confirmLabel: 'Yes, remove',
+      onConfirm: () => doDelete([guest]),
+    });
+  }
 
+  function handleDeleteSelected() {
+    const chosen = guests.filter((g) => selectedIds.has(g.id));
+    if (chosen.length === 0) return;
+    setConfirmDialog({
+      title: `Remove ${chosen.length} guest${chosen.length === 1 ? '' : 's'}?`,
+      body: [
+        chosen.map((g) => g.name).join(', '),
+        'Any table seats they hold become open again.',
+        'Their RSVP history is kept in the database and can be restored.',
+      ],
+      confirmLabel: `Yes, remove ${chosen.length}`,
+      onConfirm: () => doDelete(chosen),
+    });
+  }
+
+  async function doDelete(targets: Guest[]) {
     setBusy(true);
+    let removed = 0;
+    let lastError = '';
 
     try {
-      const res = await fetch('/api/admin/guests/' + guest.id, {
-        method: 'DELETE',
-        headers: { 'x-csrf-token': csrfToken },
-      });
-      const data = await res.json();
+      for (const guest of targets) {
+        try {
+          const res = await fetch('/api/admin/guests/' + guest.id, {
+            method: 'DELETE',
+            headers: { 'x-csrf-token': csrfToken },
+          });
+          const data = await res.json();
+          if (res.ok && data.success) removed++;
+          else lastError = data.message || 'Could not remove ' + guest.name + '.';
+        } catch {
+          lastError = 'Something went wrong. Please try again.';
+        }
+      }
 
-      if (res.ok && data.success) {
-        showToast({ kind: 'ok', text: 'Removed ' + guest.name + '.' });
-        await load();
-      } else {
+      if (removed > 0) {
         showToast({
-          kind: 'error',
-          text: data.message || 'Could not remove the guest.',
+          kind: 'ok',
+          text:
+            targets.length === 1
+              ? 'Removed ' + targets[0].name + '.'
+              : `Removed ${removed} of ${targets.length} guests.`,
         });
       }
-    } catch {
-      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      if (lastError) showToast({ kind: 'error', text: lastError });
+      setSelectedIds(new Set());
+      await load();
     } finally {
       setBusy(false);
     }
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const allSelected = guests.length > 0 && guests.every((g) => selectedIds.has(g.id));
+
+  function toggleSelectAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(guests.map((g) => g.id)));
   }
 
   const filtersActive = status !== 'all' || relationship !== 'all' || search !== '';
@@ -688,12 +743,42 @@ export default function GuestManager({
         </form>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+          <span className="font-semibold">{selectedIds.size} selected</span>
+          <button
+            type="button"
+            onClick={handleDeleteSelected}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 disabled:opacity-50"
+          >
+            Remove selected
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-slate-600 hover:text-slate-900 text-xs font-semibold"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Guest table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
+                <th scope="col" className="pl-4 pr-0 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all guests"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                </th>
                 <th scope="col" className="px-4 py-3 font-semibold">
                   Name
                 </th>
@@ -720,6 +805,15 @@ export default function GuestManager({
             <tbody className="divide-y divide-slate-100">
               {guests.map((guest) => (
                 <tr key={guest.id} className="hover:bg-slate-50">
+                  <td className="pl-4 pr-0 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      aria-label={'Select ' + guest.name}
+                      checked={selectedIds.has(guest.id)}
+                      onChange={() => toggleSelected(guest.id)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </td>
                   <td className="px-4 py-3 font-medium">{guest.name}</td>
                   <td className="px-4 py-3 font-mono text-xs">{guest.code}</td>
                   <td className="px-4 py-3 text-slate-600">{guest.relationship}</td>
@@ -783,6 +877,48 @@ export default function GuestManager({
       <p className="mt-3 text-xs text-slate-500">
         Showing {guests.length} guest{guests.length === 1 ? '' : 's'}.
       </p>
+
+      {confirmDialog && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="confirm-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        >
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+            <h2 id="confirm-title" className="font-semibold text-lg">
+              {confirmDialog.title}
+            </h2>
+            <div className="mt-2 space-y-2 text-sm text-slate-600">
+              {confirmDialog.body.map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+              <p className="font-semibold text-slate-800">Are you sure?</p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const action = confirmDialog.onConfirm;
+                  setConfirmDialog(null);
+                  void action();
+                }}
+                className="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700"
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reminderGuest && (
         <GuestMessageModal
