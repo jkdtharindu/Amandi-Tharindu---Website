@@ -160,15 +160,18 @@ export default async function InvitationPage({
           </div>
 
           {/* RSVP Form - Client Component */}
-          <InvitationClient
-            guestCode={guest.code}
-            slotCount={guest.slotCount}
-            hasResponded={hasResponded}
-            currentRsvpStatus={rsvpStatus}
-            coupleNames={settings.coupleNames}
-            invitees={invitees}
-            weddingDate={settings.weddingDate ? formatWeddingDate(settings.weddingDate) : ''}
-          />
+          {/* The envelope intro drifts the page down to this anchor. */}
+          <div id="rsvp-section">
+            <InvitationClient
+              guestCode={guest.code}
+              slotCount={guest.slotCount}
+              hasResponded={hasResponded}
+              currentRsvpStatus={rsvpStatus}
+              coupleNames={settings.coupleNames}
+              invitees={invitees}
+              weddingDate={settings.weddingDate ? formatWeddingDate(settings.weddingDate) : ''}
+            />
+          </div>
         </div>
       </main>
     </div>
