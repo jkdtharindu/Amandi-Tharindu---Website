@@ -511,8 +511,15 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .couple-card {
-    overflow: hidden;
+  /* No card frame: the photo, name and bio sit straight on the section
+     background. The glass-theme selector is repeated so it can't bring the
+     border, fill and shadow back. */
+  .couple-grid .couple-card,
+  html[data-glass="on"] .couple-grid .couple-card {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
   }
 
   .couple-photo {
