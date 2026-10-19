@@ -37,3 +37,15 @@ test('computeOverlayFromColor stays within a readable, photo-visible range', () 
 test('computeOverlayFromColor is case-insensitive', () => {
   assert.equal(computeOverlayFromColor('#ABCDEF'), computeOverlayFromColor('#abcdef'));
 });
+
+// Action 85: the owner can switch the hero photo's dark layer off.
+test('heroOverlayValue is transparent when the switch is off', async () => {
+  const { heroOverlayValue } = await import('../src/theme/heroOverlay.js');
+  assert.equal(heroOverlayValue('#a68b5c', false), 'transparent');
+});
+
+test('heroOverlayValue keeps the adaptive overlay when the switch is on or missing', async () => {
+  const { heroOverlayValue, computeOverlayFromColor } = await import('../src/theme/heroOverlay.js');
+  assert.equal(heroOverlayValue('#a68b5c', true), computeOverlayFromColor('#a68b5c'));
+  assert.equal(heroOverlayValue('#a68b5c', undefined), computeOverlayFromColor('#a68b5c'));
+});

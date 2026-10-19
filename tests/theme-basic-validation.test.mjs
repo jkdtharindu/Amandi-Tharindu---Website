@@ -21,6 +21,7 @@ const VALID_INPUT = {
   heroImageUrl: '',
   heroDominantColor: '',
   heroPalette: '',
+  heroOverlayEnabled: true,
   sectionGlassEnabled: true,
   sectionGlassStrength: 60,
   brideName: '',
@@ -193,4 +194,12 @@ test('exposes the curated font options', () => {
     'Raleway',
   ]);
   assert.deepEqual([...FONT_STYLE_OPTIONS], ['italic', 'normal']);
+});
+
+test('heroOverlayEnabled defaults to on and keeps an explicit off (Action 85)', () => {
+  assert.equal(validateThemeInput({ ...VALID_INPUT }).value.heroOverlayEnabled, true);
+  assert.equal(
+    validateThemeInput({ ...VALID_INPUT, heroOverlayEnabled: false }).value.heroOverlayEnabled,
+    false
+  );
 });

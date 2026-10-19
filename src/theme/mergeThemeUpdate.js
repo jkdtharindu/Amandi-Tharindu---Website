@@ -50,6 +50,7 @@ export const FIELD_LABELS = {
   groomName: { label: "Groom's name", hint: 'Shown on the homepage Bride & Groom section' },
   groomPhotoUrl: { label: "Groom's photo link", hint: 'Web address of the groom’s portrait' },
   groomBio: { label: "Groom's short bio", hint: 'A sentence or two, shown under his name' },
+  heroOverlayEnabled: { label: 'Dark layer on hero photo', hint: 'On keeps the dark layer that makes the white text readable; off shows the photo as uploaded' },
   sectionGlassEnabled: { label: 'Section tint & glass', hint: 'Tints the big section panels with the hero photo colour and gives them a frosted-glass look' },
   sectionGlassStrength: { label: 'Tint strength', hint: '0 to 100 — how strongly the panels pick up the tint' },
   invitationCodeSurnamePosition: {
@@ -66,7 +67,7 @@ export const THEME_FIELD_GROUPS = [
   {
     id: 'hero',
     label: 'Hero Image',
-    fields: ['heroImageUrl', 'heroDominantColor', 'heroPalette'],
+    fields: ['heroImageUrl', 'heroDominantColor', 'heroPalette', 'heroOverlayEnabled'],
   },
   {
     id: 'invitation-template',
@@ -207,7 +208,7 @@ export function mergeThemeUpdate(current, patch) {
       continue;
     }
 
-    if (key === 'sectionGlassEnabled') {
+    if (key === 'heroOverlayEnabled' || key === 'sectionGlassEnabled') {
       next[key] = value === true || value === 'on' || value === 'true' || value === '1';
       continue;
     }

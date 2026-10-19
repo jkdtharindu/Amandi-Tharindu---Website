@@ -20,6 +20,7 @@ export type ThemeSettings = {
   heroImageUrl: string;
   heroDominantColor: string;
   heroPalette: string;
+  heroOverlayEnabled: boolean;
   sectionGlassEnabled: boolean;
   sectionGlassStrength: number;
   brideName: string;
@@ -370,6 +371,22 @@ export default function ThemeEditor({
             Shown behind the countdown on the home page. The dark overlay adjusts automatically to
             the photo&apos;s own color. Leave empty to use the default design.
           </p>
+          <label className="mt-3 flex items-start gap-3 text-sm">
+            <input
+              id="heroOverlayEnabled"
+              type="checkbox"
+              checked={form.heroOverlayEnabled}
+              onChange={(e) => setForm({ ...form, heroOverlayEnabled: e.target.checked })}
+              className="mt-1 h-5 w-5"
+            />
+            <span>
+              <span className="font-semibold">Dark layer on the hero photo</span>
+              <span className="block text-xs text-slate-500">
+                Untick to show your photo exactly as uploaded. The white names and countdown can
+                be hard to read on a bright photo without the dark layer.
+              </span>
+            </span>
+          </label>
         </div>
 
         <h2 className="font-semibold mb-4">Bride &amp; Groom</h2>

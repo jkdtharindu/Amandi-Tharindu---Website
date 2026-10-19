@@ -14,7 +14,7 @@ import { createT } from "@/src/site-text/siteTextRegistry.js";
 import { getHomeSectionVisibilitySafe } from "@/src/home-sections/homeSectionsRepo.js";
 import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
 import { listGalleryPhotos } from "@/src/gallery/galleryPhotosRepo.js";
-import { computeOverlayFromColor } from "@/src/theme/heroOverlay.js";
+import { heroOverlayValue } from "@/src/theme/heroOverlay.js";
 import type { CelebrationEvent } from "@/components/admin/EventManager";
 import type { Section } from "@/components/admin/SectionManager";
 
@@ -140,7 +140,7 @@ export default async function HomePage() {
   const heroStyle = settings.heroImageUrl
     ? ({
         "--hero-image-url": `url(${JSON.stringify(settings.heroImageUrl)})`,
-        "--hero-overlay": computeOverlayFromColor(settings.heroDominantColor),
+        "--hero-overlay": heroOverlayValue(settings.heroDominantColor, settings.heroOverlayEnabled),
       } as CSSProperties)
     : undefined;
 

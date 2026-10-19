@@ -42,6 +42,7 @@ export function mapRow(row) {
     heroImageUrl: row.hero_image_url || '',
     heroDominantColor: row.hero_dominant_color || '',
     heroPalette: row.hero_palette || '',
+    heroOverlayEnabled: row.hero_overlay_enabled !== false,
     sectionGlassEnabled: row.section_glass_enabled !== false,
     sectionGlassStrength: normaliseGlassStrength(row.section_glass_strength),
     invitationTemplateUrl: row.invitation_template_url || '',
@@ -100,7 +101,7 @@ export async function updateThemeSettings(patch) {
       groom_name = $27, groom_photo_url = $28, groom_bio = $29,
       hero_dominant_color = $31,
       section_glass_enabled = $32, section_glass_strength = $33,
-      hero_palette = $34
+      hero_palette = $34, hero_overlay_enabled = $35
     WHERE id = $30`,
     [
       settings.paletteName,
@@ -137,6 +138,7 @@ export async function updateThemeSettings(patch) {
       settings.sectionGlassEnabled !== false,
       normaliseGlassStrength(settings.sectionGlassStrength),
       serialisePalette(settings.heroPalette),
+      settings.heroOverlayEnabled !== false,
     ]
   );
 

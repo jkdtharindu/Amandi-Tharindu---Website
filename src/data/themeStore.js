@@ -14,6 +14,7 @@ export const themeSettings = (globalThis.__themeSettings ??= {
   heroImageUrl: '',
   heroDominantColor: '',
   heroPalette: '',
+  heroOverlayEnabled: true,
   sectionGlassEnabled: true,
   sectionGlassStrength: 60,
   invitationTemplateUrl: '',

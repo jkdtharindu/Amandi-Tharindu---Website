@@ -107,6 +107,8 @@ export function validateThemeInput(input = {}) {
   // slider sends a whole number 0-100. A missing value (an older client that
   // predates the controls) keeps the shipped default instead of failing.
   const sectionGlassEnabled = input.sectionGlassEnabled !== false;
+  // Hero photo dark layer switch (Action 85): on unless explicitly sent as false.
+  const heroOverlayEnabled = input.heroOverlayEnabled !== false;
   const strengthInput = input.sectionGlassStrength ?? 60;
   const sectionGlassStrength = Number(strengthInput);
   if (!Number.isInteger(sectionGlassStrength) || sectionGlassStrength < 0 || sectionGlassStrength > 100) {
@@ -145,6 +147,7 @@ export function validateThemeInput(input = {}) {
       heroImageUrl,
       heroDominantColor,
       heroPalette: heroPalette.toUpperCase(),
+      heroOverlayEnabled,
       sectionGlassEnabled,
       sectionGlassStrength,
       brideName,

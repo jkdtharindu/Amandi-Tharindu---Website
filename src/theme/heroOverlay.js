@@ -47,3 +47,12 @@ export function computeOverlayFromColor(hexColor) {
 
   return `rgba(0, 0, 0, ${rounded})`;
 }
+
+/**
+ * The CSS value for the hero photo's dark layer (Action 85). With the admin's
+ * switch off it is fully transparent, so the photo shows as uploaded; with it
+ * on (or never set) it is the adaptive overlay above.
+ */
+export function heroOverlayValue(hexColor, enabled) {
+  return enabled === false ? 'transparent' : computeOverlayFromColor(hexColor);
+}
