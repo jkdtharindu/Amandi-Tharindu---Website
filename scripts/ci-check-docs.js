@@ -37,8 +37,20 @@ function gitDiffFiles() {
   }
 }
 
+// Locally (not in CI) also count staged and unstaged edits, so the check fails
+// on a working tree whose real commit would fail (Action 82).
+function uncommittedFiles() {
+  if (process.env.CI) return [];
+  try {
+    const out = execSync('git diff --name-only HEAD', { encoding: 'utf8' });
+    return out.split(/\r?\n/).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function main() {
-  const files = gitDiffFiles();
+  const files = [...new Set([...gitDiffFiles(), ...uncommittedFiles()])];
   console.log('Changed files:', files.join(', '));
 
   const sensitivePaths = ['migrations/', 'src/messaging', 'src/twilio', 'src/sms', 'src/email'];
