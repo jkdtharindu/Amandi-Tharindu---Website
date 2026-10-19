@@ -1,7 +1,8 @@
 import AdminNav from '@/components/admin/AdminNav';
 import MessagingCenter, { type MessageTemplate } from '@/components/admin/MessagingCenter';
 import { requireAdminPage } from '@/lib/adminGuard';
-import { getCategories } from '@/src/admin/categories.js';
+import { mergeGroups } from '@/src/admin/categories.js';
+import { listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
 import { loadPlaceholderContext } from '@/src/admin/loadPlaceholderContext.js';
 
@@ -11,6 +12,7 @@ export default async function AdminMessagesPage() {
   const session = await requireAdminPage();
   const templates = (await listTemplates()) as MessageTemplate[];
   const { weddingDate, venueName } = await loadPlaceholderContext();
+  const guests = await listGuestsByParty(session.party);
 
   return (
     <>
@@ -24,7 +26,7 @@ export default async function AdminMessagesPage() {
         </p>
         <MessagingCenter
           templates={templates}
-          categories={getCategories()}
+          categories={mergeGroups(guests.map((g: { relationship: string }) => g.relationship))}
           siteUrl={process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3010'}
           weddingDate={weddingDate}
           venueName={venueName}

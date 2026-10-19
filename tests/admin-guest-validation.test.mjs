@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { mergeGroups } from '../src/admin/categories.js';
 import {
   getRelationships,
   validateGuestInput,
@@ -36,15 +37,28 @@ test('requires a name', () => {
   }
 });
 
-test('rejects a relationship outside the allowed groups', () => {
+test('accepts a custom group and trims it (Action 84)', () => {
   const result = validateGuestInput({
     name: 'Nimal Silva',
-    relationship: 'Enemies',
+    relationship: '  School mates ',
     slotCount: 1,
   });
 
-  assert.equal(result.valid, false);
-  assert.ok(result.errors.relationship);
+  assert.equal(result.valid, true);
+  assert.equal(result.value.relationship, 'School mates');
+});
+
+test('rejects a group that is blank, has no letter first, or is too long', () => {
+  for (const relationship of ['', '   ', '123', '!!!', 'A'.repeat(31)]) {
+    const result = validateGuestInput({ name: 'Nimal Silva', relationship, slotCount: 1 });
+    assert.equal(result.valid, false, `"${relationship}" should be rejected`);
+    assert.ok(result.errors.relationship);
+  }
+});
+
+test('mergeGroups lists the defaults first, then custom groups without repeats', () => {
+  const groups = mergeGroups(['Friends', 'Work team', 'work team', 'Relations', ' ']);
+  assert.deepEqual(groups, ['Relations', 'Colleagues', 'Neighbours', 'Friends', 'Work team']);
 });
 
 test('rejects a slot count below 1', () => {
@@ -102,7 +116,7 @@ test('normalises an omitted WhatsApp number to null', () => {
 });
 
 test('reports every invalid field at once', () => {
-  const result = validateGuestInput({ name: '', relationship: 'Nope', slotCount: -1 });
+  const result = validateGuestInput({ name: '', relationship: '123', slotCount: -1 });
 
   assert.equal(result.valid, false);
   assert.deepEqual(Object.keys(result.errors).sort(), [

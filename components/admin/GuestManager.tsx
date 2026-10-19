@@ -30,6 +30,9 @@ type FormState = {
   inviteeNames: string[];
 };
 
+/** Value of the "Add new group…" option in the group pick-list. */
+const NEW_GROUP = '__new_group__';
+
 type ExistingInvitee = { id: string; name: string; rsvpStatus: string };
 
 /** Guest CRUD, filtering, and search (PRD P0-07). */
@@ -50,6 +53,10 @@ export default function GuestManager({
   weddingDate: string;
   venueName: string;
 }) {
+  // The pick-list starts from the server's list (built-in groups plus any custom
+  // group already in use) and grows when the admin adds a new one (Action 84).
+  const [groups, setGroups] = useState<string[]>(categories);
+  const [newGroup, setNewGroup] = useState('');
   const EMPTY_FORM: FormState = {
     name: '',
     relationship: categories[0] || 'Relations',
@@ -251,7 +258,8 @@ export default function GuestManager({
     const trimmedInviteeNames = form.inviteeNames.map((n) => n.trim()).filter(Boolean);
     const payload: Record<string, unknown> = {
       name: form.name,
-      relationship: form.relationship,
+      relationship:
+        form.relationship === NEW_GROUP ? newGroup.trim() : form.relationship,
       whatsappNumber: form.whatsappNumber,
     };
 
@@ -299,6 +307,13 @@ export default function GuestManager({
             ? 'Updated ' + data.guest.name + added + '.'
             : 'Added ' + data.guest.name + ' with code ' + data.guest.code + '.',
         });
+        const savedGroup = String(payload.relationship);
+        setGroups((current) =>
+          current.some((g) => g.toLowerCase() === savedGroup.toLowerCase())
+            ? current
+            : [...current, savedGroup]
+        );
+        setNewGroup('');
         setShowForm(false);
         setEditing(null);
         await load();
@@ -324,6 +339,63 @@ export default function GuestManager({
       confirmLabel: 'Yes, remove',
       onConfirm: () => doDelete([guest]),
     });
+  }
+
+  /** Replaces every guest code on this side (PRD §23). Asks how many will change first. */
+  async function handleRegenerateCodes() {
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/guests/regenerate-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showToast({ kind: 'error', text: data.message || 'Could not check the codes.' });
+        return;
+      }
+      if (data.count === 0) {
+        showToast({ kind: 'ok', text: 'There are no guests to give codes to.' });
+        return;
+      }
+      setConfirmDialog({
+        title: `Replace the code of ${data.count} guest${data.count === 1 ? '' : 's'}?`,
+        body: [
+          'Every guest on your side gets a new 5-character code.',
+          'Any card, link or message that already carries an old code will stop working.',
+          'Only do this if no codes have been sent out yet.',
+        ],
+        confirmLabel: 'Yes, replace all codes',
+        onConfirm: doRegenerateCodes,
+      });
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doRegenerateCodes() {
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/guests/regenerate-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast({ kind: 'ok', text: `Replaced ${data.count} guest codes.` });
+        await load();
+      } else {
+        showToast({ kind: 'error', text: data.message || 'Could not replace the codes.' });
+      }
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setBusy(false);
+    }
   }
 
   function handleDeleteSelected() {
@@ -454,7 +526,7 @@ export default function GuestManager({
               className="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
             >
               <option value="all">All groups</option>
-              {categories.map((value) => (
+              {groups.map((value) => (
                 <option key={value} value={value}>
                   {value}
                 </option>
@@ -464,8 +536,16 @@ export default function GuestManager({
 
           <button
             type="button"
+            onClick={handleRegenerateCodes}
+            disabled={busy || !csrfToken}
+            className="ml-auto px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50"
+          >
+            Regenerate all codes
+          </button>
+          <button
+            type="button"
             onClick={openAdd}
-            className="ml-auto px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+            className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
           >
             Add guest
           </button>
@@ -488,7 +568,7 @@ export default function GuestManager({
                 htmlFor="name"
                 className="block text-xs font-semibold text-slate-500 mb-1"
               >
-                Full name
+                Guest person&apos;s name / Family&apos;s name / Couple name
               </label>
               <input
                 id="name"
@@ -515,12 +595,24 @@ export default function GuestManager({
                 onChange={(e) => setForm({ ...form, relationship: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
               >
-                {categories.map((value) => (
+                {groups.map((value) => (
                   <option key={value} value={value}>
                     {value}
                   </option>
                 ))}
+                <option value={NEW_GROUP}>Add new group…</option>
               </select>
+              {form.relationship === NEW_GROUP && (
+                <input
+                  aria-label="New group name"
+                  placeholder="e.g. School mates"
+                  required
+                  maxLength={30}
+                  value={newGroup}
+                  onChange={(e) => setNewGroup(e.target.value)}
+                  className="mt-2 w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+                />
+              )}
               {fieldErrors.relationship && (
                 <p className="mt-1 text-xs text-red-700">{fieldErrors.relationship}</p>
               )}
@@ -720,7 +812,7 @@ export default function GuestManager({
 
           {!editing && (
             <p className="mt-3 text-xs text-slate-500">
-              An invitation code is generated automatically from the surname.
+              A 5-character invitation code is generated automatically (group letter, name letter, 3 digits).
             </p>
           )}
 

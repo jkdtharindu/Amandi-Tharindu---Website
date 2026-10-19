@@ -38,9 +38,11 @@ export function validateGuestInput(input = {}, { requirePeople = false } = {}) {
   }
 
   const relationship = String(input.relationship ?? '').trim();
-  const validRelationships = getRelationships();
-  if (!validRelationships.includes(relationship)) {
-    errors.relationship = `Relationship must be one of: ${validRelationships.join(', ')}.`;
+  // Custom groups are allowed (Action 84). The group's first letter becomes the
+  // first letter of the guest's code, so it must start with a letter.
+  if (!/^[A-Za-z][^<>]{0,29}$/.test(relationship)) {
+    errors.relationship =
+      'Choose a group, or add a new one that starts with a letter (30 characters at most).';
   }
 
   let inviteeNames;

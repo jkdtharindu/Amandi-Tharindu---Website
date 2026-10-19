@@ -4,7 +4,7 @@ import InviteeRequests from '@/components/admin/InviteeRequests';
 import { requireAdminPage } from '@/lib/adminGuard';
 import { listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { filterGuests } from '@/src/admin/guestQueries.js';
-import { getCategories } from '@/src/admin/categories.js';
+import { mergeGroups } from '@/src/admin/categories.js';
 import { listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
 import { loadPlaceholderContext } from '@/src/admin/loadPlaceholderContext.js';
 import type { MessageTemplate } from '@/components/admin/GuestMessageModal';
@@ -18,7 +18,7 @@ export default async function AdminGuestsPage() {
     listTemplates() as Promise<MessageTemplate[]>,
     loadPlaceholderContext(),
   ]);
-  const categories = getCategories();
+  const categories = mergeGroups(guests.map((g) => g.relationship));
 
   return (
     <>

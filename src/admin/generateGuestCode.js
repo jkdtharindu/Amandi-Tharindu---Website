@@ -1,61 +1,41 @@
 /**
- * Invitation code generation (PRD P0-07).
+ * Invitation code generation (PRD §23, Action 84).
  *
- * Format: `[CATEGORY]-[FIRST_NAME]-[RANDOM]`, e.g. `NEI-RU-742`.
- * - 3 letters from relationship/category
- * - 2 letters from first name
+ * Format: `[GROUP LETTER][NAME LETTER][3 DIGITS]`, e.g. `FN482`.
+ * - 1st letter of the group (Friends -> F)
+ * - 1st letter of the guest, family or couple name (Nimal Silva -> N)
  * - 3 random digits
+ *
+ * Two groups or names that share a letter share a prefix; the digits keep each
+ * code unique. That leaves 1000 codes per letter pair.
  */
 
-/** Derives the first name from a guest name, e.g. "Ruwan Jayasuriya" -> "Ruwan". */
-function derivateFirstName(name) {
-  const words = String(name ?? '')
-    .trim()
-    .split(/\s+/)
-    .map((word) => word.replace(/[^A-Za-z]/g, ''))
-    .filter(Boolean);
-
-  if (!words.length) {
-    throw new Error('invalid_name');
-  }
-
-  return words[0].toUpperCase();
-}
-
-/** Derives category prefix from relationship, e.g. "Neighbours" -> "NEI". */
-function deriveCategoryPrefix(relationship) {
-  const cleaned = String(relationship ?? '')
-    .trim()
-    .replace(/[^A-Za-z]/g, '')
-    .toUpperCase();
-
-  if (!cleaned) {
-    throw new Error('invalid_relationship');
-  }
-
-  return cleaned.slice(0, 3);
+/** First letter A-Z of `text`, upper-cased, or '' when it has none. */
+function firstLetter(text) {
+  const match = String(text ?? '').match(/[A-Za-z]/);
+  return match ? match[0].toUpperCase() : '';
 }
 
 /**
- * Returns a unique code for `name` and `relationship`, skipping any code already in
- * `existingCodes` (compared case-insensitively).
+ * Returns a unique code for `name` and `relationship` (the group), skipping any
+ * code already in `existingCodes` (compared case-insensitively).
  */
 export function generateGuestCode(name, relationship, existingCodes = []) {
-  const firstName = derivateFirstName(name);
-  const categoryPrefix = deriveCategoryPrefix(relationship);
-  const firstNamePrefix = firstName.slice(0, 2);
+  const nameLetter = firstLetter(name);
+  if (!nameLetter) throw new Error('invalid_name');
 
-  const taken = new Set(
-    existingCodes.map((code) => String(code).trim().toUpperCase())
-  );
+  const groupLetter = firstLetter(relationship);
+  if (!groupLetter) throw new Error('invalid_relationship');
 
-  for (let attempts = 0; attempts < 1000; attempts += 1) {
-    const randomDigits = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
-    const candidate = `${categoryPrefix}-${firstNamePrefix}-${randomDigits}`;
-    if (!taken.has(candidate)) {
-      return candidate;
-    }
+  const prefix = `${groupLetter}${nameLetter}`;
+  const taken = new Set(existingCodes.map((code) => String(code).trim().toUpperCase()));
+
+  const free = [];
+  for (let n = 0; n < 1000; n += 1) {
+    const candidate = `${prefix}${String(n).padStart(3, '0')}`;
+    if (!taken.has(candidate)) free.push(candidate);
   }
+  if (free.length === 0) throw new Error('code_space_exhausted');
 
-  throw new Error('code_space_exhausted');
+  return free[Math.floor(Math.random() * free.length)];
 }
