@@ -197,7 +197,7 @@ export default async function HomePage() {
           <section id="family-details" className="hero-panel hero-panel--light hero-panel--wide">
             <span className="hero-flag">{t("couple.flag")}</span>
             <h2>{t("couple.heading")}</h2>
-          <div className="panel-cards section-grid">
+          <div className="panel-cards section-grid couple-grid">
             {settings.brideName && (
               <div className="couple-card">
                 {settings.bridePhotoUrl && (
@@ -205,9 +205,9 @@ export default async function HomePage() {
                     src={settings.bridePhotoUrl}
                     alt={settings.brideName}
                     className="couple-photo"
-                    width={640}
-                    height={800}
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    width={300}
+                    height={375}
+                    sizes="150px"
                   />
                 )}
                 <h3>{settings.brideName}</h3>
@@ -221,9 +221,9 @@ export default async function HomePage() {
                     src={settings.groomPhotoUrl}
                     alt={settings.groomName}
                     className="couple-photo"
-                    width={640}
-                    height={800}
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    width={300}
+                    height={375}
+                    sizes="150px"
                   />
                 )}
                 <h3>{settings.groomName}</h3>
