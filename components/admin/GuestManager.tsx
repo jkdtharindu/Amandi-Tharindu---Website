@@ -341,63 +341,6 @@ export default function GuestManager({
     });
   }
 
-  /** Replaces every guest code on this side (PRD §23). Asks how many will change first. */
-  async function handleRegenerateCodes() {
-    setBusy(true);
-    try {
-      const res = await fetch('/api/admin/guests/regenerate-codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ dryRun: true }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        showToast({ kind: 'error', text: data.message || 'Could not check the codes.' });
-        return;
-      }
-      if (data.count === 0) {
-        showToast({ kind: 'ok', text: 'There are no guests to give codes to.' });
-        return;
-      }
-      setConfirmDialog({
-        title: `Replace the code of ${data.count} guest${data.count === 1 ? '' : 's'}?`,
-        body: [
-          'Every guest on your side gets a new 5-character code.',
-          'Any card, link or message that already carries an old code will stop working.',
-          'Only do this if no codes have been sent out yet.',
-        ],
-        confirmLabel: 'Yes, replace all codes',
-        onConfirm: doRegenerateCodes,
-      });
-    } catch {
-      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doRegenerateCodes() {
-    setBusy(true);
-    try {
-      const res = await fetch('/api/admin/guests/regenerate-codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast({ kind: 'ok', text: `Replaced ${data.count} guest codes.` });
-        await load();
-      } else {
-        showToast({ kind: 'error', text: data.message || 'Could not replace the codes.' });
-      }
-    } catch {
-      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function handleDeleteSelected() {
     const chosen = guests.filter((g) => selectedIds.has(g.id));
     if (chosen.length === 0) return;
@@ -536,16 +479,8 @@ export default function GuestManager({
 
           <button
             type="button"
-            onClick={handleRegenerateCodes}
-            disabled={busy || !csrfToken}
-            className="ml-auto px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50"
-          >
-            Regenerate all codes
-          </button>
-          <button
-            type="button"
             onClick={openAdd}
-            className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+            className="ml-auto px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
           >
             Add guest
           </button>

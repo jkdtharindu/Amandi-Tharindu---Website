@@ -1,4 +1,4 @@
-import { query, withTransaction } from '../db.js';
+import { query } from '../db.js';
 import { guestStore } from '../data/guestStore.js';
 import { rsvpResponses } from '../data/rsvpStore.js';
 import { invitees } from '../data/inviteesStore.js';
@@ -339,48 +339,4 @@ export async function getPendingMessageEventsByParty(party) {
     [party]
   );
   return rows;
-}
-
-/**
- * Replaces the invitation code of every live guest in `party` with a new
- * 5-character code (PRD §23, Action 84). The owner chose to replace all codes
- * before any card or message went out, so there is no per-guest opt-out.
- *
- * Removed guests and the other party's guests keep their codes, and every
- * existing code stays reserved while new ones are drawn, so no two guests can
- * ever share one. In the database it is all-or-nothing: one failure changes
- * no code at all. `dryRun` only counts.
- *
- * @param {string} party
- * @param {{ dryRun?: boolean }} [options]
- * @returns {Promise<{ count: number }>}
- */
-export async function regenerateCodesForParty(party, { dryRun = false } = {}) {
-  const all = await listAllGuests();
-  const targets = all.filter(
-    (g) => (g.assignedToParty ?? 'bride') === party && !g.isDeleted
-  );
-  if (dryRun) return { count: targets.length };
-
-  const taken = all.map((g) => g.code);
-  const updates = targets.map((guest) => {
-    const code = generateGuestCode(guest.name, guest.relationship, taken);
-    taken.push(code);
-    return { id: guest.id, code };
-  });
-
-  if (!isDbEnabled()) {
-    for (const { id, code } of updates) {
-      const guest = guestStore.find((entry) => entry.id === id);
-      if (guest) guest.code = code;
-    }
-    return { count: updates.length };
-  }
-
-  await withTransaction(async (client) => {
-    for (const { id, code } of updates) {
-      await client.query('UPDATE guests SET code = $1 WHERE id = $2', [code, id]);
-    }
-  });
-  return { count: updates.length };
 }

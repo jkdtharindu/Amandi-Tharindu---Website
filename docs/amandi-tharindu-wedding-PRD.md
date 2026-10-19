@@ -1063,13 +1063,12 @@ Owner request: simplify guest codes, rename the name field, and let the owner ad
 - **Name field label** in the Admin guest form changes from "Full name" to "Guest person's name / Family's name / Couple name". The stored field is unchanged.
 - **Code shape:** 5 characters, no dash. Letter 1 = first letter of the group; letter 2 = first letter of the name; then 3 random digits. Example: Friends + "Nimal Silva" gives `FN482`. Codes stay unique; a clash re-rolls the digits. Guests still type codes in any case (already normalised to upper case).
 - **Custom groups:** the guest form's group list keeps Relations, Colleagues, Neighbours, Friends and gets an "Add new group..." option. A new group is saved for next time. No separate manage screen.
-- **Old codes:** the owner chose to **replace all** existing codes. Nothing has been printed or sent yet (owner-confirmed 2026-10-19). Done as a one-time, confirmed "Regenerate all codes" button that shows how many guests it will change first. Needs the HITL checkpoint (bulk overwrite of live data) and a fresh database backup first.
+- **Old codes:** the owner first chose to replace all existing codes with a one-time "Regenerate all codes" button, then **removed that button the same day (2026-10-19)**: a bulk replace would break any code already sent to a guest, and the owner said codes had not been started. Existing codes keep working; only newly added guests get the 5-character format. If a bulk or per-guest code reset is wanted later, add it as a new, separately approved feature.
 
 **Open points (designer's choice, not asked)**
 - Two groups sharing a first letter (Friends/Family) share a letter; the digits keep codes unique.
 - A name or group with no letters is refused with a clear message (not a fallback letter).
 - **Built 2026-10-19 with no migration:** there is no groups table. The pick-list is the four built-in groups plus any group a guest already carries, so a custom group lives as long as one guest uses it. A group must start with a letter, 30 characters at most.
-- "Regenerate all codes" works on the signed-in admin's own side only (bride or groom), counts first, asks to confirm, and is all-or-nothing in the database. Removed guests keep their old code.
 
 ---
 
