@@ -13,6 +13,7 @@ import InvitationClient from './InvitationClient';
 import { getSiteTextSafe } from '@/src/site-text/siteTextRepo.js';
 import { createT } from '@/src/site-text/siteTextRegistry.js';
 import EnvelopeIntro from '@/components/guest/EnvelopeIntro';
+import GuestLogoutButton from '@/components/guest/GuestLogoutButton';
 
 export default async function InvitationPage({
   params,
@@ -181,6 +182,13 @@ export default async function InvitationPage({
             invitees={invitees}
             weddingDate={settings.weddingDate ? formatWeddingDate(settings.weddingDate) : ''}
           />
+
+          {/* Sign out of this browser so the next person can use the phone */}
+          <div className="flex justify-center">
+            <div className="w-full sm:w-auto sm:min-w-[12rem]">
+              <GuestLogoutButton />
+            </div>
+          </div>
         </div>
       </main>
     </div>
