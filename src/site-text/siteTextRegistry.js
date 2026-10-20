@@ -196,6 +196,7 @@ const ROWS = [
     { multiline: true },
   ],
   ['invitation.eventsHeading', 'Invitation page', 'Events heading', 'Event Details'],
+  ['invitation.logout', 'Invitation page', 'Button: log out', 'Log out'],
 
   // RSVP — who is coming
   ['rsvp.title', 'RSVP — who is coming', 'Heading', 'Who’s Coming?'],
