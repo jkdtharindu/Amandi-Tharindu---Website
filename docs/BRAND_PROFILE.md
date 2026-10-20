@@ -25,6 +25,34 @@ Why **lagna** wins: it is local and shared across both main communities, it is s
 
 ---
 
+## 1b. Round 2: names with family and tradition (after your feedback)
+
+You are right that **lagna** points to the horoscope and astrology side of a wedding. It misses the family, society and relationship feeling. These names aim at that feeling. Meanings are my understanding. **Have a native Sinhala and Tamil speaker confirm each one.**
+
+| Rank | Name | Meaning | Feeling | Watch out |
+|---|---|---|---|---|
+| 1 | **Sambandha** | Relationship, connection, the tie between two families (the word is used for marriage alliances in Sinhala; Tamil has a close form, "sambandham") | Family, tradition, society | Longer, three syllables. Say it "sum-BUN-dha" |
+| 2 | **Sangama** | Union, coming together (shared in Sinhala and Tamil) | Gathering of families, modern | Used as a word in other places and languages |
+| 3 | **Pawula** | Family (Sinhala) | Warm, simple, very Sri Lankan | Sinhala only. A very common word, so the domain may be taken |
+| 4 | **Aradhana** | Invitation (Sinhala) | Direct, matches your product | Also a common word in India; weak for Tamil speakers |
+| 5 | **Sathkara** | Welcome, hospitality (Sinhala) | Honouring guests | Formal and long |
+
+Quick searches found **no Sri Lankan wedding invitation brand using Sambandha, Sangama, Pawula or Aradhana**. This is not a legal check.
+
+**Recommendation:** **Sambandha**, with the line "Wedding invitations for families." It carries the family and relationship meaning you asked for, and it suits both bride's side and groom's side.
+
+**Keep "Lagna" for a future feature:** a page that shows the auspicious wedding time (nekath) for the ceremony. That fits the name's real meaning.
+
+### Competitors found in searches (verify each directly)
+- **MyWish.lk:** wedding web pages, digital invitations with RSVP and a gift registry. It launched around 2013. Current status unknown.
+- **Retinue.lk:** a planning platform (blog, vendor marketplace and planner). A 2018 article, current status unknown.
+- **SLT Rainbow Pages weddingdirectory.lk:** a vendor directory.
+- **WeddingConnections.lk** and **anim8.lk:** a wedding portal and an invitation design store.
+
+Look at what these offer and charge before you finalise your own pricing.
+
+---
+
 ## 2. Before you commit to a name (do these in order)
 
 1. Search the name on Facebook, Instagram, TikTok and Google, with "Sri Lanka" and "wedding".
