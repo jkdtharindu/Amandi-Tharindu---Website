@@ -15,6 +15,7 @@ import { getHomeSectionVisibilitySafe } from "@/src/home-sections/homeSectionsRe
 import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
 import { listGalleryPhotos } from "@/src/gallery/galleryPhotosRepo.js";
 import { heroOverlayValue } from "@/src/theme/heroOverlay.js";
+import CouplePhoto from "@/components/CouplePhoto";
 import type { CelebrationEvent } from "@/components/admin/EventManager";
 import type { Section } from "@/components/admin/SectionManager";
 
@@ -201,13 +202,12 @@ export default async function HomePage() {
             {settings.brideName && (
               <div className="couple-card">
                 {settings.bridePhotoUrl && (
-                  <Image
+                  <CouplePhoto
                     src={settings.bridePhotoUrl}
                     alt={settings.brideName}
-                    className="couple-photo"
-                    width={300}
-                    height={375}
-                    sizes="150px"
+                    size={settings.couplePhoto.size}
+                    fade={settings.couplePhoto.fade}
+                    person={settings.couplePhoto.bride}
                   />
                 )}
                 <h3>{settings.brideName}</h3>
@@ -217,13 +217,12 @@ export default async function HomePage() {
             {settings.groomName && (
               <div className="couple-card">
                 {settings.groomPhotoUrl && (
-                  <Image
+                  <CouplePhoto
                     src={settings.groomPhotoUrl}
                     alt={settings.groomName}
-                    className="couple-photo"
-                    width={300}
-                    height={375}
-                    sizes="150px"
+                    size={settings.couplePhoto.size}
+                    fade={settings.couplePhoto.fade}
+                    person={settings.couplePhoto.groom}
                   />
                 )}
                 <h3>{settings.groomName}</h3>

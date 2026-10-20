@@ -33,6 +33,7 @@ export const themeSettings = (globalThis.__themeSettings ??= {
   groomName: '',
   groomPhotoUrl: '',
   groomBio: '',
+  couplePhoto: { size: 150, fade: 30, bride: { zoom: 100, x: 50, y: 20 }, groom: { zoom: 100, x: 50, y: 20 } },
   // InvitationCode format — see src/guest-auth/generateInvitationCode.js.
   // Changing these affects codes generated afterwards, never existing ones.
   invitationCodeSurnamePosition: 'first',

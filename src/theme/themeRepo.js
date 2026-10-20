@@ -3,6 +3,7 @@ import { themeSettings } from '../data/themeStore.js';
 import { mergeThemeUpdate } from './mergeThemeUpdate.js';
 import { normaliseGlassStrength } from './sectionTint.js';
 import { serialisePalette } from './sectionPalette.js';
+import { normaliseCouplePhoto, serialiseCouplePhoto } from './couplePhoto.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -61,6 +62,7 @@ export function mapRow(row) {
     groomName: row.groom_name || '',
     groomPhotoUrl: row.groom_photo_url || '',
     groomBio: row.groom_bio || '',
+    couplePhoto: normaliseCouplePhoto(row.couple_photo_adjust),
     invitationCodeSurnamePosition: row.invitation_code_surname_position || 'first',
     invitationCodeGroupPrefix: row.invitation_code_group_prefix === true,
   };
@@ -101,7 +103,8 @@ export async function updateThemeSettings(patch) {
       groom_name = $27, groom_photo_url = $28, groom_bio = $29,
       hero_dominant_color = $31,
       section_glass_enabled = $32, section_glass_strength = $33,
-      hero_palette = $34, hero_overlay_enabled = $35
+      hero_palette = $34, hero_overlay_enabled = $35,
+      couple_photo_adjust = $36::jsonb
     WHERE id = $30`,
     [
       settings.paletteName,
@@ -139,6 +142,7 @@ export async function updateThemeSettings(patch) {
       normaliseGlassStrength(settings.sectionGlassStrength),
       serialisePalette(settings.heroPalette),
       settings.heroOverlayEnabled !== false,
+      serialiseCouplePhoto(settings.couplePhoto),
     ]
   );
 

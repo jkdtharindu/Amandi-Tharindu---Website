@@ -1,5 +1,6 @@
 import { findPalette, findFontChoice } from './palettes.js';
 import { isValidPaletteString } from './sectionPalette.js';
+import { normaliseCouplePhoto } from './couplePhoto.js';
 import { SURNAME_POSITIONS } from '../guest-auth/generateInvitationCode.js';
 
 const HEX_COLOR_FIELDS = [
@@ -51,6 +52,7 @@ export const FIELD_LABELS = {
   groomPhotoUrl: { label: "Groom's photo link", hint: 'Web address of the groom’s portrait' },
   groomBio: { label: "Groom's short bio", hint: 'A sentence or two, shown under his name' },
   heroOverlayEnabled: { label: 'Dark layer on hero photo', hint: 'On keeps the dark layer that makes the white text readable; off shows the photo as uploaded' },
+  couplePhoto: { label: 'Couple photo size, fade and position', hint: 'Frame size, edge fade, and each portrait’s zoom and position' },
   sectionGlassEnabled: { label: 'Section tint & glass', hint: 'Tints the big section panels with the hero photo colour and gives them a frosted-glass look' },
   sectionGlassStrength: { label: 'Tint strength', hint: '0 to 100 — how strongly the panels pick up the tint' },
   invitationCodeSurnamePosition: {
@@ -123,7 +125,7 @@ export const THEME_FIELD_GROUPS = [
   {
     id: 'couple-profiles',
     label: 'Bride & Groom',
-    fields: ['brideName', 'bridePhotoUrl', 'brideBio', 'groomName', 'groomPhotoUrl', 'groomBio'],
+    fields: ['brideName', 'bridePhotoUrl', 'brideBio', 'groomName', 'groomPhotoUrl', 'groomBio', 'couplePhoto'],
   },
   {
     id: 'invitation-code',
@@ -205,6 +207,11 @@ export function mergeThemeUpdate(current, patch) {
         continue;
       }
       next[key] = String(value ?? '').split(',').map((c) => c.trim()).filter(Boolean).join(',').toUpperCase();
+      continue;
+    }
+
+    if (key === 'couplePhoto') {
+      next[key] = normaliseCouplePhoto(rawValue);
       continue;
     }
 

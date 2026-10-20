@@ -30,6 +30,12 @@ const VALID_INPUT = {
   groomName: '',
   groomPhotoUrl: '',
   groomBio: '',
+  couplePhoto: {
+    size: 150,
+    fade: 30,
+    bride: { zoom: 100, x: 50, y: 20 },
+    groom: { zoom: 100, x: 50, y: 20 },
+  },
 };
 
 test('accepts valid theme input and returns normalised values', () => {

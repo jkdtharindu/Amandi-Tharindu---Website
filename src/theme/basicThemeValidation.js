@@ -1,4 +1,5 @@
 import { isValidPaletteString } from './sectionPalette.js';
+import { normaliseCouplePhoto } from './couplePhoto.js';
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const WEDDING_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WEDDING_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -156,6 +157,9 @@ export function validateThemeInput(input = {}) {
       groomName,
       groomPhotoUrl,
       groomBio,
+      // Couple photo adjuster (Action 86): out-of-range numbers are clamped,
+      // not rejected -- a slider can't send anything wild anyway.
+      couplePhoto: normaliseCouplePhoto(input.couplePhoto),
     },
   };
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import ImageUploadField from './ImageUploadField';
 import HeroBackgroundField from './HeroBackgroundField';
 import ColorField from './ColorField';
+import CouplePhotoAdjuster, { type CouplePhotoSettings } from './CouplePhotoAdjuster';
 import { useToast } from '@/components/Toast';
 
 export type ThemeSettings = {
@@ -29,6 +30,7 @@ export type ThemeSettings = {
   groomName: string;
   groomPhotoUrl: string;
   groomBio: string;
+  couplePhoto: CouplePhotoSettings;
 };
 
 /** Site-wide colors and typography (PRD P1-10). */
@@ -460,6 +462,15 @@ export default function ThemeEditor({
             Leave a name empty to hide the Bride &amp; Groom section on the home page entirely.
           </p>
         </div>
+
+        <CouplePhotoAdjuster
+          value={form.couplePhoto}
+          bridePhotoUrl={form.bridePhotoUrl}
+          groomPhotoUrl={form.groomPhotoUrl}
+          brideName={form.brideName}
+          groomName={form.groomName}
+          onChange={(couplePhoto) => setForm({ ...form, couplePhoto })}
+        />
 
         <button
           type="submit"
