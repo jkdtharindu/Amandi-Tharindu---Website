@@ -8,6 +8,8 @@ How to use this file: change `[ ]` to `[x]` when a task is done. Do the tasks in
 
 ---
 
+See also: `docs/BUSINESS_FORECAST.md` (income forecast, market reality, growth factors and future products).
+
 ## How to come back to this later (paused during the wedding)
 
 **Status when paused (Oct 2026):** the plan is written and the decisions below are made. No business tasks have been started. Your wedding comes first.
