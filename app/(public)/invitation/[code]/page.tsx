@@ -134,7 +134,19 @@ export default async function InvitationPage({
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.name}</h3>
                   <p className="text-gray-700 mb-1"><strong>{t('events.labelDate')}:</strong> {formatWeddingDate(event.eventDate)}</p>
                   <p className="text-gray-700 mb-1"><strong>{t('events.labelTime')}:</strong> {event.eventTime}</p>
-                  <p className="text-gray-700 mb-1"><strong>{t('events.labelVenue')}:</strong> {event.venueName}</p>
+                  <p className="text-gray-700 mb-1">
+                    <strong>{t('events.labelVenue')}:</strong>{' '}
+                    <a
+                      href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={t('events.mapLink')}
+                      className="font-semibold underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                      style={{ color: 'var(--color-accent)' }}
+                    >
+                      📍 {event.venueName}
+                    </a>
+                  </p>
                   {event.venueAddress && (
                     <p className="text-gray-700 mb-1"><strong>{t('events.labelAddress')}:</strong> {event.venueAddress}</p>
                   )}

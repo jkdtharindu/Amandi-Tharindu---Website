@@ -552,6 +552,44 @@ button {
     line-height: 1.75;
   }
 
+  /* Venue name / address are links to Google Maps: accent colour, dotted
+     underline and a pin so guests can tell they are tappable. */
+  .event-card a.event-venue-link {
+    display: inline;
+    min-height: 0;
+    color: var(--color-accent);
+    font-weight: 600;
+    text-decoration: underline dotted;
+    text-underline-offset: 4px;
+  }
+
+  .event-card a.event-venue-link:hover,
+  .event-card a.event-venue-link:focus-visible {
+    text-decoration-style: solid;
+  }
+
+  /* "View on Google Maps" as a clear outlined button. */
+  .event-card a.event-map-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+    padding: 0.55rem 1.1rem;
+    min-height: 44px;
+    border: 1.5px solid var(--color-accent);
+    border-radius: 999px;
+    color: var(--color-accent);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .event-card a.event-map-btn:hover,
+  .event-card a.event-map-btn:focus-visible {
+    background: var(--color-accent);
+    color: #fff;
+  }
+
   .section-image,
   .event-image {
     display: block;

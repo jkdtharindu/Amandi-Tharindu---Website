@@ -261,11 +261,29 @@ export default async function HomePage() {
               <strong>{t("events.labelTime")}:</strong> {event.eventTime}
             </p>
             <p>
-              <strong>{t("events.labelVenue")}:</strong> {event.venueName}
+              <strong>{t("events.labelVenue")}:</strong>{" "}
+              <a
+                className="event-venue-link"
+                href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
+                target="_blank"
+                rel="noreferrer"
+                title={t("events.mapLink")}
+              >
+                📍 {event.venueName}
+              </a>
             </p>
             {event.venueAddress && (
               <p>
-                <strong>{t("events.labelAddress")}:</strong> {event.venueAddress}
+                <strong>{t("events.labelAddress")}:</strong>{" "}
+                <a
+                  className="event-venue-link"
+                  href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t("events.mapLink")}
+                >
+                  {event.venueAddress}
+                </a>
               </p>
             )}
             {event.parkingNote && (
@@ -278,15 +296,14 @@ export default async function HomePage() {
                 <strong>{t("events.labelDressCode")}:</strong> {event.dressCode}
               </p>
             )}
-            <p>
-              <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t("events.mapLink")}
-              </a>
-            </p>
+            <a
+              className="event-map-btn"
+              href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress || event.venueName)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              🗺️ {t("events.mapLink")} →
+            </a>
           </div>
         ))}
         </div>
