@@ -1,5 +1,6 @@
 import { isValidPaletteString } from './sectionPalette.js';
 import { normaliseCouplePhoto } from './couplePhoto.js';
+import { normaliseOverlayStrength } from './heroOverlay.js';
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const WEDDING_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WEDDING_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -110,6 +111,8 @@ export function validateThemeInput(input = {}) {
   const sectionGlassEnabled = input.sectionGlassEnabled !== false;
   // Hero photo dark layer switch (Action 85): on unless explicitly sent as false.
   const heroOverlayEnabled = input.heroOverlayEnabled !== false;
+  // Strength of that layer (Action 87): clamped 0-100, default 100.
+  const heroOverlayStrength = normaliseOverlayStrength(input.heroOverlayStrength);
   const strengthInput = input.sectionGlassStrength ?? 60;
   const sectionGlassStrength = Number(strengthInput);
   if (!Number.isInteger(sectionGlassStrength) || sectionGlassStrength < 0 || sectionGlassStrength > 100) {
@@ -149,6 +152,7 @@ export function validateThemeInput(input = {}) {
       heroDominantColor,
       heroPalette: heroPalette.toUpperCase(),
       heroOverlayEnabled,
+      heroOverlayStrength,
       sectionGlassEnabled,
       sectionGlassStrength,
       brideName,

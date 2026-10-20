@@ -22,6 +22,7 @@ const VALID_INPUT = {
   heroDominantColor: '',
   heroPalette: '',
   heroOverlayEnabled: true,
+  heroOverlayStrength: 100,
   sectionGlassEnabled: true,
   sectionGlassStrength: 60,
   brideName: '',

@@ -31,9 +31,9 @@ function relativeLuminance(r, g, b) {
  * the other. Any missing or malformed color falls back to the pre-Action-65
  * default rather than guessing.
  */
-export function computeOverlayFromColor(hexColor) {
+export function computeOverlayOpacity(hexColor) {
   const match = HEX_COLOR_PATTERN.exec(String(hexColor ?? '').trim());
-  if (!match) return DEFAULT_HERO_OVERLAY;
+  if (!match) return 0.45;
 
   const value = match[1];
   const r = parseInt(value.slice(0, 2), 16);
@@ -43,16 +43,31 @@ export function computeOverlayFromColor(hexColor) {
   const luminance = relativeLuminance(r, g, b);
   // luminance 0 (black) -> 0.25 opacity; luminance 1 (white) -> 0.60 opacity.
   const opacity = 0.25 + luminance * 0.35;
-  const rounded = Math.round(opacity * 100) / 100;
+  return Math.round(opacity * 100) / 100;
+}
 
-  return `rgba(0, 0, 0, ${rounded})`;
+export function computeOverlayFromColor(hexColor) {
+  if (!HEX_COLOR_PATTERN.test(String(hexColor ?? '').trim())) return DEFAULT_HERO_OVERLAY;
+  return `rgba(0, 0, 0, ${computeOverlayOpacity(hexColor)})`;
+}
+
+/** Clamps the strength slider to a whole number 0-100. Missing or junk means 100. */
+export function normaliseOverlayStrength(value) {
+  const n = Number(value);
+  if (value === '' || value == null || !Number.isFinite(n)) return 100;
+  return Math.min(100, Math.max(0, Math.round(n)));
 }
 
 /**
- * The CSS value for the hero photo's dark layer (Action 85). With the admin's
- * switch off it is fully transparent, so the photo shows as uploaded; with it
- * on (or never set) it is the adaptive overlay above.
+ * The CSS value for the hero photo's dark layer. The admin's on/off switch
+ * (Action 85) turns it off completely. The strength slider (Action 87) scales
+ * the adaptive opacity: 100 (the default) keeps today's look, 50 is half as
+ * dark, 0 is see-through. Strength is clamped to 0-100; a missing value means 100.
  */
-export function heroOverlayValue(hexColor, enabled) {
-  return enabled === false ? 'transparent' : computeOverlayFromColor(hexColor);
+export function heroOverlayValue(hexColor, enabled, strength = 100) {
+  if (enabled === false) return 'transparent';
+  const pct = Number.isFinite(Number(strength)) ? Math.min(100, Math.max(0, Number(strength))) : 100;
+  if (pct === 100) return computeOverlayFromColor(hexColor);
+  const opacity = Math.round(computeOverlayOpacity(hexColor) * (pct / 100) * 100) / 100;
+  return `rgba(0, 0, 0, ${opacity})`;
 }

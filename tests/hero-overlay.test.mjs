@@ -49,3 +49,25 @@ test('heroOverlayValue keeps the adaptive overlay when the switch is on or missi
   assert.equal(heroOverlayValue('#a68b5c', true), computeOverlayFromColor('#a68b5c'));
   assert.equal(heroOverlayValue('#a68b5c', undefined), computeOverlayFromColor('#a68b5c'));
 });
+
+// Action 87: the strength slider scales the dark layer.
+test('heroOverlayValue at strength 100 keeps the full adaptive overlay', async () => {
+  const { heroOverlayValue, computeOverlayFromColor } = await import('../src/theme/heroOverlay.js');
+  assert.equal(heroOverlayValue('#a68b5c', true, 100), computeOverlayFromColor('#a68b5c'));
+});
+
+test('heroOverlayValue halves the opacity at strength 50 and is clear at 0', async () => {
+  const { heroOverlayValue, computeOverlayOpacity } = await import('../src/theme/heroOverlay.js');
+  const full = computeOverlayOpacity('#a68b5c');
+  assert.equal(heroOverlayValue('#a68b5c', true, 50), `rgba(0, 0, 0, ${Math.round(full * 50) / 100})`);
+  assert.equal(heroOverlayValue('#a68b5c', true, 0), 'rgba(0, 0, 0, 0)');
+});
+
+test('normaliseOverlayStrength clamps and defaults to 100', async () => {
+  const { normaliseOverlayStrength } = await import('../src/theme/heroOverlay.js');
+  assert.equal(normaliseOverlayStrength(undefined), 100);
+  assert.equal(normaliseOverlayStrength(''), 100);
+  assert.equal(normaliseOverlayStrength(-20), 0);
+  assert.equal(normaliseOverlayStrength(250), 100);
+  assert.equal(normaliseOverlayStrength('40'), 40);
+});

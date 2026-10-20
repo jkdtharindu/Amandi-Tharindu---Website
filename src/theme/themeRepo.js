@@ -4,6 +4,7 @@ import { mergeThemeUpdate } from './mergeThemeUpdate.js';
 import { normaliseGlassStrength } from './sectionTint.js';
 import { serialisePalette } from './sectionPalette.js';
 import { normaliseCouplePhoto, serialiseCouplePhoto } from './couplePhoto.js';
+import { normaliseOverlayStrength } from './heroOverlay.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -44,6 +45,7 @@ export function mapRow(row) {
     heroDominantColor: row.hero_dominant_color || '',
     heroPalette: row.hero_palette || '',
     heroOverlayEnabled: row.hero_overlay_enabled !== false,
+    heroOverlayStrength: normaliseOverlayStrength(row.hero_overlay_strength),
     sectionGlassEnabled: row.section_glass_enabled !== false,
     sectionGlassStrength: normaliseGlassStrength(row.section_glass_strength),
     invitationTemplateUrl: row.invitation_template_url || '',
@@ -104,7 +106,8 @@ export async function updateThemeSettings(patch) {
       hero_dominant_color = $31,
       section_glass_enabled = $32, section_glass_strength = $33,
       hero_palette = $34, hero_overlay_enabled = $35,
-      couple_photo_adjust = $36::jsonb
+      couple_photo_adjust = $36::jsonb,
+      hero_overlay_strength = $37
     WHERE id = $30`,
     [
       settings.paletteName,
@@ -143,6 +146,7 @@ export async function updateThemeSettings(patch) {
       serialisePalette(settings.heroPalette),
       settings.heroOverlayEnabled !== false,
       serialiseCouplePhoto(settings.couplePhoto),
+      normaliseOverlayStrength(settings.heroOverlayStrength),
     ]
   );
 

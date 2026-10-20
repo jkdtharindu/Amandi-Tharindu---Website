@@ -141,7 +141,7 @@ export default async function HomePage() {
   const heroStyle = settings.heroImageUrl
     ? ({
         "--hero-image-url": `url(${JSON.stringify(settings.heroImageUrl)})`,
-        "--hero-overlay": heroOverlayValue(settings.heroDominantColor, settings.heroOverlayEnabled),
+        "--hero-overlay": heroOverlayValue(settings.heroDominantColor, settings.heroOverlayEnabled, settings.heroOverlayStrength),
       } as CSSProperties)
     : undefined;
 

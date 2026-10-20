@@ -22,6 +22,7 @@ export type ThemeSettings = {
   heroDominantColor: string;
   heroPalette: string;
   heroOverlayEnabled: boolean;
+  heroOverlayStrength: number;
   sectionGlassEnabled: boolean;
   sectionGlassStrength: number;
   brideName: string;
@@ -389,6 +390,26 @@ export default function ThemeEditor({
               </span>
             </span>
           </label>
+          {form.heroOverlayEnabled && (
+            <div className="mt-3">
+              <label htmlFor="heroOverlayStrength" className="flex justify-between text-xs font-semibold text-slate-500 mb-1">
+                <span>Dark layer strength</span>
+                <span className="font-normal">{form.heroOverlayStrength}%</span>
+              </label>
+              <input
+                id="heroOverlayStrength"
+                type="range"
+                min={0}
+                max={100}
+                value={form.heroOverlayStrength}
+                onChange={(e) => setForm({ ...form, heroOverlayStrength: Number(e.target.value) })}
+                className="w-full"
+              />
+              <p className="text-xs text-slate-500">
+                100 is the full dark layer. Lower it to lighten the tint and let more of the photo show.
+              </p>
+            </div>
+          )}
         </div>
 
         <h2 className="font-semibold mb-4">Bride &amp; Groom</h2>
