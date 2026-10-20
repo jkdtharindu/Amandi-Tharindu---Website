@@ -533,6 +533,17 @@ button {
     object-position: center top;
     border: 0;
     border-radius: 1rem;
+    /* Soft faded edges: fade out on all four sides so the photo melts into
+       the section background. Two gradients (left-right and top-bottom) are
+       intersected. */
+    -webkit-mask-image:
+      linear-gradient(to right, transparent, #000 22%, #000 78%, transparent),
+      linear-gradient(to bottom, transparent, #000 18%, #000 78%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, transparent, #000 22%, #000 78%, transparent),
+      linear-gradient(to bottom, transparent, #000 18%, #000 78%, transparent);
+    mask-composite: intersect;
   }
 
   .feature-card h2,
