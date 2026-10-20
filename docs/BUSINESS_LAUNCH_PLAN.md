@@ -65,6 +65,24 @@ Now the real engineering work. Do these in order.
 | [ ] 3.7 | Rewrite the **admin manual** to be general (not about one couple) | 28 Jan | A couple can follow it without you |
 | [ ] 3.8 | Do a **full dry run**: set up a test couple from scratch using only the checklist | 31 Jan | It works and takes the time you promised |
 
+**Admin and access tasks (added after discussion):**
+
+| # | Task | Deadline | Done when |
+|---|---|---|---|
+| [ ] 3.9 | Add a **super admin** role (you). Only you can change Theme, Sections, Events, Gallery and Site wording unless a package allows it | 10 Jan | A couple's admin cannot open those pages; you can open them for every couple |
+| [ ] 3.10 | Keep **two regular admin logins** per couple (bride side, groom side), each seeing only their own guests, codes, messages and CSV | 10 Jan | Already built; re-test with a fresh couple |
+| [ ] 3.11 | Add an optional **one-login mode** for couples who manage everything together | 20 Jan | One admin can see both sides when this is switched on |
+| [ ] 3.12 | Make **side labels** editable (for example "Bride's family" or "Family A") | 25 Jan | A couple can see their own labels |
+| [ ] 3.13 | Add a **package switch**: Managed (couple cannot edit design) or Self-managed (couple can edit theme, photos, sections) | 20 Jan | One setting per couple turns design pages on or off for them |
+| [ ] 3.14 | Add **password reset** for admins, or a quick way for you to reset one | 15 Jan | A forgotten password is fixed in under 5 minutes |
+| [ ] 3.15 | Protect the super admin login with a strong password and **two-step sign-in** | 15 Jan | Two-step sign-in works |
+| [ ] 3.16 | Add an **access log**: a record of when you open a couple's guest data | 25 Jan | The log shows who opened what, and when |
+
+**Decisions made so far:**
+- Two logins per couple is the default, because the bride's and groom's families invite separately and should not see each other's guests.
+- Seating stays with the couple (it is guest data, split by side). It can be moved under the super admin if a package needs that.
+- The couple handles guests, codes, WhatsApp messages and RSVPs. The super admin handles design, content and setup.
+
 ---
 
 ## Phase 4: Package and price (1 Jan to 15 Feb, runs alongside Phase 3)
@@ -75,6 +93,8 @@ Now the real engineering work. Do these in order.
 | [ ] 4.2 | Define 3 packages (Basic, Standard, Premium) and their prices | 15 Jan | A one-page price sheet |
 | [ ] 4.3 | Write what support is included, such as WhatsApp help until the wedding date | 15 Jan | Clear text for the price sheet |
 | [ ] 4.4 | Decide the **first-customer offer**: a discount for the first 3 to 5 couples, in return for a testimonial | 20 Jan | A written offer |
+| [ ] 4.6 | State in the terms that you manage the site and can see its data, that you will only look when fixing a problem, and that data is deleted after the wedding | 20 Jan | A short written promise on the price sheet and the site |
+| [ ] 4.7 | Set a **change-request promise** (for example changes within 48 hours, with a set number of free changes per package) | 20 Jan | Written into each package |
 | [ ] 4.5 | Create a simple order form (name, wedding date, package, contact) | 25 Jan | A form that sends you each order |
 
 ---
@@ -149,10 +169,12 @@ Start small and learn.
 
 ## Risks to watch
 
-- **Setup time grows.** Each separate copy needs setup and care. If it takes longer than 2 hours, move to the "one system for many couples" model.
+- **Setup time grows.** Each separate copy needs setup and care (two admin accounts, one per side, plus your super admin). If it takes longer than 2 hours, move to the "one system for many couples" model.
 - **Guest data.** You will hold names and phone numbers. Delete it after each wedding.
 - **Wedding month overload.** Do not start Phase 3 before the wedding is over.
 - **Overpricing or underpricing.** Fix it after the first 3 customers, not before.
+- **You become the bottleneck.** If many couples ask for changes at once, you cannot keep up. Set a clear turnaround and a limit on free changes.
+- **The super admin login is a master key.** Protect it with two-step sign-in and never share it.
 - **Copying.** Others can copy a site's look. Your edge is local fit, WhatsApp, local languages and personal service.
 
 ---
