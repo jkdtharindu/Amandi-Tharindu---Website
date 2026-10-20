@@ -1,6 +1,8 @@
 # Brand Profile: Business Name, Look and Campaign
 
-**Plain-language summary:** The recommended working name is **lagna** (say "LUG-na"). It is a Sinhala and Tamil word for the auspicious moment of a wedding, it is short, and it is easy to type. The name is **not yet checked** for legal or domain availability. Check the steps in section 2 before you print or pay for anything.
+**Decision:** the business name is **Aradhana** (Sinhala for "invitation"; say "ah-RAH-dha-na"). It was chosen on 20 Oct 2026. The name is **not yet checked** for legal or domain availability. Check the steps in section 2 before you print or pay for anything. Sections 1 and 1b below are the earlier name discussion, kept for reference.
+
+**Known weak points of Aradhana, to manage:** it is also a common word and name in India (so Google results will be mixed, and trademark clashes are possible), and it is Sinhala, so Tamil-speaking customers may find it less natural. Always write "Aradhana Sri Lanka" or "Aradhana.lk" in posts, and consider a Tamil line (for example "Wedding invitations for families") on materials for Tamil audiences.
 
 ---
 
@@ -18,7 +20,7 @@
 
 Why **lagna** wins: it is local and shared across both main communities, it is short for a Facebook handle and a QR code, and it suits a modern, simple design. If you think it sounds too traditional for Gen Z, the logo and tagline below make it look modern.
 
-**Tagline options:**
+**Tagline options** (for Aradhana, "Wedding invitations for families" is also a strong fit):
 - "Smart wedding invitations, made in Sri Lanka." (clear and direct, used in the logo)
 - "Know who's coming."
 - "One link. Every guest."
@@ -56,7 +58,7 @@ Look at what these offer and charge before you finalise your own pricing.
 ## 2. Before you commit to a name (do these in order)
 
 1. Search the name on Facebook, Instagram, TikTok and Google, with "Sri Lanka" and "wedding".
-2. Check domains: `lagna.lk`, `lagna.app`, `getlagna.com`, `lagnaweddings.lk`. A `.lk` domain is registered through LK Domain Registry resellers.
+2. Check domains: `aradhana.lk`, `aradhana.app`, `getaradhana.com`, `aradhanaweddings.lk`. A `.lk` domain is registered through LK Domain Registry resellers.
 3. Check that the same handle is free on Facebook, Instagram and TikTok.
 4. Ask a native Sinhala and Tamil speaker how the name sounds and whether it has any unwanted meaning.
 5. Check trademarks: search the National Intellectual Property Office of Sri Lanka (NIPO) records. Register the business name if the search is clear. Ask a lawyer before you pay for a trademark.
@@ -80,11 +82,11 @@ Look at what these offer and charge before you finalise your own pricing.
 
 **Fonts:** a classic serif for the name and headlines (for example **Playfair Display**) and a clean sans-serif for body text (for example **Inter**). Both are free on Google Fonts.
 
-**Logo concept:** two interlocking rings, one gold and one dark, with a small blush dot where they meet. The rings stand for the **bride's side and the groom's side joined**, which is also what your product does. The wordmark is lowercase "lagna".
+**Logo concept:** two interlocking rings, one gold and one dark, with a small blush dot where they meet. The rings stand for the **bride's side and the groom's side joined**, which is also what your product does. The wordmark is lowercase "aradhana".
 
 Files (open in a browser):
-- `docs/branding/lagna-logo.svg`: the full logo with tagline
-- `docs/branding/lagna-mark.svg`: the square icon, for profile pictures and the app icon
+- `docs/branding/aradhana-logo.svg`: the full logo with tagline
+- `docs/branding/aradhana-mark.svg`: the square icon, for profile pictures and the app icon
 
 These are first-draft concepts made as simple vector files. Before you print, have a designer polish them (spacing, a custom font and a one-colour version).
 
@@ -114,7 +116,7 @@ These are first-draft concepts made as simple vector files. Before you print, ha
 
 **Content pillars (repeat every month):** how it works, real stories, wedding planning tips, behind the scenes, partner spotlights.
 
-**Hashtags (test and adjust):** #lagna #srilankanwedding #weddingsrilanka #engagedsrilanka #weddingplanninglk
+**Hashtags (test and adjust):** #aradhana #aradhanalk #srilankanwedding #weddingsrilanka #engagedsrilanka #weddingplanninglk
 
 ---
 
@@ -136,4 +138,4 @@ These are first-draft concepts made as simple vector files. Before you print, ha
 
 ## 7. A note about your own wedding site
 
-Your own wedding site stays as **Amandi & Tharindu**. The business brand appears only as a small "Made with lagna" line at the bottom, if you and your guests are comfortable with it. Don't let the business branding take over your personal invitation.
+Your own wedding site stays as **Amandi & Tharindu**. The business brand appears only as a small "Made with Aradhana" line at the bottom, if you and your guests are comfortable with it. Don't let the business branding take over your personal invitation.

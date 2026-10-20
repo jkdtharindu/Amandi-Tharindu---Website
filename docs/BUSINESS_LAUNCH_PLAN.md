@@ -8,7 +8,7 @@ How to use this file: change `[ ]` to `[x]` when a task is done. Do the tasks in
 
 ---
 
-See also: `docs/BRAND_PROFILE.md` (name, logo and campaign), `docs/BUSINESS_TARGETING.md` (who to sell to and where), `docs/BUSINESS_FORECAST.md` (income forecast, market reality, growth factors and future products).
+See also: `docs/BRAND_PROFILE.md` (name Aradhana, logo and campaign), `docs/BUSINESS_TARGETING.md` (who to sell to and where), `docs/BUSINESS_FORECAST.md` (income forecast, market reality, growth factors and future products).
 
 ## How to come back to this later (paused during the wedding)
 
