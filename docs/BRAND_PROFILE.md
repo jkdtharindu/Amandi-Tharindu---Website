@@ -1,6 +1,6 @@
 # Brand Profile: Business Name, Look and Campaign
 
-**Decision:** the business name is **Aradhana** (Sinhala for "invitation"; say "ah-RAH-dha-na"). It was chosen on 20 Oct 2026. The name is **not yet checked** for legal or domain availability. Check the steps in section 2 before you print or pay for anything. Sections 1 and 1b below are the earlier name discussion, kept for reference.
+**Decision (final):** the business is **Aradhana** and the product name is **Aradhana Smart Invite** ("Aradhana" for the brand, "Smart Invite" as the label that tells people what it is). Short form on small spaces: **Aradhana**. The business name is **Aradhana** (Sinhala for "invitation"; say "ah-RAH-dha-na"). It was chosen on 20 Oct 2026. The name is **not yet checked** for legal or domain availability. Check the steps in section 2 before you print or pay for anything. Sections 1 and 1b below are the earlier name discussion, kept for reference.
 
 **Known weak points of Aradhana, to manage:** it is also a common word and name in India (so Google results will be mixed, and trademark clashes are possible), and it is Sinhala, so Tamil-speaking customers may find it less natural. Always write "Aradhana Sri Lanka" or "Aradhana.lk" in posts, and consider a Tamil line (for example "Wedding invitations for families") on materials for Tamil audiences.
 
@@ -19,6 +19,8 @@
 **Searches that found no Sri Lankan brand using "Lagna", "Ekata" or "Saha" as a wedding invitation service** (these were quick web searches only, not a legal check). Don't treat that as clearance.
 
 Why **lagna** wins: it is local and shared across both main communities, it is short for a Facebook handle and a QR code, and it suits a modern, simple design. If you think it sounds too traditional for Gen Z, the logo and tagline below make it look modern.
+
+**Naming rules for Aradhana Smart Invite:** write it as "Aradhana Smart Invite" in the first mention on any page or post, then "Aradhana" after that. The logo tagline reads "SMART INVITE". Avoid names starting with "Inviq", which clash with an existing product called Inviqo.
 
 **Tagline options** (for Aradhana, "Wedding invitations for families" is also a strong fit):
 - "Smart wedding invitations, made in Sri Lanka." (clear and direct, used in the logo)
@@ -138,4 +140,4 @@ These are first-draft concepts made as simple vector files. Before you print, ha
 
 ## 7. A note about your own wedding site
 
-Your own wedding site stays as **Amandi & Tharindu**. The business brand appears only as a small "Made with Aradhana" line at the bottom, if you and your guests are comfortable with it. Don't let the business branding take over your personal invitation.
+Your own wedding site stays as **Amandi & Tharindu**. The business brand appears only as a small "Made with Aradhana Smart Invite" line at the bottom, if you and your guests are comfortable with it. Don't let the business branding take over your personal invitation.
