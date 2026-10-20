@@ -8,6 +8,34 @@ How to use this file: change `[ ]` to `[x]` when a task is done. Do the tasks in
 
 ---
 
+## How to come back to this later (paused during the wedding)
+
+**Status when paused (Oct 2026):** the plan is written and the decisions below are made. No business tasks have been started. Your wedding comes first.
+
+**To restart, open a new chat and say:**
+> "Open `docs/BUSINESS_LAUNCH_PLAN.md` and continue the business plan. I'm at Phase __, task __."
+
+If you don't remember where you were, say "Show me which tasks are not ticked yet", and I will list them.
+
+**Where to restart, depending on when you return:**
+- **Before the wedding, short on time:** do only Phase 0 and Phase 1 tasks 1.2 and 1.5 (name and testimonials). Skip the rest.
+- **After the wedding (late Dec or Jan):** start at **task 1.3** (scan the code for everything hardcoded to Amandi & Tharindu). It shows how big the job is, and everything in Phase 3 depends on it.
+- **If your dates have moved:** shift every date in this file by the same number of weeks. The order of tasks stays the same.
+
+**Decisions already made (do not re-debate):**
+- Sell it as a separate copy per couple first. Move to one shared system only after 5 or more customers.
+- Two admin logins per couple (bride side, groom side), each private from the other.
+- You are the super admin. You control design and content. The couple controls guests, codes, messages and RSVPs.
+- Two packages of control: Managed (default) and Self-managed (premium).
+- Your edge is local fit: WhatsApp, Sinhala and Tamil, and done-for-you service. Do not compete on price with free tools.
+
+**Open questions to answer when you return:**
+- Does "seating" stay with the couple or move under you?
+- What are the three package prices?
+- What is the business name?
+
+---
+
 ## Phase 0: Launch your own wedding (20 Oct to 3 Nov)
 
 This is the most important phase. Your wedding is your demo, your proof and your first test.
