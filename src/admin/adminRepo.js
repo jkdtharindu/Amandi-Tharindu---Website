@@ -4,7 +4,7 @@ import { rsvpResponses } from '../data/rsvpStore.js';
 import { invitees } from '../data/inviteesStore.js';
 import { mapGuestRow, mapResponseRow } from '../guest-auth/guestRepo.js';
 import { generateGuestCode } from './generateGuestCode.js';
-import { createInviteesForGuest } from '../invitees/inviteesRepo.js';
+import { createInviteesForGuest, mapInviteeRow } from '../invitees/inviteesRepo.js';
 
 /**
  * Admin-side data access (PRD P0-07, P0-08, P1-14D).
@@ -33,6 +33,14 @@ export async function listAllRsvpResponses() {
 
   const { rows } = await query('SELECT * FROM rsvp_responses');
   return rows.map(mapResponseRow);
+}
+
+/** Every invitee of every guest (the dashboard counts people per code). */
+export async function listAllInvitees() {
+  if (!isDbEnabled()) return invitees.map((invitee) => ({ ...invitee }));
+
+  const { rows } = await query('SELECT * FROM invitees');
+  return rows.map(mapInviteeRow);
 }
 
 /**

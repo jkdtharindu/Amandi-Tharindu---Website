@@ -1,4 +1,5 @@
 import AdminNav from '@/components/admin/AdminNav';
+import CodeBreakdownTable from '@/components/admin/CodeBreakdownTable';
 import RsvpChart from '@/components/admin/RsvpChart';
 import StatCard from '@/components/admin/StatCard';
 import { requireAdminPage } from '@/lib/adminGuard';
@@ -24,7 +25,7 @@ function StatRow({ stats }: { stats: { totalInvited: number; accepted: number; a
 
 export default async function AdminDashboardPage() {
   const session = await requireAdminPage();
-  const { sideStats, overallStats } = await loadDashboardStats(session.party);
+  const { sideStats, overallStats, sideBreakdown, overallBreakdown } = await loadDashboardStats(session.party);
 
   return (
     <>
@@ -49,6 +50,16 @@ export default async function AdminDashboardPage() {
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-slate-500 mb-3">Overall (Both Parties)</h2>
           <StatRow stats={overallStats} />
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-slate-500 mb-3">Your Party: by invitation code</h2>
+          <CodeBreakdownTable breakdown={sideBreakdown} />
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-slate-500 mb-3">Overall: by invitation code</h2>
+          <CodeBreakdownTable breakdown={overallBreakdown} />
         </div>
 
         <section className="bg-white rounded-xl border border-slate-200 p-6">

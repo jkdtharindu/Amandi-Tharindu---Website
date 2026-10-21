@@ -67,6 +67,62 @@ export function computeRsvpStats(guests = [], responses = []) {
   };
 }
 
+/**
+ * One row per invitation code for the dashboard table: how many people were
+ * invited, and how many of them accepted, declined or have not replied.
+ * A party with named people is counted person by person (so "half declined"
+ * shows correctly); an older headcount-only party is counted by its party
+ * status, using its seat count (or the people on its accepted response).
+ */
+export function computeCodeBreakdown(guests = [], responses = [], invitees = []) {
+  const responseByGuestId = new Map(responses.map((response) => [response.guestId, response]));
+
+  const rows = guests
+    .filter((guest) => !guest.isDeleted)
+    .map((guest) => {
+      const people = invitees.filter(
+        (invitee) => invitee.guestId === guest.id && invitee.approvalStatus === 'approved',
+      );
+      let accepted = 0;
+      let declined = 0;
+      let pending = 0;
+      let invited;
+
+      if (people.length > 0) {
+        invited = people.length;
+        accepted = people.filter((person) => person.rsvpStatus === 'accepted').length;
+        declined = people.filter((person) => person.rsvpStatus === 'declined').length;
+        pending = invited - accepted - declined;
+      } else {
+        invited = guest.slotCount ?? 0;
+        if (guest.rsvpStatus === 'accepted') {
+          const response = responseByGuestId.get(guest.id);
+          accepted = Math.min(invited, response?.participantNames?.length || invited);
+          pending = invited - accepted;
+        } else if (guest.rsvpStatus === 'declined') {
+          declined = invited;
+        } else {
+          pending = invited;
+        }
+      }
+
+      return { code: guest.code, name: guest.name, invited, accepted, declined, pending };
+    });
+
+  const sum = (key) => rows.reduce((total, row) => total + row[key], 0);
+
+  return {
+    rows,
+    totals: {
+      codes: rows.length,
+      invited: sum('invited'),
+      accepted: sum('accepted'),
+      declined: sum('declined'),
+      pending: sum('pending'),
+    },
+  };
+}
+
 // A leading =, @, tab or CR makes a spreadsheet treat the cell as a formula.
 const FORMULA_LEAD = /^[=@\t\r]/;
 // So does a leading + or -, unless what follows is just a number (e.g. "+94...").

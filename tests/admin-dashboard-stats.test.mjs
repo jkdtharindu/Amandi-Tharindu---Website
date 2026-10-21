@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { loadDashboardStats } from '../src/admin/loadDashboardStats.js';
 import { guestStore } from '../src/data/guestStore.js';
 import { rsvpResponses } from '../src/data/rsvpStore.js';
+import { invitees as inviteesStore } from '../src/data/inviteesStore.js';
 
 // The RSVP dashboard's "Your Party" and "Overall (Both Parties)" rows.
 // Runs the in-memory path (DATABASE_URL unset).
@@ -52,6 +53,26 @@ test("the other side's row mirrors it", async () => {
     declined: 1,
     pending: 0,
   });
+});
+
+test('the code table counts people per code: half declined, headcount-only, removed code left out', async () => {
+  inviteesStore.length = 0;
+  inviteesStore.push(
+    { id: 'i1', guestId: 'b1', name: 'A', rsvpStatus: 'accepted', approvalStatus: 'approved' },
+    { id: 'i2', guestId: 'b1', name: 'B', rsvpStatus: 'declined', approvalStatus: 'approved' },
+    { id: 'i3', guestId: 'b1', name: 'C', rsvpStatus: 'pending', approvalStatus: 'approved' },
+    { id: 'i4', guestId: 'b1', name: 'D', rsvpStatus: 'pending', approvalStatus: 'pending_approval' },
+  );
+
+  const { overallBreakdown } = await loadDashboardStats('bride');
+  const byCode = Object.fromEntries(overallBreakdown.rows.map((row) => [row.code, row]));
+
+  assert.deepEqual(byCode['B-1'], { code: 'B-1', name: 'Bride Aunt', invited: 3, accepted: 1, declined: 1, pending: 1 });
+  assert.equal(byCode['B-X'], undefined);
+  assert.equal(byCode['G-2'].declined, 1); // headcount-only, declined as a party
+  assert.equal(byCode['B-2'].pending, 1);
+  assert.deepEqual(overallBreakdown.totals, { codes: 4, invited: 6, accepted: 2, declined: 2, pending: 2 });
+  inviteesStore.length = 0;
 });
 
 test('the overall row covers both sides and matches the sum of the two side rows', async () => {
