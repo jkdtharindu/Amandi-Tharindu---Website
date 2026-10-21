@@ -5,9 +5,10 @@ import { requireAdminPage } from '@/lib/adminGuard';
 import { listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { filterGuests } from '@/src/admin/guestQueries.js';
 import { mergeGroups } from '@/src/admin/categories.js';
+import { getMessageEventsByGuest } from '@/src/messaging/messageEventsRepo.js';
 import { listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
 import { loadPlaceholderContext } from '@/src/admin/loadPlaceholderContext.js';
-import type { MessageTemplate } from '@/components/admin/GuestMessageModal';
+import type { MessageEvent, MessageTemplate } from '@/components/admin/GuestMessageModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export default async function AdminGuestsPage() {
     loadPlaceholderContext(),
   ]);
   const categories = mergeGroups(guests.map((g) => g.relationship));
+  const messageEvents = (await getMessageEventsByGuest(guests.map((g) => g.id))) as Record<string, MessageEvent[]>;
 
   return (
     <>
@@ -33,6 +35,7 @@ export default async function AdminGuestsPage() {
           siteUrl={process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3010'}
           party={session.party}
           templates={templates}
+          initialMessageEvents={messageEvents}
           weddingDate={weddingDate}
           venueName={venueName}
         />

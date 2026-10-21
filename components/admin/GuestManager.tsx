@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import GuestMessageModal, { type MessageTemplate } from './GuestMessageModal';
+import GuestMessageModal, { type MessageEvent, type MessageTemplate } from './GuestMessageModal';
+import { levelProgress } from '@/src/messaging/messageLevels.js';
 import { useToast } from '@/components/Toast';
 
 export type Guest = {
@@ -35,6 +36,34 @@ const NEW_GROUP = '__new_group__';
 
 type ExistingInvitee = { id: string; name: string; rsvpStatus: string };
 
+/** Three ticks (one per message level) and how far through them a guest is, next to their number. */
+function MessageTicks({ events }: { events: MessageEvent[] }) {
+  const { levels, doneCount, total, percent } = levelProgress(events);
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs"
+      title={levels.map((level) => `${level.number}. ${level.label}: ${level.done ? 'sent' : 'not yet'}`).join('\n')}
+    >
+      {levels.map((level) => (
+        <span
+          key={level.key}
+          aria-label={`${level.label}: ${level.done ? 'sent' : 'not yet'}`}
+          className={
+            'inline-flex h-5 w-5 items-center justify-center rounded-full font-semibold ' +
+            (level.done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400')
+          }
+        >
+          {level.done ? '✓' : level.number}
+        </span>
+      ))}
+      <span className="ml-1 tabular-nums text-slate-500">
+        {doneCount}/{total} · {percent}%
+      </span>
+    </span>
+  );
+}
+
 /** Guest CRUD, filtering, and search (PRD P0-07). */
 export default function GuestManager({
   initialGuests,
@@ -42,9 +71,11 @@ export default function GuestManager({
   siteUrl,
   party,
   templates,
+  initialMessageEvents = {},
   weddingDate,
   venueName,
 }: {
+  initialMessageEvents?: Record<string, MessageEvent[]>;
   initialGuests: Guest[];
   categories?: string[];
   siteUrl: string;
@@ -55,6 +86,8 @@ export default function GuestManager({
 }) {
   // The pick-list starts from the server's list (built-in groups plus any custom
   // group already in use) and grows when the admin adds a new one (Action 84).
+  const [messageEvents, setMessageEvents] =
+    useState<Record<string, MessageEvent[]>>(initialMessageEvents);
   const [groups, setGroups] = useState<string[]>(categories);
   const [newGroup, setNewGroup] = useState('');
   const EMPTY_FORM: FormState = {
@@ -857,14 +890,17 @@ export default function GuestManager({
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {guest.whatsappNumber ? (
-                      <button
-                        type="button"
-                        onClick={() => setReminderGuest(guest)}
-                        className="text-emerald-700 hover:text-emerald-900 hover:underline"
-                        title="Message on WhatsApp"
-                      >
-                        {guest.whatsappNumber}
-                      </button>
+                      <div className="flex items-center gap-2 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setReminderGuest(guest)}
+                          className="text-emerald-700 hover:text-emerald-900 hover:underline"
+                          title="Message on WhatsApp"
+                        >
+                          {guest.whatsappNumber}
+                        </button>
+                        <MessageTicks events={messageEvents[guest.id] ?? []} />
+                      </div>
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}
@@ -955,6 +991,9 @@ export default function GuestManager({
           weddingDate={weddingDate}
           venueName={venueName}
           templates={templates}
+          onEventsChange={(events) =>
+            setMessageEvents((current) => ({ ...current, [reminderGuest.id]: events }))
+          }
           onClose={() => setReminderGuest(null)}
         />
       )}

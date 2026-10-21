@@ -3,7 +3,8 @@ import { listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { listSeatingTablesByParty } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { tableLabelsByGuest } from '@/src/table-arrangement/guestTableView.js';
 import { selectRecipients } from '@/src/messaging/selectRecipients.js';
-import { listSentGuestIds } from '@/src/messaging/messageLogRepo.js';
+import { getMessageEventsByGuest, listCompletedGuestIds } from '@/src/messaging/messageEventsRepo.js';
+import { MESSAGE_LEVELS, levelProgress } from '@/src/messaging/messageLevels.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 type GuestRow = {
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!session) return unauthorizedResponse();
 
   const params = request.nextUrl.searchParams;
-  const templateId = params.get('templateId') || '';
+  const level = MESSAGE_LEVELS.find((entry) => entry.key === params.get('level'));
   const skipSent = params.get('skipSent') !== 'false';
 
   const [guests, tables] = await Promise.all([
@@ -38,7 +39,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     listSeatingTablesByParty(session.party),
   ]);
   const tableLabels = tableLabelsByGuest(tables);
-  const skipGuestIds = skipSent && templateId ? await listSentGuestIds(templateId) : [];
+  const skipGuestIds = skipSent && level ? await listCompletedGuestIds(level.eventName) : [];
+
+  const eventsByGuest = (await getMessageEventsByGuest((guests as GuestRow[]).map((guest) => guest.id))) as Record<
+    string,
+    { eventName: string; isCompleted: boolean }[]
+  >;
+
+  // Per level: how many of the side's guests (with a number) are ticked as sent.
+  const messageable = (guests as GuestRow[]).filter(
+    (guest: GuestRow) => !guest.isDeleted && String(guest.whatsappNumber ?? '').trim()
+  );
+  const progress = MESSAGE_LEVELS.map((entry) => {
+    const done = messageable.filter(
+      (guest: GuestRow) =>
+        levelProgress(eventsByGuest[guest.id] ?? []).levels.find((l) => l.key === entry.key)?.done
+    ).length;
+    return {
+      key: entry.key,
+      number: entry.number,
+      label: entry.label,
+      done,
+      total: messageable.length,
+      percent: messageable.length ? Math.round((done / messageable.length) * 100) : 0,
+    };
+  });
 
   const { recipients, noNumberCount, alreadySentCount } = selectRecipients(guests, {
     status: params.get('status') || 'pending',
@@ -56,7 +81,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       rsvpStatus: guest.rsvpStatus,
       whatsappNumber: guest.whatsappNumber,
       tableName: (tableLabels.get(guest.id) ?? []).join(', '),
+      messageEvents: eventsByGuest[guest.id] ?? [],
     })),
+    progress,
     noNumberCount,
     alreadySentCount,
   });
