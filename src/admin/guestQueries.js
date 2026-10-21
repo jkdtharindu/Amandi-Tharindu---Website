@@ -119,6 +119,9 @@ export function computeCodeBreakdown(guests = [], responses = [], invitees = [])
       accepted: sum('accepted'),
       declined: sum('declined'),
       pending: sum('pending'),
+      // Codes with no accepted person yet that are not fully declined: same
+      // rule as a party's own status, so it matches "Awaiting reply" above.
+      codesPending: rows.filter((row) => row.accepted === 0 && row.declined < row.invited).length,
     },
   };
 }
