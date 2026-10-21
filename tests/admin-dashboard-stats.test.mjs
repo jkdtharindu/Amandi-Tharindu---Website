@@ -71,7 +71,7 @@ test('the code table counts people per code: half declined, headcount-only, remo
   assert.equal(byCode['B-X'], undefined);
   assert.equal(byCode['G-2'].declined, 1); // headcount-only, declined as a party
   assert.equal(byCode['B-2'].pending, 1);
-  assert.deepEqual(overallBreakdown.totals, { codes: 4, invited: 6, accepted: 2, declined: 2, pending: 2 });
+  assert.deepEqual(overallBreakdown.totals, { codes: 4, invited: 6, accepted: 2, declined: 2, pending: 2, codesPending: 1 });
   inviteesStore.length = 0;
 });
 
