@@ -8,6 +8,7 @@ import {
   greetingForParty,
   TABLE_UPDATE_TEMPLATE,
 } from '@/src/admin/messageTemplates.js';
+import { MESSAGE_LEVELS } from '@/src/messaging/messageLevels.js';
 import { useToast } from '@/components/Toast';
 
 type Guest = {
@@ -25,13 +26,13 @@ export type MessageTemplate = {
   channel: string;
 };
 
-type MessageEvent = { eventName: string; isCompleted: boolean };
+export type MessageEvent = { eventName: string; isCompleted: boolean };
 
 type Kind = { key: string; label: string; eventName: string; body: string };
 
 /**
- * The per-guest WhatsApp drop-down (Action 73): one guest, four message kinds
- * (RSVP reminder, final reminder, thank you, table-number update), each shown
+ * The per-guest WhatsApp drop-down (Action 73): one guest, three message levels
+ * (main invitation, RSVP reminder, table number), each shown
  * with the filled-in text and whether it's already been ticked as sent. Picking
  * one and opening WhatsApp does not tick it by itself — the owner's Grill Me
  * answer described ticking as a separate, deliberate step afterward, so it can
@@ -44,6 +45,7 @@ export default function GuestMessageModal({
   weddingDate,
   venueName,
   templates,
+  onEventsChange,
   onClose,
 }: {
   guest: Guest;
@@ -52,19 +54,22 @@ export default function GuestMessageModal({
   weddingDate: string;
   venueName: string;
   templates: MessageTemplate[];
+  /** Called with the guest's full tick list after each change, so the guest list can refresh its ticks. */
+  onEventsChange?: (events: MessageEvent[]) => void;
   onClose: () => void;
 }) {
   const link = useMemo(() => buildSiteLink(siteUrl), [siteUrl]);
   const showToast = useToast();
 
   const kinds = useMemo<Kind[]>(() => {
-    const byName = (name: string) => templates.find((entry) => entry.name === name)?.body ?? '';
-    return [
-      { key: 'reminder_1', label: 'RSVP reminder', eventName: 'RSVP Reminder', body: byName('reminder_1') },
-      { key: 'table_update', label: 'Table number update', eventName: 'Table Details', body: TABLE_UPDATE_TEMPLATE },
-      { key: 'reminder_2', label: 'Final reminder', eventName: 'Final Reminder', body: byName('reminder_2') },
-      { key: 'thank_you', label: 'Thank you', eventName: 'Thank You', body: byName('thank_you') },
-    ];
+    return MESSAGE_LEVELS.map((level) => ({
+      key: level.key,
+      label: `${level.number}. ${level.label}`,
+      eventName: level.eventName,
+      body: level.templateName
+        ? templates.find((entry) => entry.name === level.templateName)?.body ?? ''
+        : TABLE_UPDATE_TEMPLATE,
+    }));
   }, [templates]);
 
   const [kindKey, setKindKey] = useState(kinds[0].key);
@@ -180,10 +185,10 @@ export default function GuestMessageModal({
         showToast({ kind: 'error', text: data.message || 'Could not update.' });
         return;
       }
-      setEvents((current) => {
-        const rest = current.filter((entry) => entry.eventName !== kind.eventName);
-        return [...rest, { eventName: kind.eventName, isCompleted: nextCompleted }];
-      });
+      const rest = events.filter((entry) => entry.eventName !== kind.eventName);
+      const next = [...rest, { eventName: kind.eventName, isCompleted: nextCompleted }];
+      setEvents(next);
+      onEventsChange?.(next);
     } catch {
       showToast({ kind: 'error', text: 'Could not reach the server.' });
     } finally {
@@ -210,7 +215,7 @@ export default function GuestMessageModal({
           {guest.code} &middot; {guest.whatsappNumber ?? 'no number on file'}
         </p>
 
-        <div className="grid grid-cols-2 gap-2 mb-4" role="tablist" aria-label="Message kind">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4" role="tablist" aria-label="Message kind">
           {kinds.map((entry) => (
             <button
               key={entry.key}

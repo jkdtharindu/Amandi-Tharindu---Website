@@ -30,6 +30,7 @@ export default async function AdminMessagesPage() {
           siteUrl={process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3010'}
           weddingDate={weddingDate}
           venueName={venueName}
+          party={session.party}
         />
       </main>
     </>

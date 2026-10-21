@@ -5,7 +5,10 @@ import {
   renderTemplate,
   buildSiteLink,
   buildWhatsAppLink,
+  greetingForParty,
+  TABLE_UPDATE_TEMPLATE,
 } from '@/src/admin/messageTemplates.js';
+import { MESSAGE_LEVELS, levelProgress } from '@/src/messaging/messageLevels.js';
 import { useToast } from '@/components/Toast';
 
 export type MessageTemplate = {
@@ -25,6 +28,23 @@ type Recipient = {
   whatsappNumber: string | null;
   /** Where the party sits, for [TableNumber]: table names, "" while unseated (Action 68). */
   tableName: string;
+  messageEvents: { eventName: string; isCompleted: boolean }[];
+};
+
+type LevelProgress = {
+  key: string;
+  number: number;
+  label: string;
+  done: number;
+  total: number;
+  percent: number;
+};
+
+/** Who each level is normally for, so picking a level also picks the right audience. */
+const DEFAULT_AUDIENCE: Record<string, string> = {
+  main_invitation: 'all',
+  rsvp_reminder: 'pending',
+  table_update: 'accepted',
 };
 
 type Audience = {
@@ -51,6 +71,24 @@ const STATUSES = [
 
 const EMPTY_AUDIENCE: Audience = { recipients: [], noNumberCount: 0, alreadySentCount: 0 };
 
+/** The guest's three level ticks and percent, shown under their number while working through a run. */
+function GuestTicks({ events }: { events: Recipient['messageEvents'] }) {
+  const { levels, doneCount, total, percent } = levelProgress(events);
+
+  return (
+    <p className="-mt-3 mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      {levels.map((entry) => (
+        <span key={entry.key} className={entry.done ? 'text-emerald-700' : 'text-slate-400'}>
+          {entry.done ? '✓' : '○'} {entry.number}. {entry.label}
+        </span>
+      ))}
+      <span className="tabular-nums">
+        {doneCount}/{total} · {percent}%
+      </span>
+    </p>
+  );
+}
+
 function formatSentAt(value: string | null): string {
   if (!value) return '—';
   const parsed = new Date(value);
@@ -71,15 +109,18 @@ export default function MessagingCenter({
   siteUrl,
   weddingDate,
   venueName,
+  party,
 }: {
+  party: 'bride' | 'groom';
   templates: MessageTemplate[];
   categories: string[];
   siteUrl: string;
   weddingDate: string;
   venueName: string;
 }) {
-  const [templateId, setTemplateId] = useState(templates[0]?.id ?? '');
-  const [status, setStatus] = useState('pending');
+  const [levelKey, setLevelKey] = useState(MESSAGE_LEVELS[0].key);
+  const [status, setStatus] = useState(DEFAULT_AUDIENCE[MESSAGE_LEVELS[0].key]);
+  const [progress, setProgress] = useState<LevelProgress[]>([]);
   const [relationship, setRelationship] = useState('all');
   const [skipSent, setSkipSent] = useState(true);
 
@@ -99,7 +140,13 @@ export default function MessagingCenter({
   // Guards against an older in-flight audience request overwriting a newer one.
   const requestId = useRef(0);
 
-  const template = templates.find((entry) => entry.id === templateId) ?? templates[0];
+  const level = MESSAGE_LEVELS.find((entry) => entry.key === levelKey) ?? MESSAGE_LEVELS[0];
+  const levelTemplate = level.templateName
+    ? templates.find((entry) => entry.name === level.templateName)
+    : null;
+  // Levels 1 and 2 start from a seeded template; level 3's wording is a constant.
+  const templateBody = level.templateName ? levelTemplate?.body ?? '' : TABLE_UPDATE_TEMPLATE;
+  const templateId = levelTemplate?.id ?? '';
 
   const loadLogs = useCallback(async () => {
     try {
@@ -118,7 +165,7 @@ export default function MessagingCenter({
     const params = new URLSearchParams({
       status,
       relationship,
-      templateId,
+      level: levelKey,
       skipSent: String(skipSent),
     });
 
@@ -132,6 +179,7 @@ export default function MessagingCenter({
           noNumberCount: data.noNumberCount,
           alreadySentCount: data.alreadySentCount,
         });
+        setProgress(data.progress ?? []);
       } else {
         showToast({ kind: 'error', text: data.message || 'Could not load the audience.' });
       }
@@ -142,7 +190,7 @@ export default function MessagingCenter({
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [status, relationship, templateId, skipSent, showToast]);
+  }, [status, relationship, levelKey, skipSent, showToast]);
 
   useEffect(() => {
     fetch('/api/csrf')
@@ -170,12 +218,13 @@ export default function MessagingCenter({
   const finished = queueIndex !== null && queueIndex >= recipients.length;
 
   function renderFor(recipient: Recipient): string {
-    return renderTemplate(template?.body ?? '', {
+    return renderTemplate(templateBody, {
       name: recipient.name,
       code: recipient.code,
       link: buildSiteLink(siteUrl),
       date: weddingDate,
       venue: venueName,
+      greeting: greetingForParty(party),
       tablenumber: recipient.tableName,
     });
   }
@@ -228,6 +277,15 @@ export default function MessagingCenter({
           text: data.message || 'WhatsApp opened, but the send could not be logged.',
         });
       }
+      // Opening WhatsApp ticks this level for the guest, so the next run skips them.
+      const tickRes = await fetch('/api/admin/messages/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ guestId: current.id, eventName: level.eventName, isCompleted: true }),
+      });
+      if (!tickRes.ok) {
+        showToast({ kind: 'error', text: 'WhatsApp opened, but the tick could not be saved.' });
+      }
       await loadLogs();
     } catch {
       showToast({
@@ -243,28 +301,52 @@ export default function MessagingCenter({
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-4">
-        {/* Template + audience */}
+        {/* How far each level has got across this side's guests */}
+        {progress.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {progress.map((entry) => (
+              <div key={entry.key} className="bg-white rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold text-slate-500">
+                  {entry.number}. {entry.label}
+                </p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{entry.percent}%</p>
+                <div className="mt-2 h-1.5 rounded-full bg-slate-100" aria-hidden="true">
+                  <div
+                    className="h-1.5 rounded-full bg-emerald-500"
+                    style={{ width: `${entry.percent}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-slate-400">
+                  {entry.done} of {entry.total} guests ticked
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Level + audience */}
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[200px]">
               <label
-                htmlFor="template"
+                htmlFor="level"
                 className="block text-xs font-semibold text-slate-500 mb-1"
               >
-                Template
+                Message level
               </label>
               <select
-                id="template"
-                value={templateId}
+                id="level"
+                value={levelKey}
                 onChange={(e) => {
                   resetRun();
-                  setTemplateId(e.target.value);
+                  setLevelKey(e.target.value);
+                  setStatus(DEFAULT_AUDIENCE[e.target.value] ?? 'all');
                 }}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
               >
-                {templates.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.label}
+                {MESSAGE_LEVELS.map((entry) => (
+                  <option key={entry.key} value={entry.key}>
+                    {entry.number}. {entry.label}
                   </option>
                 ))}
               </select>
@@ -330,7 +412,7 @@ export default function MessagingCenter({
               }}
               className="rounded border-slate-300"
             />
-            Skip guests who already got this template
+            Skip guests already ticked for this level
           </label>
 
           <p className="mt-3 text-sm text-slate-600" role="status">
@@ -352,7 +434,7 @@ export default function MessagingCenter({
             <button
               type="button"
               onClick={() => setQueueIndex(0)}
-              disabled={loading || recipients.length === 0 || !template}
+              disabled={loading || recipients.length === 0 || !templateBody}
               className="mt-3 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
             >
               Start sending
@@ -375,6 +457,7 @@ export default function MessagingCenter({
             <p className="text-sm text-slate-500 mb-4">
               {current.whatsappNumber} · {current.relationship} · {current.rsvpStatus}
             </p>
+            <GuestTicks events={current.messageEvents} />
 
             <label
               htmlFor="bulk-message"

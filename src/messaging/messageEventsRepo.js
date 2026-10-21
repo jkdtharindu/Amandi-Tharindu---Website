@@ -68,6 +68,43 @@ export async function setMessageEventCompletion(guestId, eventName, party, isCom
   return mapRow(rows[0]);
 }
 
+/** Completed ticks for many guests at once, as { guestId: [{ eventName, isCompleted }] }. */
+export async function getMessageEventsByGuest(guestIds = []) {
+  const byGuest = {};
+  if (guestIds.length === 0) return byGuest;
+
+  const rows = isDbEnabled()
+    ? (
+        await query(
+          'SELECT guest_id, event_name, is_completed FROM message_events WHERE guest_id = ANY($1::uuid[])',
+          [guestIds]
+        )
+      ).rows.map((row) => ({ guestId: row.guest_id, eventName: row.event_name, isCompleted: row.is_completed }))
+    : messageEvents.filter((entry) => guestIds.includes(entry.guestId));
+
+  for (const row of rows) {
+    (byGuest[row.guestId] ??= []).push({ eventName: row.eventName, isCompleted: row.isCompleted });
+  }
+  return byGuest;
+}
+
+/** Ids of guests with `eventName` ticked as sent, for skipping them in a run. */
+export async function listCompletedGuestIds(eventName) {
+  if (!eventName) return [];
+
+  if (!isDbEnabled()) {
+    return messageEvents
+      .filter((entry) => entry.eventName === eventName && entry.isCompleted)
+      .map((entry) => entry.guestId);
+  }
+
+  const { rows } = await query(
+    'SELECT guest_id FROM message_events WHERE event_name = $1 AND is_completed = true',
+    [eventName]
+  );
+  return rows.map((row) => row.guest_id);
+}
+
 /** Every tracked message kind's completion state for one guest. */
 export async function getMessageEventsForGuest(guestId) {
   if (!isDbEnabled()) {
