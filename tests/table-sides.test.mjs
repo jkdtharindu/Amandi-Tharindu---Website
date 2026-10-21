@@ -28,7 +28,7 @@ import {
 } from '../src/table-arrangement/tableSides.js';
 import { seatAssignmentRefusal, seatRemovalRefusal } from '../src/table-arrangement/seatingRules.js';
 import { loadTableArrangementView } from '../src/table-arrangement/loadTableArrangementView.js';
-import { buildGuestTableView, tableLabelsByGuest } from '../src/table-arrangement/guestTableView.js';
+import { buildGuestTableView, tableLabelsByGuest, tableMemberLinesByGuest } from '../src/table-arrangement/guestTableView.js';
 import { buildTableArrangementExport } from '../src/table-arrangement/tableArrangementExport.js';
 import { renderTemplate } from '../src/admin/messageTemplates.js';
 import { createInviteesForGuest } from '../src/invitees/inviteesRepo.js';
@@ -512,4 +512,17 @@ test('every table-arrangement route that writes goes through the side rules', ()
   const seatBase = 'app/api/admin/table-arrangement/[tableId]/seats/[seatId]';
   assert.match(handlers(`${seatBase}/assign/route.ts`).POST, /seatAssignmentRefusal\(\{[^}]*party: session\.party/);
   assert.match(handlers(`${seatBase}/unassign/route.ts`).POST, /seatRemovalRefusal\(\{[^}]*party: session\.party/);
+});
+
+test('[TableNumber] can name each seated member and their own table', async () => {
+  await assignInviteeToSeat(rose.seats[0].id, nirmala.id);
+  await assignInviteeToSeat(lotus.seats[0].id, kamala.id);
+
+  const lines = tableMemberLinesByGuest(await listSeatingTablesByParty('bride'));
+  const text = lines.get('b2');
+
+  assert.match(text, /Kamala – Lotus/);
+  assert.match(text, /Nirmala – Rose/);
+  assert.equal(text.split('\n').length, 2, 'one line per person, in table order');
+  assert.equal(lines.get('g1'), undefined, "the other side's people are not listed");
 });
