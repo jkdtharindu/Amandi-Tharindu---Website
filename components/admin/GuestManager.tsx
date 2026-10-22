@@ -15,6 +15,40 @@ export type Guest = {
   rsvpStatus: string;
 };
 
+/** How completely a party is seated (src/table-arrangement/seatingCompletion.js). */
+export type SeatingStatus = {
+  status: 'complete' | 'partial' | 'none' | 'skip';
+  seated: number;
+  total: number;
+};
+
+const SEATING_STYLES: Record<string, { dot: string; label: string }> = {
+  complete: { dot: 'bg-emerald-500', label: 'All seated' },
+  partial: { dot: 'bg-amber-400', label: 'Partly seated' },
+  none: { dot: 'bg-rose-500', label: 'Not seated yet' },
+};
+
+function SeatingBadge({ info }: { info?: SeatingStatus }) {
+  if (!info || info.status === 'skip') return <span className="text-slate-400">—</span>;
+  const style = SEATING_STYLES[info.status];
+  const detail = info.total > 0 ? ` (${info.seated} of ${info.total})` : ' (waiting for an accepted RSVP)';
+
+  return (
+    <span
+      className="inline-flex items-center gap-2 text-xs text-slate-600"
+      title={style.label + detail}
+    >
+      <span className={'inline-block h-3 w-3 rounded-full ' + style.dot} aria-hidden="true" />
+      <span>{style.label}</span>
+      {info.total > 0 && (
+        <span className="tabular-nums text-slate-400">
+          {info.seated}/{info.total}
+        </span>
+      )}
+    </span>
+  );
+}
+
 const STATUSES = ['all', 'pending', 'accepted', 'declined'];
 
 const STATUS_STYLES: Record<string, string> = {
@@ -72,9 +106,11 @@ export default function GuestManager({
   party,
   templates,
   initialMessageEvents = {},
+  seatingStatus = {},
   weddingDate,
   venueName,
 }: {
+  seatingStatus?: Record<string, SeatingStatus>;
   initialMessageEvents?: Record<string, MessageEvent[]>;
   initialGuests: Guest[];
   categories?: string[];
@@ -855,6 +891,9 @@ export default function GuestManager({
                   RSVP
                 </th>
                 <th scope="col" className="px-4 py-3 font-semibold">
+                  Seating
+                </th>
+                <th scope="col" className="px-4 py-3 font-semibold">
                   WhatsApp
                 </th>
                 <th scope="col" className="px-4 py-3 font-semibold">
@@ -887,6 +926,9 @@ export default function GuestManager({
                     >
                       {guest.rsvpStatus}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <SeatingBadge info={seatingStatus[guest.id]} />
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {guest.whatsappNumber ? (

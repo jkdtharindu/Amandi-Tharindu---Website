@@ -78,3 +78,7 @@ Migration `029_site_text.sql` (Action 81 part B, slice 2) creates one new table 
 ## Message levels and ticks (added 2026-10-21)
 
 The WhatsApp message center now has three levels (Main invitation, RSVP reminder, Table number) with a tick per guest and level. **No migration**: ticks reuse the `message_events` table from migrations 021 and 024. Nothing is sent by the app. Opening WhatsApp from the Messaging Center ticks the level, but the admin still presses Send inside WhatsApp themselves, so the paid-send gate is unchanged and no Twilio or SMS code was touched. A tick means "WhatsApp was opened", not "delivered". Older "Final Reminder" and "Thank You" ticks stay in the table and are ignored.
+
+## Saved message templates (added 2026-10-22)
+
+The admin can now edit and save the wording for each of the three message levels on the Messages page. They are stored in `message_templates` by an upsert on `name` (new row `table_update`; `initial_invite` and `reminder_1` are the seeded rows), so there is **no migration**. Both sides share the same templates. Nothing is sent by the app: the tags ([Name], [Code], [TableNumber] and so on) are filled in when the admin opens a message, and the admin still presses Send inside WhatsApp, so the paid-send gate is unchanged.

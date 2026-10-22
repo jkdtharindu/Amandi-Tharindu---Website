@@ -56,6 +56,8 @@ const SHARED_ROUTES = [
   'app/api/admin/events/route.ts',
   'app/api/admin/home-sections/route.ts',
   'app/api/admin/site-text/route.ts',
+  // The saved wording for each message level has no side: both admins send from the same templates.
+  'app/api/admin/message-templates/route.ts',
   'app/api/admin/events/[id]/route.ts',
   'app/api/admin/gallery/route.ts',
   'app/api/admin/gallery/[id]/route.ts',

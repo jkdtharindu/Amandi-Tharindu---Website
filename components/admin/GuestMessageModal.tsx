@@ -6,9 +6,8 @@ import {
   buildSiteLink,
   buildWhatsAppLink,
   greetingForParty,
-  TABLE_UPDATE_TEMPLATE,
 } from '@/src/admin/messageTemplates.js';
-import { MESSAGE_LEVELS } from '@/src/messaging/messageLevels.js';
+import { MESSAGE_LEVELS, templateBodyFor } from '@/src/messaging/messageLevels.js';
 import { useToast } from '@/components/Toast';
 
 type Guest = {
@@ -66,9 +65,7 @@ export default function GuestMessageModal({
       key: level.key,
       label: `${level.number}. ${level.label}`,
       eventName: level.eventName,
-      body: level.templateName
-        ? templates.find((entry) => entry.name === level.templateName)?.body ?? ''
-        : TABLE_UPDATE_TEMPLATE,
+      body: templateBodyFor(level, templates),
     }));
   }, [templates]);
 

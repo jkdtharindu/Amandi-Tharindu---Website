@@ -12,13 +12,14 @@ import { messageTemplates } from '../data/messageTemplatesStore.js';
 const isDbEnabled = () => Boolean(process.env.DATABASE_URL);
 
 /** PRD ordering — the templates are a sequence, not an alphabetical list. */
-const TEMPLATE_ORDER = ['initial_invite', 'reminder_1', 'reminder_2', 'thank_you'];
+const TEMPLATE_ORDER = ['initial_invite', 'reminder_1', 'table_update', 'reminder_2', 'thank_you'];
 
 const TEMPLATE_LABELS = {
   initial_invite: 'Initial invite',
   reminder_1: 'First reminder',
   reminder_2: 'Final reminder',
   thank_you: 'Thank you',
+  table_update: 'Table number (final)',
 };
 
 /** Friendly name for the admin UI; unknown templates show their raw name. */
@@ -54,4 +55,31 @@ export async function listTemplates() {
 
   const { rows } = await query('SELECT * FROM message_templates');
   return rows.map(mapRow).sort(bySequence);
+}
+
+/**
+ * Saves the admin's wording for one template, creating the row if it does not
+ * exist yet (the table-number template has no seeded row). An upsert on the
+ * unique `name`, so it needs no migration.
+ */
+export async function saveTemplate(name, body) {
+  if (!isDbEnabled()) {
+    const existing = messageTemplates.find((entry) => entry.name === name);
+    if (existing) {
+      existing.body = body;
+      return mapRow(existing);
+    }
+    const created = { id: `template-${name}`, name, body, channel: 'whatsapp' };
+    messageTemplates.push(created);
+    return mapRow(created);
+  }
+
+  const { rows } = await query(
+    `INSERT INTO message_templates (name, body, channel)
+     VALUES ($1, $2, 'whatsapp')
+     ON CONFLICT (name) DO UPDATE SET body = EXCLUDED.body
+     RETURNING *`,
+    [name, body]
+  );
+  return mapRow(rows[0]);
 }
