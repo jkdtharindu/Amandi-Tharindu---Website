@@ -6,9 +6,9 @@ import {
   buildSiteLink,
   buildWhatsAppLink,
   greetingForParty,
-  TABLE_UPDATE_TEMPLATE,
 } from '@/src/admin/messageTemplates.js';
-import { MESSAGE_LEVELS, levelProgress } from '@/src/messaging/messageLevels.js';
+import { MESSAGE_LEVELS, levelProgress, templateBodyFor } from '@/src/messaging/messageLevels.js';
+import TemplateEditor from './TemplateEditor';
 import { useToast } from '@/components/Toast';
 
 export type MessageTemplate = {
@@ -105,7 +105,7 @@ function formatSentAt(value: string | null): string {
  * entry so the next run can skip whoever has already been handled.
  */
 export default function MessagingCenter({
-  templates,
+  templates: initialTemplates,
   categories,
   siteUrl,
   weddingDate,
@@ -119,6 +119,7 @@ export default function MessagingCenter({
   weddingDate: string;
   venueName: string;
 }) {
+  const [templateList, setTemplateList] = useState(initialTemplates);
   const [levelKey, setLevelKey] = useState(MESSAGE_LEVELS[0].key);
   const [status, setStatus] = useState(DEFAULT_AUDIENCE[MESSAGE_LEVELS[0].key]);
   const [progress, setProgress] = useState<LevelProgress[]>([]);
@@ -142,11 +143,9 @@ export default function MessagingCenter({
   const requestId = useRef(0);
 
   const level = MESSAGE_LEVELS.find((entry) => entry.key === levelKey) ?? MESSAGE_LEVELS[0];
-  const levelTemplate = level.templateName
-    ? templates.find((entry) => entry.name === level.templateName)
-    : null;
-  // Levels 1 and 2 start from a seeded template; level 3's wording is a constant.
-  const templateBody = level.templateName ? levelTemplate?.body ?? '' : TABLE_UPDATE_TEMPLATE;
+  const levelTemplate = templateList.find((entry) => entry.name === level.templateName);
+  // The admin's saved wording for this level, or its default until one is saved.
+  const templateBody = templateBodyFor(level, templateList);
   const templateId = levelTemplate?.id ?? '';
 
   const loadLogs = useCallback(async () => {
@@ -445,6 +444,34 @@ export default function MessagingCenter({
             </button>
           )}
         </div>
+
+        <TemplateEditor
+          key={level.key + templateBody}
+          levelKey={level.key}
+          levelLabel={level.label}
+          savedBody={templateBody}
+          defaultBody={level.defaultBody}
+          csrfToken={csrfToken}
+          siteUrl={siteUrl}
+          weddingDate={weddingDate}
+          venueName={venueName}
+          onSaved={(body) =>
+            setTemplateList((current) => {
+              const existing = current.find((entry) => entry.name === level.templateName);
+              const rest = current.filter((entry) => entry.name !== level.templateName);
+              return [
+                ...rest,
+                {
+                  id: existing?.id ?? `template-${level.templateName}`,
+                  name: level.templateName,
+                  label: level.label,
+                  body,
+                  channel: 'whatsapp',
+                },
+              ];
+            })
+          }
+        />
 
         {/* Worklist */}
         {current && (

@@ -1,8 +1,10 @@
 import AdminNav from '@/components/admin/AdminNav';
-import GuestManager, { type Guest } from '@/components/admin/GuestManager';
+import GuestManager, { type Guest, type SeatingStatus } from '@/components/admin/GuestManager';
 import InviteeRequests from '@/components/admin/InviteeRequests';
 import { requireAdminPage } from '@/lib/adminGuard';
-import { listGuestsByParty } from '@/src/admin/adminRepo.js';
+import { listAllInvitees, listGuestsByParty } from '@/src/admin/adminRepo.js';
+import { listSeatingTablesByParty } from '@/src/table-arrangement/tableArrangementRepo.js';
+import { computeSeatingCompletion } from '@/src/table-arrangement/seatingCompletion.js';
 import { filterGuests } from '@/src/admin/guestQueries.js';
 import { mergeGroups } from '@/src/admin/categories.js';
 import { getMessageEventsByGuest } from '@/src/messaging/messageEventsRepo.js';
@@ -20,7 +22,15 @@ export default async function AdminGuestsPage() {
     loadPlaceholderContext(),
   ]);
   const categories = mergeGroups(guests.map((g) => g.relationship));
-  const messageEvents = (await getMessageEventsByGuest(guests.map((g) => g.id))) as Record<string, MessageEvent[]>;
+  // Seating completion per party: seated people over accepted people, from the side's own and Common tables.
+  const [tables, allInvitees] = await Promise.all([
+    listSeatingTablesByParty(session.party),
+    listAllInvitees(),
+  ]);
+  const seatingStatus = Object.fromEntries(
+    computeSeatingCompletion({ guests, invitees: allInvitees, tables })
+  ) as Record<string, SeatingStatus>;
+  const messageEvents =(await getMessageEventsByGuest(guests.map((g) => g.id))) as Record<string, MessageEvent[]>;
 
   return (
     <>
@@ -36,6 +46,7 @@ export default async function AdminGuestsPage() {
           party={session.party}
           templates={templates}
           initialMessageEvents={messageEvents}
+          seatingStatus={seatingStatus}
           weddingDate={weddingDate}
           venueName={venueName}
         />
