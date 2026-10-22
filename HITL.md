@@ -74,3 +74,7 @@ The admin guest list has a "send RSVP reminder" button on pending guests with a 
 ## Migration 029 — `site_text` (added 2026-10-11)
 
 Migration `029_site_text.sql` (Action 81 part B, slice 2) creates one new table for admin-edited guest wording. The owner runs `npm run migrate` themselves, *before* the code that saves wording is pushed (see the 2026-09-12 clarification above). Reading is safe without it: the guest pages fall back to the default wording. Migration 028 (event notes and homepage section switches) followed the same rule.
+
+## Message levels and ticks (added 2026-10-21)
+
+The WhatsApp message center now has three levels (Main invitation, RSVP reminder, Table number) with a tick per guest and level. **No migration**: ticks reuse the `message_events` table from migrations 021 and 024. Nothing is sent by the app. Opening WhatsApp from the Messaging Center ticks the level, but the admin still presses Send inside WhatsApp themselves, so the paid-send gate is unchanged and no Twilio or SMS code was touched. A tick means "WhatsApp was opened", not "delivered". Older "Final Reminder" and "Thank You" ticks stay in the table and are ignored.
