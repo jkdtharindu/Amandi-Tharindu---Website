@@ -15,6 +15,7 @@ export function getRelationships() {
 
 const MIN_SLOT_COUNT = 1;
 const MAX_SLOT_COUNT = 99;
+const GROUP_MIN_PEOPLE = 2;
 
 /**
  * `inviteeNames`, when provided, names each person in a multi-person party
@@ -45,9 +46,28 @@ export function validateGuestInput(input = {}, { requirePeople = false } = {}) {
       'Choose a group, or add a new one that starts with a letter (30 characters at most).';
   }
 
+  // The admin says up front what kind of invitation this is (creating only).
+  // Individual: the typed name is the one person. Group: the name above is just
+  // a label, so every person -- the main guest included -- must be in the list.
+  const partyType = requirePeople ? input.partyType : undefined;
+  if (partyType !== undefined && partyType !== 'individual' && partyType !== 'group') {
+    errors.partyType = 'Choose Individual or Group.';
+  }
+
   let inviteeNames;
   const namesGiven = Array.isArray(input.inviteeNames) && input.inviteeNames.length > 0;
-  if (input.inviteeNames !== undefined && (namesGiven || !requirePeople)) {
+  if (partyType === 'individual') {
+    if (name) inviteeNames = [name];
+  } else if (partyType === 'group') {
+    const namesResult = validateInviteeNames(input.inviteeNames);
+    if (!namesResult.valid) {
+      errors.inviteeNames = namesResult.error;
+    } else if (namesResult.names.length < GROUP_MIN_PEOPLE) {
+      errors.inviteeNames = 'A group needs at least 2 people. Add the main guest and everyone else.';
+    } else {
+      inviteeNames = namesResult.names;
+    }
+  } else if (input.inviteeNames !== undefined && (namesGiven || !requirePeople)) {
     const namesResult = validateInviteeNames(input.inviteeNames);
     if (!namesResult.valid) {
       errors.inviteeNames = namesResult.error;
@@ -56,7 +76,7 @@ export function validateGuestInput(input = {}, { requirePeople = false } = {}) {
     }
   }
 
-  if (requirePeople && !inviteeNames && !errors.inviteeNames) {
+  if (requirePeople && !partyType && !inviteeNames && !errors.inviteeNames) {
     const headcount = Number(input.slotCount);
     if (headcount === 1) {
       if (name) inviteeNames = [name];
