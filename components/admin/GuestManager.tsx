@@ -144,6 +144,9 @@ export default function GuestManager({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [existingInvitees, setExistingInvitees] = useState<ExistingInvitee[]>([]);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameBusy, setRenameBusy] = useState(false);
   const [removingInviteeId, setRemovingInviteeId] = useState<string | null>(null);
   const [newInviteeNames, setNewInviteeNames] = useState<string[]>([]);
 
@@ -195,6 +198,7 @@ export default function GuestManager({
     setForm(EMPTY_FORM);
     setFieldErrors({});
     setExistingInvitees([]);
+    setRenamingId(null);
     setNewInviteeNames([]);
     setShowForm(true);
   }
@@ -220,9 +224,47 @@ export default function GuestManager({
     });
     setFieldErrors({});
     setExistingInvitees([]);
+    setRenamingId(null);
     setNewInviteeNames([]);
     void loadExistingInvitees(guest.id);
     setShowForm(true);
+  }
+
+  /** Saves a corrected name for someone already on this party, then refreshes the list. */
+  async function saveRename(invitee: ExistingInvitee) {
+    if (!editing) return;
+    const name = renameValue.trim();
+    if (!name) {
+      showToast({ kind: 'error', text: 'Enter a name first.' });
+      return;
+    }
+    if (name === invitee.name) {
+      setRenamingId(null);
+      return;
+    }
+
+    setRenameBusy(true);
+    try {
+      const res = await fetch('/api/admin/guests/' + editing.id + '/invitees/' + invitee.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setExistingInvitees(data.invitees);
+        setRenamingId(null);
+        showToast({ kind: 'ok', text: `Renamed ${invitee.name} to ${name}.` });
+        await load();
+      } else {
+        showToast({ kind: 'error', text: data.message || 'Could not save that name.' });
+      }
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setRenameBusy(false);
+    }
   }
 
   function handleRemoveInvitee(invitee: ExistingInvitee) {
@@ -689,18 +731,71 @@ export default function GuestManager({
                     key={invitee.id}
                     className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-300 text-sm"
                   >
-                    <span>
-                      {invitee.name}{' '}
-                      <span className="text-xs text-slate-500">({invitee.rsvpStatus})</span>
+                    {renamingId === invitee.id ? (
+                      <input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void saveRename(invitee);
+                          }
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        aria-label={`New name for ${invitee.name}`}
+                        autoFocus
+                        maxLength={100}
+                        className="flex-1 px-2 py-1 rounded-lg border border-slate-300 text-sm"
+                      />
+                    ) : (
+                      <span>
+                        {invitee.name}{' '}
+                        <span className="text-xs text-slate-500">({invitee.rsvpStatus})</span>
+                      </span>
+                    )}
+                    <span className="flex gap-2 shrink-0">
+                      {renamingId === invitee.id ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={renameBusy}
+                            onClick={() => void saveRename(invitee)}
+                            className="px-3 py-1 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
+                          >
+                            {renameBusy ? 'Saving…' : 'Save name'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={renameBusy}
+                            onClick={() => setRenamingId(null)}
+                            className="px-3 py-1 rounded-lg border border-slate-300 text-xs font-semibold hover:bg-slate-100 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRenamingId(invitee.id);
+                              setRenameValue(invitee.name);
+                            }}
+                            className="px-3 py-1 rounded-lg border border-slate-300 text-xs font-semibold hover:bg-slate-100"
+                          >
+                            Rename
+                          </button>
+                          <button
+                            type="button"
+                            disabled={removingInviteeId === invitee.id}
+                            onClick={() => handleRemoveInvitee(invitee)}
+                            className="px-3 py-1 rounded-lg border border-rose-300 text-rose-600 text-xs font-semibold hover:bg-rose-50 disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      )}
                     </span>
-                    <button
-                      type="button"
-                      disabled={removingInviteeId === invitee.id}
-                      onClick={() => handleRemoveInvitee(invitee)}
-                      className="px-3 py-1 rounded-lg border border-rose-300 text-rose-600 text-xs font-semibold hover:bg-rose-50 disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
                   </div>
                 ))}
               </div>
