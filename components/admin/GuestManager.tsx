@@ -63,7 +63,12 @@ type FormState = {
   slotCount: string;
   whatsappNumber: string;
   inviteeNames: string[];
+  /** Creating only: one person, or a group (couple/family) listed name by name. */
+  partyType: 'individual' | 'group';
 };
+
+/** A new group starts with two rows: the main guest and one more person. */
+const NEW_GROUP_ROWS = ['', ''];
 
 /** Value of the "Add new group…" option in the group pick-list. */
 const NEW_GROUP = '__new_group__';
@@ -132,6 +137,7 @@ export default function GuestManager({
     slotCount: '1',
     whatsappNumber: '',
     inviteeNames: [],
+    partyType: 'individual',
   };
   const [guests, setGuests] = useState<Guest[]>(initialGuests);
   const [reminderGuest, setReminderGuest] = useState<Guest | null>(null);
@@ -221,6 +227,7 @@ export default function GuestManager({
       slotCount: String(guest.slotCount),
       whatsappNumber: guest.whatsappNumber ?? '',
       inviteeNames: [],
+      partyType: 'individual',
     });
     setFieldErrors({});
     setExistingInvitees([]);
@@ -388,8 +395,12 @@ export default function GuestManager({
         currentInvitees = saved;
       }
 
-      if (!editing && trimmedInviteeNames.length > 0) {
-        payload.inviteeNames = trimmedInviteeNames;
+      if (!editing) {
+        // Individual: the name typed is the one person. Group: the name is only a
+        // label, so every person, the main guest included, comes from the list.
+        payload.partyType = form.partyType;
+        if (form.partyType === 'group') payload.inviteeNames = trimmedInviteeNames;
+        else payload.slotCount = 1;
       } else if (editing && currentInvitees.length > 0) {
         // The Seats field is disabled for a party with named invitees and shows
         // the live count, but form.slotCount is frozen at whatever it held when
@@ -608,13 +619,53 @@ export default function GuestManager({
             {editing ? 'Edit ' + editing.code : 'Add a guest'}
           </h2>
 
+          {!editing && (
+            <fieldset className="mb-4">
+              <legend className="block text-xs font-semibold text-slate-500 mb-1">
+                What kind of invitation is this?
+              </legend>
+              <div className="flex flex-wrap gap-4 text-sm">
+                {(
+                  [
+                    ['individual', 'Individual (one person)'],
+                    ['group', 'Group (couple or family)'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="partyType"
+                      value={value}
+                      checked={form.partyType === value}
+                      onChange={() =>
+                        setForm({
+                          ...form,
+                          partyType: value,
+                          inviteeNames:
+                            value === 'group' && form.inviteeNames.length === 0
+                              ? [...NEW_GROUP_ROWS]
+                              : form.inviteeNames,
+                        })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="lg:col-span-2">
               <label
                 htmlFor="name"
                 className="block text-xs font-semibold text-slate-500 mb-1"
               >
-                Guest person&apos;s name / Family&apos;s name / Couple name
+                {editing
+                  ? 'Guest person’s name / Family’s name / Couple name'
+                  : form.partyType === 'group'
+                    ? 'Invitation name (a label, e.g. Perera Family) — it does not get a seat'
+                    : 'Guest’s name'}
               </label>
               <input
                 id="name"
@@ -677,13 +728,12 @@ export default function GuestManager({
                 min={1}
                 max={99}
                 required
-                disabled={
-                  (!editing && form.inviteeNames.length > 0) ||
-                  (editing !== null && existingInvitees.length > 0)
-                }
+                disabled={!editing || existingInvitees.length > 0}
                 value={
-                  !editing && form.inviteeNames.length > 0
-                    ? String(form.inviteeNames.length)
+                  !editing
+                    ? form.partyType === 'group'
+                      ? String(form.inviteeNames.filter((n) => n.trim()).length)
+                      : '1'
                     : editing && existingInvitees.length > 0
                       ? String(existingInvitees.length + newInviteeNames.length)
                       : form.slotCount
@@ -857,11 +907,11 @@ export default function GuestManager({
             </div>
           )}
 
-          {!editing && (
+          {!editing && form.partyType === 'group' && (
             <div className="mt-4">
               <label className="block text-xs font-semibold text-slate-500 mb-1">
-                People in this party{' '}
-                <span className="font-normal">(required when there is more than one seat)</span>
+                People in this group{' '}
+                <span className="font-normal">(everyone, including the main guest)</span>
               </label>
               <div className="space-y-2">
                 {form.inviteeNames.map((name, index) => (
@@ -873,21 +923,23 @@ export default function GuestManager({
                         next[index] = e.target.value;
                         setForm({ ...form, inviteeNames: next });
                       }}
-                      placeholder={`Person ${index + 1}`}
+                      placeholder={index === 0 ? 'Main guest' : `Person ${index + 1}`}
                       className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm"
                     />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          inviteeNames: form.inviteeNames.filter((_, i) => i !== index),
-                        })
-                      }
-                      className="px-3 py-2 rounded-lg border border-slate-300 text-sm text-rose-600 hover:bg-rose-50"
-                    >
-                      Remove
-                    </button>
+                    {index >= NEW_GROUP_ROWS.length && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            inviteeNames: form.inviteeNames.filter((_, i) => i !== index),
+                          })
+                        }
+                        className="px-3 py-2 rounded-lg border border-slate-300 text-sm text-rose-600 hover:bg-rose-50"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -903,8 +955,8 @@ export default function GuestManager({
               )}
               <p className="mt-2 text-xs text-slate-500">
                 Add a name per person. The guest accepts or declines for each one, and each
-                person can be given a table. For a single seat you can leave this empty: the
-                guest&apos;s own name is saved as that one person.
+                person can be given a table. The invitation name above is only a label and does
+                not get a seat, so type the main guest here too.
               </p>
             </div>
           )}

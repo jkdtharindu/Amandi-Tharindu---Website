@@ -886,15 +886,24 @@ export async function unassignSeatsForGuest(guestId, exec) {
   return rows.length;
 }
 
+// Only approved people take over from the guest's own name: a person still
+// waiting for approval (or rejected) is not seatable, so it must not hide the guest.
+function guestIdsWithApprovedInvitees() {
+  return new Set(
+    invitees.filter((invitee) => invitee.approvalStatus === 'approved').map((invitee) => invitee.guestId)
+  );
+}
+
 /**
  * Get all accepted guests who are not yet seated. A guest that has any
- * invitee rows is seated individually instead (see listUnassignedInvitees),
- * so it's excluded here even if the party itself shows 'accepted'.
+ * approved invitee rows is seated individually instead (see
+ * listUnassignedInvitees), so it's excluded here even if the party itself
+ * shows 'accepted'.
  */
 export async function listUnassignedGuests() {
   if (!useDb) {
     const seated = memorySeatedGuestIds();
-    const guestIdsWithInvitees = new Set(invitees.map((invitee) => invitee.guestId));
+    const guestIdsWithInvitees = guestIdsWithApprovedInvitees();
     return guestStore
       .filter(
         (guest) =>
@@ -914,7 +923,7 @@ export async function listUnassignedGuests() {
         SELECT 1 FROM table_seats ts WHERE ts.guest_id = g.id
       )
       AND NOT EXISTS (
-        SELECT 1 FROM invitees i WHERE i.guest_id = g.id
+        SELECT 1 FROM invitees i WHERE i.guest_id = g.id AND i.approval_status = 'approved'
       )
     ORDER BY g.name
   `);
@@ -1301,7 +1310,7 @@ export async function listUnassignedInviteesByParty(party) {
 export async function listUnassignedGuestsByParty(party) {
   if (!useDb) {
     const seatedIds = memorySeatedGuestIds();
-    const guestIdsWithInvitees = new Set(invitees.map((invitee) => invitee.guestId));
+    const guestIdsWithInvitees = guestIdsWithApprovedInvitees();
     return [...guestStore]
       .filter(
         (g) =>
@@ -1320,7 +1329,7 @@ export async function listUnassignedGuestsByParty(party) {
     WHERE g.assigned_to_party = $1
       AND g.rsvp_status = 'accepted'
       AND NOT EXISTS (SELECT 1 FROM table_seats ts WHERE ts.guest_id = g.id)
-      AND NOT EXISTS (SELECT 1 FROM invitees i WHERE i.guest_id = g.id)
+      AND NOT EXISTS (SELECT 1 FROM invitees i WHERE i.guest_id = g.id AND i.approval_status = 'approved')
       AND g.is_deleted = false
     ORDER BY g.created_at DESC
   `, [party]);
