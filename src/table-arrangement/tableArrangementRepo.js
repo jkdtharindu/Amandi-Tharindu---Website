@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { query } from '../db.js';
+import { query, withTransaction } from '../db.js';
 import { seatingTables } from '../data/tableArrangementStore.js';
 import { guestStore } from '../data/guestStore.js';
 import { probableAttendees } from '../data/probableAttendeesStore.js';
@@ -13,6 +13,7 @@ const DUPLICATE_TABLE_NUMBER = 'A table with that number already exists';
 const DUPLICATE_TABLE_NAME = 'A table with that name already exists';
 const SIDE_CHANGE_NOT_EMPTY = "A table's side can change only while nobody is seated at it.";
 const COMMON_TABLE_NOT_EMPTY = 'A Common table can be removed only while nobody is seated at it.';
+const CAPACITY_BELOW_SEATED = 'Cannot reduce the seats below the number of people already seated here — move someone to another table first.';
 const GUEST_ALREADY_SEATED = 'Guest is already assigned to another seat';
 const PROBABLE_ALREADY_SEATED = 'This probable attendee is already assigned to another seat';
 const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat';
@@ -40,6 +41,7 @@ const USER_FACING_ERRORS = new Set([
   DUPLICATE_TABLE_NAME,
   SIDE_CHANGE_NOT_EMPTY,
   COMMON_TABLE_NOT_EMPTY,
+  CAPACITY_BELOW_SEATED,
   GUEST_ALREADY_SEATED,
   PROBABLE_ALREADY_SEATED,
   INVITEE_ALREADY_SEATED,
@@ -61,7 +63,7 @@ export function isUserFacingError(error) {
 
 // A table that still has people on it is a conflict with the table's current
 // state, not a bad request: empty it and the same request succeeds (Action 68).
-const CONFLICT_ERRORS = new Set([SIDE_CHANGE_NOT_EMPTY, COMMON_TABLE_NOT_EMPTY]);
+const CONFLICT_ERRORS = new Set([SIDE_CHANGE_NOT_EMPTY, COMMON_TABLE_NOT_EMPTY, CAPACITY_BELOW_SEATED]);
 
 /** The HTTP status for an admin-facing error (409 or 400), or null for any other fault. */
 export function userFacingStatus(error) {
@@ -379,12 +381,28 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
  * a table onto a side that already has its number, or renaming it to a name
  * another table has, is refused like creating one would be.
  *
+ * `capacity` changes how many seats the table has. Adding seats is always
+ * allowed. Removing seats takes away only empty ones (highest seat numbers
+ * first), so everyone already seated stays exactly where they are; asking for
+ * fewer seats than there are people seated is refused (CAPACITY_BELOW_SEATED,
+ * a 409). On Postgres the whole edit is one transaction under a row lock on the
+ * table, so a failed name or side change never leaves the seats half changed.
+ *
  * Returns null when the table does not exist.
  * `exec` (optional, last) is a query function, used by tests; production omits it.
  */
-export async function updateSeatingTable(tableId, { tableName, side } = {}, exec) {
+export async function updateSeatingTable(tableId, { tableName, side, capacity } = {}, exec) {
   const name = storedTableName(tableName);
   if (side !== undefined) assertKnownSide(side);
+  if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1 || capacity > 100)) {
+    throw new Error('capacity must be a whole number from 1 to 100');
+  }
+
+  if (capacity !== undefined && !exec && useDb) {
+    return withTransaction((client) =>
+      updateSeatingTable(tableId, { tableName, side, capacity }, (text, params) => client.query(text, params))
+    );
+  }
 
   const run = exec ?? (useDb ? query : null);
   if (!run) {
@@ -402,9 +420,18 @@ export async function updateSeatingTable(tableId, { tableName, side } = {}, exec
       }
     }
 
+    if (capacity !== undefined && capacity < table.seats.filter(isSeatOccupied).length) {
+      throw new Error(CAPACITY_BELOW_SEATED);
+    }
+
     if (name) table.table_name = name;
     if (sideChanges) table.assignedToParty = side;
+    if (capacity !== undefined) resizeMemoryTable(table, capacity);
     return hydrateMemoryTable(table);
+  }
+
+  if (capacity !== undefined) {
+    await run('SELECT id FROM seating_tables WHERE id = $1 FOR UPDATE', [tableId]);
   }
 
   let rows;
@@ -432,7 +459,79 @@ export async function updateSeatingTable(tableId, { tableName, side } = {}, exec
     if (existing[0]) throw new Error(SIDE_CHANGE_NOT_EMPTY);
     return null;
   }
+  if (capacity !== undefined) await resizeTableSeats(run, tableId, capacity);
   return getSeatingTableById(tableId, exec);
+}
+
+/** Memory-mode seat resize: add seats at the end, or drop empty ones from the highest number down. */
+function resizeMemoryTable(table, capacity) {
+  if (capacity > table.seats.length) {
+    let next = Math.max(0, ...table.seats.map((seat) => seat.seatNumber)) + 1;
+    while (table.seats.length < capacity) {
+      table.seats.push({
+        id: crypto.randomUUID(),
+        seatNumber: next,
+        guestId: null,
+        probableAttendeeId: null,
+        inviteeId: null,
+        dietaryRequirements: null,
+        specialNotes: null,
+      });
+      next += 1;
+    }
+  } else if (capacity < table.seats.length) {
+    const dropIds = new Set(
+      table.seats
+        .filter((seat) => !isSeatOccupied(seat))
+        .sort((a, b) => b.seatNumber - a.seatNumber)
+        .slice(0, table.seats.length - capacity)
+        .map((seat) => seat.id)
+    );
+    table.seats = table.seats.filter((seat) => !dropIds.has(seat.id));
+  }
+  table.capacity = capacity;
+}
+
+/**
+ * Postgres seat resize, run inside the caller's transaction with the table row
+ * already locked. Empty seats are deleted by a statement that re-checks they are
+ * still empty, so a seat taken a moment earlier is never deleted from under its
+ * occupant: if fewer rows go than planned, the whole edit is rolled back.
+ */
+async function resizeTableSeats(run, tableId, capacity) {
+  const { rows: seats } = await run(
+    `SELECT id, seat_number,
+            (guest_id IS NOT NULL OR probable_attendee_id IS NOT NULL OR invitee_id IS NOT NULL) AS occupied
+     FROM table_seats WHERE seating_table_id = $1 ORDER BY seat_number`,
+    [tableId]
+  );
+  const occupiedCount = seats.filter((seat) => seat.occupied).length;
+  if (capacity < occupiedCount) throw new Error(CAPACITY_BELOW_SEATED);
+
+  if (capacity > seats.length) {
+    const firstNew = Math.max(0, ...seats.map((seat) => seat.seat_number)) + 1;
+    await run(
+      `INSERT INTO table_seats (seating_table_id, seat_number)
+       SELECT $1, n FROM generate_series($2::int, $3::int) AS n`,
+      [tableId, firstNew, firstNew + (capacity - seats.length) - 1]
+    );
+  } else if (capacity < seats.length) {
+    const dropIds = seats
+      .filter((seat) => !seat.occupied)
+      .sort((a, b) => b.seat_number - a.seat_number)
+      .slice(0, seats.length - capacity)
+      .map((seat) => seat.id);
+    const { rows: deleted } = await run(
+      `DELETE FROM table_seats
+       WHERE id = ANY($1::uuid[])
+         AND guest_id IS NULL AND probable_attendee_id IS NULL AND invitee_id IS NULL
+       RETURNING id`,
+      [dropIds]
+    );
+    if (deleted.length !== dropIds.length) throw new Error(CAPACITY_BELOW_SEATED);
+  }
+
+  await run('UPDATE seating_tables SET capacity = $2, updated_at = now() WHERE id = $1', [tableId, capacity]);
 }
 
 /**

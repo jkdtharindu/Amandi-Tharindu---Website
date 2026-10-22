@@ -14,10 +14,12 @@ type RouteContext = { params: Promise<{ tableId: string }> };
 const tableNotFound = () => NextResponse.json({ success: false, message: 'Table not found.' }, { status: 404 });
 
 /**
- * Renames a table and/or changes its side (P1-14; sides are Action 68). Works on
+ * Renames a table, changes its side (P1-14; sides are Action 68) and/or its seat count. Works on
  * the signed-in side's own tables and on Common tables; the other side's tables
  * answer 404. `side` is "own" or "common", never a raw side name, and a table's
- * side can change only while nobody is seated at it (409 otherwise).
+ * side can change only while nobody is seated at it (409 otherwise). `capacity` adds
+ * seats or removes empty ones; people already seated stay put, and a count below the
+ * number seated is refused (409).
  */
 export async function PUT(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   const session = await getAdminSession();

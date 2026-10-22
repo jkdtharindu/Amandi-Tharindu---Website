@@ -247,6 +247,38 @@ export default function TableArrangement({
     }
   }
 
+  // Rename a table and/or change how many seats it has. Everyone already seated
+  // stays seated: the server only adds seats or removes empty ones, and refuses
+  // (409) a seat count below the number of people seated. Resolves true on success.
+  async function handleEditTable(
+    table: SeatingTable,
+    changes: { tableName?: string; capacity?: number }
+  ): Promise<boolean> {
+    setBusy(true);
+
+    try {
+      const res = await fetch('/api/admin/table-arrangement/' + table.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify(changes),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast({ kind: 'ok', text: `"${tableLabel(table)}" updated.` });
+        await load();
+        return true;
+      }
+      showToast({ kind: 'error', text: data.message || 'Could not update the table.' });
+      return false;
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong. Please try again.' });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleAssign(tableId: string, seatId: string, choice: AssignChoice) {
     setBusy(true);
 
@@ -498,6 +530,7 @@ export default function TableArrangement({
                     busy={busy}
                     onDelete={() => handleDeleteTable(table)}
                     onChangeSide={(side) => handleChangeSide(table, side)}
+                    onEdit={(changes) => handleEditTable(table, changes)}
                     onAssign={(seatId, choice) => handleAssign(table.id, seatId, choice)}
                     onUnassign={(seatId) => handleUnassign(table.id, seatId)}
                   />
@@ -652,9 +685,11 @@ function TableCard({
   busy,
   onDelete,
   onChangeSide,
+  onEdit,
   onAssign,
   onUnassign,
 }: {
+  onEdit: (changes: { tableName?: string; capacity?: number }) => Promise<boolean>;
   table: SeatingTable;
   party: Party;
   unassignedGuests: UnassignedGuest[];
@@ -672,6 +707,32 @@ function TableCard({
   // A table's side is locked once anyone sits there, and a Common table can be
   // deleted only while empty; the server refuses both (409), so neither is offered.
   const empty = filled === 0;
+
+  const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [seatsDraft, setSeatsDraft] = useState('');
+
+  function startEdit() {
+    setNameDraft(table.table_name ?? '');
+    setSeatsDraft(String(table.capacity));
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    const changes: { tableName?: string; capacity?: number } = {};
+    const name = nameDraft.trim();
+    const seats = Number(seatsDraft);
+
+    if (name && name !== (table.table_name ?? '')) changes.tableName = name;
+    if (Number.isInteger(seats) && seats !== table.capacity) changes.capacity = seats;
+    if (Object.keys(changes).length === 0) {
+      setEditing(false);
+      return;
+    }
+    if (await onEdit(changes)) setEditing(false);
+  }
+
+  const seatsInvalid = !Number.isInteger(Number(seatsDraft)) || Number(seatsDraft) < Math.max(1, filled) || Number(seatsDraft) > 100;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -693,6 +754,14 @@ function TableCard({
           <span className="text-sm font-bold">
             {filled}/{table.capacity} filled{isCommon ? ` · ${yours} yours` : ''}
           </span>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={startEdit}
+            className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"
+          >
+            Edit
+          </button>
           {empty && (
             <button
               type="button"
@@ -715,6 +784,60 @@ function TableCard({
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="mx-4 mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[160px]">
+              <label htmlFor={`edit-name-${table.id}`} className="block text-xs font-semibold text-slate-500 mb-1">
+                Table name
+              </label>
+              <input
+                id={`edit-name-${table.id}`}
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label htmlFor={`edit-seats-${table.id}`} className="block text-xs font-semibold text-slate-500 mb-1">
+                Number of seats
+              </label>
+              <input
+                id={`edit-seats-${table.id}`}
+                type="number"
+                min={Math.max(1, filled)}
+                max={100}
+                value={seatsDraft}
+                onChange={(e) => setSeatsDraft(e.target.value)}
+                className="w-28 px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy || !nameDraft.trim() || seatsInvalid}
+                onClick={() => void saveEdit()}
+                className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setEditing(false)}
+                className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {filled} {filled === 1 ? 'person is' : 'people are'} seated here and will stay seated. You can add
+            seats any time; you can remove only empty seats, so the lowest number is {Math.max(1, filled)}.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-2 px-4 pb-4 sm:grid-cols-2 lg:grid-cols-3">
         {table.seats.map((seat) => (
