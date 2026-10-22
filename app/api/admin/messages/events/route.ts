@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setMessageEventCompletion, getMessageEventsForGuest } from '@/src/messaging/messageEventsRepo.js';
 import { listSeatingTablesByParty } from '@/src/table-arrangement/tableArrangementRepo.js';
-import { tableLabelsByGuest } from '@/src/table-arrangement/guestTableView.js';
+import { tableLabelsByGuest, tableMemberLinesByGuest } from '@/src/table-arrangement/guestTableView.js';
 import { guestIsOnSide } from '@/src/admin/sideAccess.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
@@ -94,7 +94,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let tableName = '';
     try {
       const tables = await listSeatingTablesByParty(session.party);
-      tableName = (tableLabelsByGuest(tables).get(guestId) ?? []).join(', ');
+      tableName =
+        tableMemberLinesByGuest(tables).get(guestId) ??
+        (tableLabelsByGuest(tables).get(guestId) ?? []).join(', ');
     } catch (error) {
       console.error('Could not look up the table summary, omitting it:', error);
     }

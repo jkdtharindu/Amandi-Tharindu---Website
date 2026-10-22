@@ -63,3 +63,25 @@ export function tableLabelsByGuest(tables) {
   }
   return labels;
 }
+
+/**
+ * For each guest (party) id with named people seated, one line per seated
+ * person: "Nimal – Rose", in table order. This is what the `[TableNumber]`
+ * placeholder fills with when a party's members sit at different tables, so
+ * each person is told their own. A whole-party seat has no person to name, so
+ * a party seated only that way is left out and the caller falls back to
+ * tableLabelsByGuest(). Shows the table's label (its name), never its number.
+ */
+export function tableMemberLinesByGuest(tables) {
+  const lines = new Map();
+  for (const table of [...tables].sort((a, b) => a.table_number - b.table_number)) {
+    const label = tableLabel(table);
+    for (const seat of table.seats) {
+      if (!seat.inviteeId || !seat.inviteeGuestId) continue;
+      const list = lines.get(seat.inviteeGuestId) ?? [];
+      list.push(`${firstName(seat.inviteeName)} – ${label}`);
+      lines.set(seat.inviteeGuestId, list);
+    }
+  }
+  return new Map([...lines].map(([guestId, list]) => [guestId, list.join('\n')]));
+}

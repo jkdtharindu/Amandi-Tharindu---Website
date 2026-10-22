@@ -50,6 +50,7 @@ const DEFAULT_AUDIENCE: Record<string, string> = {
 type Audience = {
   recipients: Recipient[];
   noNumberCount: number;
+  noTableCount: number;
   alreadySentCount: number;
 };
 
@@ -69,7 +70,7 @@ const STATUSES = [
   { value: 'all', label: 'Everyone' },
 ];
 
-const EMPTY_AUDIENCE: Audience = { recipients: [], noNumberCount: 0, alreadySentCount: 0 };
+const EMPTY_AUDIENCE: Audience = { recipients: [], noNumberCount: 0, noTableCount: 0, alreadySentCount: 0 };
 
 /** The guest's three level ticks and percent, shown under their number while working through a run. */
 function GuestTicks({ events }: { events: Recipient['messageEvents'] }) {
@@ -177,6 +178,7 @@ export default function MessagingCenter({
         setAudience({
           recipients: data.recipients,
           noNumberCount: data.noNumberCount,
+          noTableCount: data.noTableCount ?? 0,
           alreadySentCount: data.alreadySentCount,
         });
         setProgress(data.progress ?? []);
@@ -426,6 +428,8 @@ export default function MessagingCenter({
                 {audience.alreadySentCount > 0 && ` · ${audience.alreadySentCount} already sent`}
                 {audience.noNumberCount > 0 &&
                   ` · ${audience.noNumberCount} skipped (no WhatsApp number)`}
+                {audience.noTableCount > 0 &&
+                  ` · ${audience.noTableCount} waiting for a table`}
               </>
             )}
           </p>

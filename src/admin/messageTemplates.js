@@ -18,7 +18,9 @@ export const DEFAULT_RSVP_REMINDER_TEMPLATE =
  * warrant that — it's owner-editable here like DEFAULT_RSVP_REMINDER_TEMPLATE.
  */
 export const TABLE_UPDATE_TEMPLATE =
-  "Hi [Name], excited to see you at the wedding! You'll be seated at [TableNumber]. See you there — [Greeting]";
+  'Hi [Name], excited to see you at the wedding! Your table:\n[TableNumber]\nSee you there — [Greeting]';
+// [TableNumber] here is one line per seated person ("Nimal – Rose") when the
+// party's members sit at different tables, or just the table name otherwise.
 
 const MIN_PHONE_DIGITS = 8;
 // `tablenumber` is `[TableNumber]` (PRD P1-14F). It fills with the table's

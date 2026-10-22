@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { listSeatingTablesByParty } from '@/src/table-arrangement/tableArrangementRepo.js';
-import { tableLabelsByGuest } from '@/src/table-arrangement/guestTableView.js';
+import { tableLabelsByGuest, tableMemberLinesByGuest } from '@/src/table-arrangement/guestTableView.js';
 import { selectRecipients } from '@/src/messaging/selectRecipients.js';
 import { getMessageEventsByGuest, listCompletedGuestIds } from '@/src/messaging/messageEventsRepo.js';
 import { MESSAGE_LEVELS, levelProgress } from '@/src/messaging/messageLevels.js';
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     listSeatingTablesByParty(session.party),
   ]);
   const tableLabels = tableLabelsByGuest(tables);
+  const memberLines = tableMemberLinesByGuest(tables);
   const skipGuestIds = skipSent && level ? await listCompletedGuestIds(level.eventName) : [];
 
   const eventsByGuest = (await getMessageEventsByGuest((guests as GuestRow[]).map((guest) => guest.id))) as Record<
@@ -65,26 +66,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
   });
 
-  const { recipients, noNumberCount, alreadySentCount } = selectRecipients(guests, {
+  const selected = selectRecipients(guests, {
     status: params.get('status') || 'pending',
     relationship: params.get('relationship') || 'all',
     skipGuestIds,
   });
+  const { noNumberCount, alreadySentCount } = selected;
+
+  const tableTextFor = (guestId: string) =>
+    memberLines.get(guestId) ?? (tableLabels.get(guestId) ?? []).join(', ');
+
+  // The table message (level 3) only goes to parties that have a seat; the rest wait for seating.
+  const needsTable = level?.key === 'table_update';
+  const recipients = (selected.recipients as GuestRow[]).filter(
+    (guest) => !needsTable || tableTextFor(guest.id)
+  );
+  const noTableCount = selected.recipients.length - recipients.length;
 
   return NextResponse.json({
     success: true,
-    recipients: (recipients as GuestRow[]).map((guest) => ({
+    recipients: recipients.map((guest) => ({
       id: guest.id,
       code: guest.code,
       name: guest.name,
       relationship: guest.relationship,
       rsvpStatus: guest.rsvpStatus,
       whatsappNumber: guest.whatsappNumber,
-      tableName: (tableLabels.get(guest.id) ?? []).join(', '),
+      tableName: tableTextFor(guest.id),
       messageEvents: eventsByGuest[guest.id] ?? [],
     })),
     progress,
     noNumberCount,
+    noTableCount,
     alreadySentCount,
   });
 }
