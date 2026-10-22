@@ -83,11 +83,12 @@ export function validateNewTable(body, party) {
 }
 
 /**
- * Checks a table edit: a new name (never blank — names are required now) and/or
- * a new side ("own" or "common"). Whether the side may change is decided by the
- * repository, which refuses while anyone is seated.
+ * Checks a table edit: a new name (never blank — names are required now), a new
+ * side ("own" or "common") and/or a new seat count (1 to 100). Whether the side
+ * may change, and whether the seat count may drop that low, is decided by the
+ * repository, which refuses while it would unseat anyone.
  *
- * @returns {{ ok: true, value: { tableName?: string, side?: string } } | { ok: false, message: string }}
+ * @returns {{ ok: true, value: { tableName?: string, side?: string, capacity?: number } } | { ok: false, message: string }}
  */
 export function validateTableUpdate(body, party) {
   const input = body ?? {};
@@ -103,7 +104,14 @@ export function validateTableUpdate(body, party) {
     if (!side) return { ok: false, message: 'Choose "My side" or "Common" for the table.' };
     value.side = side;
   }
-  if (value.tableName === undefined && value.side === undefined) {
+  if (input.capacity !== undefined) {
+    const capacity = Number(input.capacity);
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 100) {
+      return { ok: false, message: 'Seats must be a whole number from 1 to 100.' };
+    }
+    value.capacity = capacity;
+  }
+  if (value.tableName === undefined && value.side === undefined && value.capacity === undefined) {
     return { ok: false, message: 'Nothing to change.' };
   }
   return { ok: true, value };
