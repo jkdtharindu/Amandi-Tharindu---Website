@@ -1075,3 +1075,23 @@ Owner request: simplify guest codes, rename the name field, and let the owner ad
 *Document version: 1.0 | Created: August 2026 | Wedding date: Monday, 14 December 2026*
 *Couple: Amandi Wijesundara & Tharindu Jayanetti*
 *For questions contact the project owner directly — this document is the single source of truth.*
+
+## 24. WhatsApp Link-Preview Photo per Message Level (Grill Me session 2026-10-23)
+
+**Problem.** A message sent through the Message Center shows a plain WhatsApp card: title, one-line description and domain, no picture (the site sets no `og:image`).
+
+**Constraint found.** `wa.me` links carry text only, so a photo cannot be attached to the message. The only automatic route is the link preview card WhatsApp builds from the link's page.
+
+**Owner decisions (2026-10-23):**
+1. Method: link preview card, automatic. No clipboard copy.
+2. One photo per message level (Main Invitation, RSVP Reminder, Table Details), the same for every guest in that level.
+3. A level with no photo sends as today (plain card), with no site-wide default photo.
+4. The link in each message gets a short level tag (e.g. `/s/reminder`). The invitation code is still never in the link. Opening it lands on the normal gate.
+5. Card title and description are fixed wording per level, written by Claude, not editable in this build.
+6. Any photo is accepted and cropped to 1200x630 automatically. Both admins can set it (templates are already shared by both sides).
+7. After upload the Message Center shows the crop before anything is sent.
+8. Out of scope: send preview mock, editable card text, per-guest photos, site-wide default card.
+
+**Known limits.** The gate means WhatsApp can only read the share page, so every guest sees the same card per level and no guest data can leak into it. WhatsApp caches cards: messages already sent keep their old card, and a changed photo may take a while to show.
+
+**Status:** specified, not built. Model: Sonnet 5 (proposed, unconfirmed).
