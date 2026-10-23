@@ -27,11 +27,13 @@ export default function TemplateEditor({
   defaultBody,
   csrfToken,
   siteUrl,
+  shareTag,
   weddingDate,
   venueName,
   onSaved,
 }: {
   levelKey: string;
+  shareTag?: string;
   levelLabel: string;
   savedBody: string;
   defaultBody: string;
@@ -73,7 +75,7 @@ export default function TemplateEditor({
   const preview = renderTemplate(draft, {
     name: 'Perera Family',
     code: 'PERERA-001',
-    link: buildSiteLink(siteUrl),
+    link: buildSiteLink(siteUrl, shareTag),
     date: weddingDate,
     venue: venueName,
     greeting: "The Bride's Family",

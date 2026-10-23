@@ -27,7 +27,7 @@ export type MessageTemplate = {
 
 export type MessageEvent = { eventName: string; isCompleted: boolean };
 
-type Kind = { key: string; label: string; eventName: string; body: string };
+type Kind = { key: string; label: string; eventName: string; shareTag: string; body: string };
 
 /**
  * The per-guest WhatsApp drop-down (Action 73): one guest, three message levels
@@ -57,7 +57,6 @@ export default function GuestMessageModal({
   onEventsChange?: (events: MessageEvent[]) => void;
   onClose: () => void;
 }) {
-  const link = useMemo(() => buildSiteLink(siteUrl), [siteUrl]);
   const showToast = useToast();
 
   const kinds = useMemo<Kind[]>(() => {
@@ -65,6 +64,7 @@ export default function GuestMessageModal({
       key: level.key,
       label: `${level.number}. ${level.label}`,
       eventName: level.eventName,
+      shareTag: level.shareTag,
       body: templateBodyFor(level, templates),
     }));
   }, [templates]);
@@ -88,7 +88,7 @@ export default function GuestMessageModal({
     return renderTemplate(k.body, {
       name: guest.name,
       code: guest.code,
-      link,
+      link: buildSiteLink(siteUrl, k.shareTag),
       date: weddingDate,
       venue: venueName,
       greeting: greetingForParty(party),

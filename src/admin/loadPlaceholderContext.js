@@ -12,11 +12,13 @@ import { listEvents } from '../celebration-events/celebrationEventsRepo.js';
 export async function loadPlaceholderContext() {
   let weddingDate = '';
   let venueName = '';
+  let coupleNames = '';
 
   try {
     const theme = await getThemeSettings();
     weddingDate = theme?.weddingDate ? formatWeddingDate(theme.weddingDate) : '';
     venueName = theme?.venueName || '';
+    coupleNames = theme?.coupleNames || '';
   } catch {
     // fall through to the event lookup below
   }
@@ -30,5 +32,5 @@ export async function loadPlaceholderContext() {
     }
   }
 
-  return { weddingDate, venueName };
+  return { weddingDate, venueName, coupleNames };
 }

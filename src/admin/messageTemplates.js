@@ -72,8 +72,11 @@ export function renderTemplate(template, data = {}) {
  * plain text via the `{code}`/`[Code]` placeholder instead, matching how a
  * guest would read it off a printed invitation card (Action 37, 2026-09-15).
  */
-export function buildSiteLink(siteUrl) {
-  return String(siteUrl ?? '').replace(/\/+$/, '');
+export function buildSiteLink(siteUrl, shareTag) {
+  const base = String(siteUrl ?? '').replace(/\/+$/, '');
+  // A level's tag (PRD section 24) only picks which WhatsApp preview photo the
+  // link shows; it carries no guest information.
+  return shareTag ? `${base}/s/${shareTag}` : base;
 }
 
 /** Builds a wa.me deep link that opens WhatsApp with `message` pre-filled. */
