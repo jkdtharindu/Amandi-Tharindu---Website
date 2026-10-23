@@ -207,7 +207,7 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
           position: relative;
           width: min(100%, 360px);
           aspect-ratio: 360 / 230;
-          margin: 150px auto 0;
+          margin: clamp(32px, 12svh, 150px) auto 0;
           perspective: 900px;
         }
         .envelope-body, .envelope-front, .envelope-flap { position: absolute; left: 0; width: 100%; }
