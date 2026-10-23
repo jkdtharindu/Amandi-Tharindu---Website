@@ -38,7 +38,9 @@ async function loadCard(tag: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const card = await loadCard((await params).tag);
   if (!card) return {};
-  const images = card.imageUrl ? [{ url: card.imageUrl, width: 1200, height: 630 }] : undefined;
+  const images = card.imageUrl
+    ? [{ url: card.imageUrl, width: 1200, height: 630, type: 'image/jpeg', alt: card.coupleNames }]
+    : undefined;
   return {
     title: card.coupleNames,
     description: card.description,
