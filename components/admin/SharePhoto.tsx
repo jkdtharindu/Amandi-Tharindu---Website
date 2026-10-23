@@ -93,8 +93,9 @@ export default function SharePhoto({
 
       <p className="mt-3 text-xs text-slate-500">
         This photo shows as the big picture on the WhatsApp link card when a guest receives this
-        level&apos;s message. It is cropped to a wide shape from the centre. With no photo, the card is
-        plain. Messages already sent keep their old card, and WhatsApp can take a while to show a
+        level&apos;s message. A picture that is not the wide card shape is shown whole on a blurred
+        copy of itself, so nothing is cut off. It is also shrunk to a small file size, because
+        WhatsApp shows only a tiny thumbnail for heavy pictures. With no photo, the card is plain. Messages already sent keep their old card, and WhatsApp can take a while to show a
         changed photo.
       </p>
 

@@ -61,3 +61,38 @@ test('the image prompt is filled from site details and differs per level', async
   const bare = buildSharePhotoPrompt('rsvp_reminder', {});
   assert.ok(!bare.includes('Small venue line') && !bare.includes('Date line'));
 });
+
+test('cropShareImage keeps a busy picture under the WhatsApp size limit', async () => {
+  const { SHARE_IMAGE_MAX_BYTES } = await import('../src/messaging/cropShareImage.js');
+  const noise = Buffer.alloc(1800 * 1200 * 3);
+  for (let i = 0; i < noise.length; i += 1) noise[i] = (i * 2654435761) >>> 24;
+  const busy = await sharp(noise, { raw: { width: 1800, height: 1200, channels: 3 } }).png().toBuffer();
+  const out = await cropShareImage(busy);
+  assert.ok(out.length <= SHARE_IMAGE_MAX_BYTES, `size ${out.length}`);
+  const meta = await sharp(out).metadata();
+  assert.equal(meta.width, 1200);
+  assert.equal(meta.height, 630);
+});
+
+test('cropShareImage shows an off-shape picture whole instead of cutting it', async () => {
+  // Left and right thirds are red and blue; a 3:2 picture must keep both visible.
+  const left = { create: { width: 300, height: 600, channels: 3, background: '#ff0000' } };
+  const right = { create: { width: 300, height: 600, channels: 3, background: '#0000ff' } };
+  const mid = { create: { width: 300, height: 600, channels: 3, background: '#00ff00' } };
+  const wide = await sharp({ create: { width: 900, height: 600, channels: 3, background: '#000' } })
+    .composite([
+      { input: await sharp(left).png().toBuffer(), left: 0, top: 0 },
+      { input: await sharp(mid).png().toBuffer(), left: 300, top: 0 },
+      { input: await sharp(right).png().toBuffer(), left: 600, top: 0 },
+    ])
+    .png()
+    .toBuffer();
+  const out = await cropShareImage(wide);
+  const { data, info } = await sharp(out).raw().toBuffer({ resolveWithObject: true });
+  const px = (x, y) => [...data.slice((y * info.width + x) * 3, (y * info.width + x) * 3 + 3)];
+  // 3:2 inside 1200x630 is 945 wide, centred: it starts near x=127 and ends near x=1073.
+  const [r, , b1] = px(160, 315);
+  const [r2, , b2] = px(1040, 315);
+  assert.ok(r > 150 && b1 < 100, 'left edge of the picture is still red');
+  assert.ok(b2 > 150 && r2 < 100, 'right edge of the picture is still blue');
+});
