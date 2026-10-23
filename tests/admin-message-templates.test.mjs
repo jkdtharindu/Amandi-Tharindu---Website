@@ -71,3 +71,10 @@ test('buildWhatsAppLink rejects a phone number with no digits', () => {
 test('buildWhatsAppLink rejects a phone number that is too short to be real', () => {
   assert.throws(() => buildWhatsAppLink('123', 'Hello'), /invalid_phone_number/);
 });
+
+test('buildWhatsAppLink turns a Sri Lankan local number into an international one', () => {
+  for (const input of ['071 484 9297', '0714849297', '714849297', '+94 71 484 9297', '0094714849297', '94714849297']) {
+    assert.ok(buildWhatsAppLink(input, 'Hi').startsWith('https://wa.me/94714849297?text='), input);
+  }
+  assert.ok(buildWhatsAppLink('+44 7700 900123', 'Hi').startsWith('https://wa.me/447700900123?'));
+});

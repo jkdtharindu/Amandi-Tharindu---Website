@@ -79,9 +79,25 @@ export function buildSiteLink(siteUrl, shareTag) {
   return shareTag ? `${base}/s/${shareTag}` : base;
 }
 
+/**
+ * The number as wa.me needs it: country code first, digits only. wa.me cannot find
+ * a local number like "071 484 9297", so a Sri Lankan local number (leading 0, or
+ * the bare 9 digits starting with 7) gets 94 in place of the 0. A number written
+ * with + or 00 is already international and is only stripped to digits.
+ */
+export function toWhatsAppNumber(phoneNumber) {
+  const raw = String(phoneNumber ?? '').trim();
+  const digits = raw.replace(/\D/g, '');
+  if (raw.startsWith('+')) return digits;
+  if (digits.startsWith('00')) return digits.slice(2);
+  if (digits.startsWith('0')) return `94${digits.slice(1)}`;
+  if (digits.length === 9 && digits.startsWith('7')) return `94${digits}`;
+  return digits;
+}
+
 /** Builds a wa.me deep link that opens WhatsApp with `message` pre-filled. */
 export function buildWhatsAppLink(phoneNumber, message) {
-  const digits = String(phoneNumber ?? '').replace(/\D/g, '');
+  const digits = toWhatsAppNumber(phoneNumber);
   if (digits.length < MIN_PHONE_DIGITS) {
     throw new Error('invalid_phone_number');
   }
