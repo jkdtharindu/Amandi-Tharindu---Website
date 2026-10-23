@@ -48,3 +48,16 @@ test('cropShareImage makes a 1200x630 JPEG from a tall photo', async () => {
   assert.equal(meta.width, 1200);
   assert.equal(meta.height, 630);
 });
+
+test('the image prompt is filled from site details and differs per level', async () => {
+  const { buildSharePhotoPrompt } = await import('../src/messaging/sharePhotoPrompt.js');
+  const details = { coupleNames: 'Tharindu & Amandi', weddingDate: 'Monday, 14 December 2026', venueName: 'Grand Hall' };
+  const prompts = MESSAGE_LEVELS.map((level) => buildSharePhotoPrompt(level.key, details));
+  assert.equal(new Set(prompts).size, MESSAGE_LEVELS.length);
+  for (const prompt of prompts) {
+    assert.match(prompt, /1200x630/);
+    assert.ok(prompt.includes('Tharindu & Amandi') && prompt.includes('14 December 2026') && prompt.includes('Grand Hall'));
+  }
+  const bare = buildSharePhotoPrompt('rsvp_reminder', {});
+  assert.ok(!bare.includes('Small venue line') && !bare.includes('Date line'));
+});

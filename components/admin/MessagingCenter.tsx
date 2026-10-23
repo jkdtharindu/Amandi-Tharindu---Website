@@ -10,6 +10,7 @@ import {
 import { MESSAGE_LEVELS, levelProgress, templateBodyFor } from '@/src/messaging/messageLevels.js';
 import TemplateEditor from './TemplateEditor';
 import SharePhoto from './SharePhoto';
+import { buildSharePhotoPrompt } from '@/src/messaging/sharePhotoPrompt.js';
 import { useToast } from '@/components/Toast';
 
 export type MessageTemplate = {
@@ -112,6 +113,7 @@ export default function MessagingCenter({
   siteUrl,
   weddingDate,
   venueName,
+  coupleNames,
   party,
 }: {
   party: 'bride' | 'groom';
@@ -120,6 +122,7 @@ export default function MessagingCenter({
   siteUrl: string;
   weddingDate: string;
   venueName: string;
+  coupleNames: string;
 }) {
   const [templateList, setTemplateList] = useState(initialTemplates);
   const [levelKey, setLevelKey] = useState(MESSAGE_LEVELS[0].key);
@@ -451,6 +454,7 @@ export default function MessagingCenter({
           key={level.key}
           levelKey={level.key}
           levelLabel={level.label}
+          prompt={buildSharePhotoPrompt(level.key, { coupleNames, weddingDate, venueName })}
           imageUrl={levelTemplate?.imageUrl ?? null}
           csrfToken={csrfToken}
           onChanged={(imageUrl) =>

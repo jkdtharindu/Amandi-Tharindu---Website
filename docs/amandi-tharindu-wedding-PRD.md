@@ -1091,7 +1091,8 @@ Owner request: simplify guest codes, rename the name field, and let the owner ad
 6. Any photo is accepted and cropped to 1200x630 automatically. Both admins can set it (templates are already shared by both sides).
 7. After upload the Message Center shows the crop before anything is sent.
 8. Out of scope: send preview mock, editable card text, per-guest photos, site-wide default card.
+9. (Added 2026-10-23) Each level's upload area shows a ready-made image prompt for that level, with a Copy button. The admin pastes it into any AI image tool, then uploads the result there. The prompt is filled from live site data (couple names, wedding date, and the level's fixed card wording from decision 5), so it never goes stale. The prompt template is a fixed, saved text per level, not editable in this build. Target size 1200x630; keep text short and inside the centre 80%.
 
 **Known limits.** The gate means WhatsApp can only read the share page, so every guest sees the same card per level and no guest data can leak into it. WhatsApp caches cards: messages already sent keep their old card, and a changed photo may take a while to show.
 
-**Status:** specified, not built. Model: Sonnet 5 (proposed, unconfirmed).
+**Status:** built (commit 2621297), plus decision 9 prompt templates. Model: Sonnet 5 (proposed, unconfirmed).

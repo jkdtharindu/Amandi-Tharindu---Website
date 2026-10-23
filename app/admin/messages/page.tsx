@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminMessagesPage() {
   const session = await requireAdminPage();
   const templates = (await listTemplates()) as MessageTemplate[];
-  const { weddingDate, venueName } = await loadPlaceholderContext();
+  const { weddingDate, venueName, coupleNames } = await loadPlaceholderContext();
   const guests = await listGuestsByParty(session.party);
 
   return (
@@ -30,6 +30,7 @@ export default async function AdminMessagesPage() {
           siteUrl={process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3010'}
           weddingDate={weddingDate}
           venueName={venueName}
+          coupleNames={coupleNames}
           party={session.party}
         />
       </main>
