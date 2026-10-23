@@ -35,6 +35,7 @@ function mapRow(row) {
     label: templateLabel(row.name),
     body: row.body,
     channel: row.channel,
+    imageUrl: row.image_url ?? row.imageUrl ?? null,
   };
 }
 
@@ -80,6 +81,33 @@ export async function saveTemplate(name, body) {
      ON CONFLICT (name) DO UPDATE SET body = EXCLUDED.body
      RETURNING *`,
     [name, body]
+  );
+  return mapRow(rows[0]);
+}
+
+/**
+ * Sets (or clears, with null) the preview photo for one template, creating the
+ * row from `fallbackBody` if it does not exist yet (the table-number level has no
+ * seeded row). Needs migration 033's image_url column.
+ */
+export async function saveTemplateImage(name, imageUrl, fallbackBody) {
+  if (!isDbEnabled()) {
+    const existing = messageTemplates.find((entry) => entry.name === name);
+    if (existing) {
+      existing.imageUrl = imageUrl;
+      return mapRow(existing);
+    }
+    const created = { id: `template-${name}`, name, body: fallbackBody, channel: 'whatsapp', imageUrl };
+    messageTemplates.push(created);
+    return mapRow(created);
+  }
+
+  const { rows } = await query(
+    `INSERT INTO message_templates (name, body, channel, image_url)
+     VALUES ($1, $2, 'whatsapp', $3)
+     ON CONFLICT (name) DO UPDATE SET image_url = EXCLUDED.image_url
+     RETURNING *`,
+    [name, fallbackBody, imageUrl]
   );
   return mapRow(rows[0]);
 }

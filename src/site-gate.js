@@ -14,6 +14,7 @@ const UNGATED_PREFIXES = [
   '/admin', // the admin panel has its own login
   '/_next', // framework assets
   '/fonts', // self-hosted theme fonts, which the gate screen itself uses
+  '/s', // WhatsApp link-preview pages (PRD section 24): crawlers must read their tags; they only forward to the gate
   GATE_ROUTE,
 ];
 

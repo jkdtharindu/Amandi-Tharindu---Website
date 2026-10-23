@@ -9,6 +9,7 @@ import {
 } from '@/src/admin/messageTemplates.js';
 import { MESSAGE_LEVELS, levelProgress, templateBodyFor } from '@/src/messaging/messageLevels.js';
 import TemplateEditor from './TemplateEditor';
+import SharePhoto from './SharePhoto';
 import { useToast } from '@/components/Toast';
 
 export type MessageTemplate = {
@@ -17,6 +18,7 @@ export type MessageTemplate = {
   label: string;
   body: string;
   channel: string;
+  imageUrl?: string | null;
 };
 
 type Recipient = {
@@ -222,7 +224,7 @@ export default function MessagingCenter({
     return renderTemplate(templateBody, {
       name: recipient.name,
       code: recipient.code,
-      link: buildSiteLink(siteUrl),
+      link: buildSiteLink(siteUrl, level.shareTag),
       date: weddingDate,
       venue: venueName,
       greeting: greetingForParty(party),
@@ -445,6 +447,31 @@ export default function MessagingCenter({
           )}
         </div>
 
+        <SharePhoto
+          key={level.key}
+          levelKey={level.key}
+          levelLabel={level.label}
+          imageUrl={levelTemplate?.imageUrl ?? null}
+          csrfToken={csrfToken}
+          onChanged={(imageUrl) =>
+            setTemplateList((current) => {
+              const existing = current.find((entry) => entry.name === level.templateName);
+              const rest = current.filter((entry) => entry.name !== level.templateName);
+              return [
+                ...rest,
+                {
+                  id: existing?.id ?? `template-${level.templateName}`,
+                  name: level.templateName,
+                  label: level.label,
+                  body: existing?.body ?? level.defaultBody,
+                  channel: 'whatsapp',
+                  imageUrl,
+                },
+              ];
+            })
+          }
+        />
+
         <TemplateEditor
           key={level.key + templateBody}
           levelKey={level.key}
@@ -453,6 +480,7 @@ export default function MessagingCenter({
           defaultBody={level.defaultBody}
           csrfToken={csrfToken}
           siteUrl={siteUrl}
+          shareTag={level.shareTag}
           weddingDate={weddingDate}
           venueName={venueName}
           onSaved={(body) =>
@@ -467,6 +495,7 @@ export default function MessagingCenter({
                   label: level.label,
                   body,
                   channel: 'whatsapp',
+                  imageUrl: existing?.imageUrl ?? null,
                 },
               ];
             })
