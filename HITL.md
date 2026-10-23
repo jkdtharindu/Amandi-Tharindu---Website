@@ -82,3 +82,7 @@ The WhatsApp message center now has three levels (Main invitation, RSVP reminder
 ## Saved message templates (added 2026-10-22)
 
 The admin can now edit and save the wording for each of the three message levels on the Messages page. They are stored in `message_templates` by an upsert on `name` (new row `table_update`; `initial_invite` and `reminder_1` are the seeded rows), so there is **no migration**. Both sides share the same templates. Nothing is sent by the app: the tags ([Name], [Code], [TableNumber] and so on) are filled in when the admin opens a message, and the admin still presses Send inside WhatsApp, so the paid-send gate is unchanged.
+
+## Image prompt, WhatsApp number fix and link-card photo size (added 2026-10-23)
+
+**No migration.** The image prompt is built in the browser from existing theme settings; the number fix and photo compression are code only. Nothing is sent by the app: the admin still presses Send inside WhatsApp, so the paid-send gate is unchanged. After deploying, photos uploaded before PR 42 should be uploaded again to get the smaller file.

@@ -114,6 +114,7 @@ export default function MessagingCenter({
   weddingDate,
   venueName,
   coupleNames,
+  colors,
   party,
 }: {
   party: 'bride' | 'groom';
@@ -123,6 +124,7 @@ export default function MessagingCenter({
   weddingDate: string;
   venueName: string;
   coupleNames: string;
+  colors: { name?: string; primary?: string; secondary?: string; accent?: string };
 }) {
   const [templateList, setTemplateList] = useState(initialTemplates);
   const [levelKey, setLevelKey] = useState(MESSAGE_LEVELS[0].key);
@@ -454,7 +456,7 @@ export default function MessagingCenter({
           key={level.key}
           levelKey={level.key}
           levelLabel={level.label}
-          prompt={buildSharePhotoPrompt(level.key, { coupleNames, weddingDate, venueName })}
+          prompt={buildSharePhotoPrompt(level.key, { coupleNames, weddingDate, venueName, colors })}
           imageUrl={levelTemplate?.imageUrl ?? null}
           csrfToken={csrfToken}
           onChanged={(imageUrl) =>

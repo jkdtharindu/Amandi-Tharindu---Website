@@ -106,7 +106,7 @@ export default function SharePhoto({
       </p>
       <textarea
         readOnly
-        rows={9}
+        rows={14}
         value={prompt}
         onFocus={(e) => e.currentTarget.select()}
         className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-xs text-slate-700"
