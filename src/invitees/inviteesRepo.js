@@ -17,6 +17,7 @@ export function mapInviteeRow(row) {
     guestId: row.guest_id,
     name: row.name,
     rsvpStatus: row.rsvp_status,
+    dietaryNotes: row.dietary_notes ?? null,
     addedBy: row.added_by,
     approvalStatus: row.approval_status,
     displayOrder: row.display_order,
@@ -190,9 +191,12 @@ export async function rejectInvitee(id) {
 
 /**
  * Updates rsvp_status for a batch of a guest's own approved invitees.
- * `updates` is [{ id, attending }]; ids that don't belong to this guest or
- * aren't approved are silently ignored, so a tampered id can't touch
- * someone else's invitee.
+ * `updates` is [{ id, attending, dietaryNotes? }]; ids that don't belong to this
+ * guest or aren't approved are silently ignored, so a tampered id can't touch
+ * someone else's invitee. Only the invitees named in `updates` are written --
+ * everyone else keeps their saved answer. `dietaryNotes` is written only when
+ * it is a string (an empty string clears it), so the column is never touched by
+ * a save that does not carry one.
  */
 export async function updateInviteeRsvpStatuses(guestId, updates = [], exec) {
   const approvedIds = new Set((await listApprovedInvitees(guestId, exec)).map((invitee) => invitee.id));
@@ -200,21 +204,30 @@ export async function updateInviteeRsvpStatuses(guestId, updates = [], exec) {
 
   const run = exec ?? (useDb ? query : null);
   if (!run) {
-    valid.forEach(({ id, attending }) => {
+    valid.forEach(({ id, attending, dietaryNotes }) => {
       const invitee = invitees.find((entry) => entry.id === id);
       if (invitee) {
         invitee.rsvpStatus = attending ? 'accepted' : 'declined';
+        if (typeof dietaryNotes === 'string') invitee.dietaryNotes = dietaryNotes || null;
         invitee.updatedAt = new Date().toISOString();
       }
     });
     return listApprovedInvitees(guestId);
   }
 
-  for (const { id, attending } of valid) {
-    await run(
-      `UPDATE invitees SET rsvp_status = $1, updated_at = now() WHERE id = $2 AND guest_id = $3`,
-      [attending ? 'accepted' : 'declined', id, guestId]
-    );
+  for (const { id, attending, dietaryNotes } of valid) {
+    const status = attending ? 'accepted' : 'declined';
+    if (typeof dietaryNotes === 'string') {
+      await run(
+        `UPDATE invitees SET rsvp_status = $1, dietary_notes = $2, updated_at = now() WHERE id = $3 AND guest_id = $4`,
+        [status, dietaryNotes || null, id, guestId]
+      );
+    } else {
+      await run(
+        `UPDATE invitees SET rsvp_status = $1, updated_at = now() WHERE id = $2 AND guest_id = $3`,
+        [status, id, guestId]
+      );
+    }
   }
   return listApprovedInvitees(guestId, exec);
 }

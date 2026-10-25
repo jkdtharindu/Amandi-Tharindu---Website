@@ -37,8 +37,8 @@ export default async function InvitationPage({
   if (guest.code !== code) redirect(`/invitation/${encodeURIComponent(guest.code)}`);
 
   const rsvp = await findRsvpResponseByGuestId(guest.id);
-  const hasResponded = Boolean(rsvp);
-  const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
+  let hasResponded = Boolean(rsvp);
+  let rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
 
   // Multi-person invitations with named invitees (2026-09) let the guest
   // accept/decline per person instead of one status for the whole party.
@@ -50,6 +50,15 @@ export default async function InvitationPage({
   } catch (error) {
     console.error('listInviteesForGuest failed, falling back to none:', error);
     invitees = [];
+  }
+
+  // A party with named people answers person by person, so it counts as
+  // "responded" as soon as one person has, and its status is the one derived
+  // from everyone's answers (still 'pending' while someone has not answered).
+  const approvedPeople = invitees.filter((invitee: { approvalStatus: string }) => invitee.approvalStatus === 'approved');
+  if (approvedPeople.length > 0) {
+    hasResponded = approvedPeople.some((invitee: { rsvpStatus: string }) => invitee.rsvpStatus !== 'pending');
+    rsvpStatus = guest.rsvpStatus ?? 'pending';
   }
 
   // Where the admin has seated this party. Never throws, so a seating hiccup

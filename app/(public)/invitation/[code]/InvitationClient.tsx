@@ -4,6 +4,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import { useSiteText } from '@/components/SiteTextProvider';
+import {
+  approvedInvitees,
+  buildResponses,
+  choiceOf,
+  countAnswered,
+  countSavedAnswers,
+  draftFromInvitee,
+  draftsFor,
+  isChanged,
+  mergeFreshInvitees,
+} from '@/src/rsvp/partyDrafts.js';
 
 // After a saved RSVP the guest reads the thank-you pop-up, then lands on the
 // home page (where the countdown runs).
@@ -35,6 +46,7 @@ export interface Invitee {
   id: string;
   name: string;
   rsvpStatus: 'pending' | 'accepted' | 'declined';
+  dietaryNotes?: string | null;
   addedBy: 'admin' | 'guest';
   approvalStatus: 'approved' | 'pending_approval' | 'rejected';
   displayOrder: number;
@@ -284,8 +296,10 @@ function LegacyRsvpForm({
 }
 
 /**
- * Per-person accept/decline for a multi-person invitation with named
- * invitees (2026-09), instead of one accept/decline for the whole party.
+ * Per-person answers for a multi-person invitation with named invitees. Each
+ * person answers on their own, at their own time: Save is available as soon as
+ * one person has a new answer, only the people who changed are sent, and everyone
+ * else stays as they were (usually "Awaiting response").
  */
 function InviteeChecklist({
   guestCode,
@@ -298,23 +312,24 @@ function InviteeChecklist({
   invitees: Invitee[];
   weddingDate: string;
 }) {
-  const approved = invitees
-    .filter((invitee) => invitee.approvalStatus === 'approved')
-    .sort((a, b) => a.displayOrder - b.displayOrder);
-  const pendingRequests = invitees.filter((invitee) => invitee.approvalStatus === 'pending_approval');
+  // `saved` is the last thing the server told us; `drafts` is what is picked on
+  // this page. Kept in one state so a refresh updates both at once.
+  const [party, setParty] = useState(() => ({ saved: invitees, drafts: draftsFor(invitees) }));
+  const approved = approvedInvitees(party.saved);
+  const pendingRequests = party.saved.filter((invitee) => invitee.approvalStatus === 'pending_approval');
 
-  const [responses, setResponses] = useState<Record<string, boolean | null>>(() =>
-    Object.fromEntries(
-      approved.map((invitee) => [
-        invitee.id,
-        invitee.rsvpStatus === 'accepted' ? true : invitee.rsvpStatus === 'declined' ? false : null,
-      ])
-    )
-  );
   const [newPersonName, setNewPersonName] = useState('');
   const [csrfToken, setCsrfToken] = useState('');
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [thanks, setThanks] = useState('');
   const submittingRef = useRef(false);
+  const partyRef = useRef(party);
+  useEffect(() => {
+    partyRef.current = party;
+  }, [party]);
   const router = useRouter();
   const t = useSiteText();
   const [requesting, setRequesting] = useState(false);
@@ -327,52 +342,123 @@ function InviteeChecklist({
       .catch((err) => console.error('Failed to fetch CSRF token:', err));
   }, []);
 
+  // Load the saved answers on arrival and whenever this tab comes back into
+  // view, so answers another person saved from their own phone show up.
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      if (submittingRef.current) return;
+      setChecking(true);
+      try {
+        const res = await fetch('/api/guest/rsvp', { cache: 'no-store' });
+        const data = await res.json();
+        if (cancelled || !res.ok || !data.success) return;
+        const current = partyRef.current;
+        const merged = mergeFreshInvitees(current.saved, current.drafts, data.invitees);
+        setParty({ saved: data.invitees, drafts: merged.drafts });
+        if (merged.changed) setNotice(t('rsvp.refreshed'));
+      } catch {
+        // Offline or a hiccup: keep showing what we have. Saving will say if it fails.
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    }
+    refresh();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const entries = buildResponses(approved, party.drafts);
+  const total = approved.length;
+  const respondedNow = countSavedAnswers(approved);
+  const answeredAfterSave = countAnswered(approved, party.drafts);
+  const canSave = entries.length > 0 && !saving;
+  const saveHint =
+    entries.length > 0 ? '' : answeredAfterSave === 0 ? t('rsvp.saveHintNone') : t('rsvp.saveHintNoChange');
+
+  function pick(id: string, choice: 'accepted' | 'declined') {
+    setThanks('');
+    setParty((prev) => ({ ...prev, drafts: { ...prev.drafts, [id]: { ...prev.drafts[id], choice } } }));
+  }
+
+  function setNotes(id: string, notes: string) {
+    setThanks('');
+    setParty((prev) => ({ ...prev, drafts: { ...prev.drafts, [id]: { ...prev.drafts[id], notes } } }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     // A double-tap must not send two requests (the server also guards this).
-    if (submittingRef.current) return;
-
-    const unanswered = approved.filter((invitee) => responses[invitee.id] === null || responses[invitee.id] === undefined);
-    if (unanswered.length > 0) {
-      showToast({ kind: 'error', text: t('rsvp.errorUnanswered') });
-      return;
-    }
+    if (submittingRef.current || entries.length === 0) return;
 
     submittingRef.current = true;
     setSaving(true);
-    let saved = false;
+    setError('');
+    setNotice('');
+    setThanks('');
+    let leaving = false;
     try {
       const res = await fetch('/api/guest/rsvp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({
-          code: guestCode,
-          inviteeResponses: approved.map((invitee) => ({ id: invitee.id, attending: responses[invitee.id] })),
-        }),
+        body: JSON.stringify({ code: guestCode, inviteeResponses: entries }),
       });
       const data = await res.json();
 
       if (res.ok && data.success) {
-        const anyAccepted = approved.some((invitee) => responses[invitee.id] === true);
-        let text: string;
-        if (anyAccepted && weddingDate) {
-          text = t('rsvp.toastAccepted', { weddingDate });
-        } else if (anyAccepted) {
-          text = t('rsvp.toastAcceptedNoDate');
+        const conflicts: string[] = data.conflicts ?? [];
+        const current = partyRef.current;
+        const merged = mergeFreshInvitees(current.saved, current.drafts, data.invitees, { resetIds: conflicts });
+        setParty({ saved: data.invitees, drafts: merged.drafts });
+
+        const fresh = approvedInvitees(data.invitees);
+        const stillPending = fresh.filter((invitee) => invitee.rsvpStatus === 'pending').length;
+        if (conflicts.length > 0) setNotice(t('rsvp.conflict'));
+
+        if (stillPending > 0) {
+          setThanks(stillPending === 1 ? t('rsvp.thanksOneLeft') : t('rsvp.thanksSomeLeft', { pending: stillPending }));
         } else {
-          text = t('rsvp.toastDeclined');
+          const anyAccepted = fresh.some((invitee) => invitee.rsvpStatus === 'accepted');
+          let text: string;
+          if (anyAccepted && weddingDate) {
+            text = t('rsvp.toastAccepted', { weddingDate });
+          } else if (anyAccepted) {
+            text = t('rsvp.toastAcceptedNoDate');
+          } else {
+            text = t('rsvp.toastDeclined');
+          }
+          // Everyone has answered: same hand-off to the home page as before.
+          leaving = conflicts.length === 0;
+          if (leaving) {
+            showToast({ kind: 'ok', text });
+            setTimeout(() => router.push('/'), REDIRECT_HOME_MS);
+          } else {
+            setThanks(text);
+          }
         }
-        saved = true;
-        showToast({ kind: 'ok', text });
-        setTimeout(() => router.push('/'), REDIRECT_HOME_MS);
       } else {
-        showToast({ kind: 'error', text: data.message || data.reason || 'Unable to save RSVP. Please try again.' });
+        // Nothing the guest picked is cleared: the drafts stay as they were.
+        setError(data.message || t('rsvp.errorSave'));
+        if (data.reason === 'nothing_to_save') {
+          const latest = await fetch('/api/guest/rsvp', { cache: 'no-store' }).then((r) => r.json());
+          if (latest.success) {
+            const current = partyRef.current;
+            setParty({ saved: latest.invitees, drafts: mergeFreshInvitees(current.saved, current.drafts, latest.invitees).drafts });
+          }
+        }
       }
     } catch {
-      showToast({ kind: 'error', text: 'An error occurred. Please try again.' });
+      setError(t('rsvp.errorSave'));
     } finally {
-      // Stay in the "saving" state once saved, until the home page opens.
-      if (!saved) {
+      // Stay in the "saving" state once everyone has answered, until the home page opens.
+      if (!leaving) {
         submittingRef.current = false;
         setSaving(false);
       }
@@ -414,39 +500,84 @@ function InviteeChecklist({
         {t('rsvp.intro', { coupleNames })}
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {approved.map((invitee) => (
-          <div
-            key={invitee.id}
-            className="flex flex-wrap items-center justify-between gap-3 border border-gray-200 rounded-2xl px-4 py-3"
-          >
-            <span className="font-semibold text-gray-900">{invitee.name}</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setResponses((prev) => ({ ...prev, [invitee.id]: true }))}
-                className={`py-1.5 px-4 rounded-full text-sm font-semibold transition-colors ${
-                  responses[invitee.id] === true
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
-                }`}
-              >
-                {t('rsvp.accept')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setResponses((prev) => ({ ...prev, [invitee.id]: false }))}
-                className={`py-1.5 px-4 rounded-full text-sm font-semibold transition-colors ${
-                  responses[invitee.id] === false
-                    ? 'bg-gray-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {t('rsvp.decline')}
-              </button>
-            </div>
-          </div>
-        ))}
+      <p className="text-sm font-semibold text-gray-800 mb-1" data-testid="rsvp-progress">
+        {t('rsvp.progress', { answered: respondedNow, total })}
+      </p>
+      <p className="text-xs text-gray-500 mb-4 min-h-4" aria-live="polite">
+        {checking ? t('rsvp.checking') : ''}
+      </p>
+
+      {notice && (
+        <p role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {notice}
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        {approved.map((invitee) => {
+          const draft = party.drafts[invitee.id] ?? draftFromInvitee(invitee);
+          const savedChoice = choiceOf(invitee.rsvpStatus);
+          const unsaved = isChanged(invitee, draft);
+          const badge =
+            savedChoice === 'accepted'
+              ? { text: t('rsvp.badgeAttending'), cls: 'bg-green-100 text-green-800' }
+              : savedChoice === 'declined'
+                ? { text: t('rsvp.badgeDeclined'), cls: 'bg-gray-200 text-gray-800' }
+                : { text: t('rsvp.badgeWaiting'), cls: 'bg-amber-100 text-amber-800' };
+          const options: { value: 'accepted' | 'declined'; label: string }[] = [
+            { value: 'accepted', label: t('rsvp.choiceAttending') },
+            { value: 'declined', label: t('rsvp.choiceDeclined') },
+          ];
+
+          return (
+            <fieldset key={invitee.id} className="border border-gray-200 rounded-2xl px-4 py-3">
+              <legend className="sr-only">{invitee.name}</legend>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="font-semibold text-gray-900">{invitee.name}</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.cls}`}>{badge.text}</span>
+                {savedChoice && <span className="text-xs text-gray-600">{t('rsvp.confirmed')}</span>}
+                {unsaved && <span className="text-xs font-semibold text-amber-700">{t('rsvp.unsaved')}</span>}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {options.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 text-gray-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[color:var(--color-accent)] ${
+                      draft.choice === option.value ? 'border-gray-900 bg-gray-50 font-semibold' : 'border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={`rsvp-${invitee.id}`}
+                      value={option.value}
+                      checked={draft.choice === option.value}
+                      onChange={() => pick(invitee.id, option.value)}
+                      disabled={saving}
+                      className="h-5 w-5 shrink-0 cursor-pointer"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+              {draft.choice === 'accepted' && (
+                <div className="mt-3">
+                  <label htmlFor={`diet-${invitee.id}`} className="block text-sm font-semibold text-gray-700 mb-1">
+                    {t('rsvp.dietaryLabel')}
+                  </label>
+                  <input
+                    id={`diet-${invitee.id}`}
+                    value={draft.notes}
+                    maxLength={200}
+                    onChange={(e) => setNotes(invitee.id, e.target.value)}
+                    disabled={saving}
+                    placeholder={t('rsvp.dietaryPlaceholder')}
+                    className="w-full min-h-12 px-4 py-2 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]"
+                  />
+                </div>
+              )}
+            </fieldset>
+          );
+        })}
 
         {pendingRequests.map((invitee) => (
           <div
@@ -460,12 +591,29 @@ function InviteeChecklist({
 
         <button
           type="submit"
-          disabled={saving}
-          className="button button-primary w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={!canSave}
+          aria-describedby="rsvp-save-hint"
+          className="button button-primary w-full min-h-12 text-lg disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {saving ? t('rsvp.submitBusy') : t('rsvp.submit')}
+          {saving ? t('rsvp.submitBusy') : t('rsvp.saveButton', { answered: answeredAfterSave, total })}
         </button>
+        <p id="rsvp-save-hint" className="text-sm text-gray-600 min-h-5">
+          {canSave || saving ? '' : saveHint}
+        </p>
+
+        {error && (
+          <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {error}
+          </p>
+        )}
       </form>
+
+      {/* Always on the page so a screen reader announces the message when it appears. */}
+      <div role="status" aria-live="polite" data-testid="rsvp-thanks">
+        {thanks && (
+          <p className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">{thanks}</p>
+        )}
+      </div>
 
       <div className="mt-6 pt-6 border-t border-gray-200">
         <label htmlFor="newPerson" className="block text-sm font-semibold text-gray-700 mb-2">
