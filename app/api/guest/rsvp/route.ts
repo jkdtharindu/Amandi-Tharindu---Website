@@ -1,13 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findGuestById } from '@/src/guest-auth/guestRepo.js';
-import { listApprovedInvitees } from '@/src/invitees/inviteesRepo.js';
+import { listApprovedInvitees, listInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
 import { validateParticipantNames } from '@/src/invitees/validateInvitees.js';
 import { saveInviteeRsvp, saveWholePartyRsvp } from '@/src/rsvp/saveRsvp.js';
 import { authorizeRsvp } from '@/src/guest-auth/authorizeRsvp.js';
 import { verifySession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 
-type InviteeResponse = { id: string; attending: boolean };
+type InviteeResponse = {
+  id: string;
+  attending: boolean;
+  expectedStatus?: 'pending' | 'accepted' | 'declined';
+  dietaryNotes?: string;
+};
+
+const STATUSES = new Set(['pending', 'accepted', 'declined']);
+const MAX_DIETARY_NOTES = 200;
+
+/** What the page needs to draw one person: no guest id, no timestamps. */
+function publicInvitee(invitee: Record<string, unknown>) {
+  return {
+    id: invitee.id,
+    name: invitee.name,
+    rsvpStatus: invitee.rsvpStatus,
+    dietaryNotes: invitee.dietaryNotes ?? null,
+    addedBy: invitee.addedBy,
+    approvalStatus: invitee.approvalStatus,
+    displayOrder: invitee.displayOrder,
+  };
+}
+
+/**
+ * The saved answers for the signed-in guest's party, read fresh. The page calls
+ * this on load and when the tab comes back into view, so answers another person
+ * saved from their own phone show up without a manual reload.
+ */
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  try {
+    const sessionGuestId = verifySession(request.cookies.get('guest_session')?.value);
+    const guest = sessionGuestId ? await findGuestById(sessionGuestId) : null;
+    if (!guest) {
+      return NextResponse.json({ success: false, reason: 'not_signed_in' }, { status: 401 });
+    }
+    const invitees = await listInviteesForGuest(guest.id);
+    return NextResponse.json(
+      { success: true, invitees: invitees.map(publicInvitee) },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (error) {
+    console.error('RSVP read error:', error);
+    return NextResponse.json(
+      { success: false, reason: 'server_error', message: 'Could not load your answers.' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -54,14 +101,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (isInviteeSubmission) {
       const approvedInvitees: { id: string }[] = await listApprovedInvitees(guest.id);
       const approvedIds = new Set(approvedInvitees.map((i) => i.id));
-      const valid = (inviteeResponses as InviteeResponse[]).filter(
-        (entry) => entry && typeof entry.attending === 'boolean' && approvedIds.has(entry.id)
-      );
-      // A party with named invitees answers per person; see saveInviteeRsvp().
-      // Everything it writes is one transaction — if any part fails it throws,
-      // and the guest gets the error below rather than a false "saved".
+      const valid: InviteeResponse[] = [];
+      for (const entry of inviteeResponses as InviteeResponse[]) {
+        if (!entry || typeof entry.attending !== 'boolean' || !approvedIds.has(entry.id)) continue;
+        let dietaryNotes: string | undefined;
+        if (entry.dietaryNotes !== undefined) {
+          if (typeof entry.dietaryNotes !== 'string' || entry.dietaryNotes.trim().length > MAX_DIETARY_NOTES) {
+            return NextResponse.json(
+              {
+                success: false,
+                reason: 'invalid_dietary_notes',
+                message: `Dietary notes must be ${MAX_DIETARY_NOTES} characters or fewer.`,
+              },
+              { status: 400 }
+            );
+          }
+          dietaryNotes = entry.dietaryNotes.trim();
+        }
+        valid.push({
+          id: entry.id,
+          attending: entry.attending,
+          expectedStatus: STATUSES.has(entry.expectedStatus as string) ? entry.expectedStatus : undefined,
+          dietaryNotes,
+        });
+      }
+      if (valid.length === 0) {
+        return NextResponse.json({ success: false, reason: 'nothing_to_save' }, { status: 400 });
+      }
+      // Only the people sent here are written; everyone else keeps their saved
+      // answer. See saveInviteeRsvp(). Everything it writes is one transaction
+      // -- if any part fails it throws, and the guest gets the error below
+      // rather than a false "saved".
       const result = await saveInviteeRsvp(guest.id, valid);
-      return NextResponse.json({ success: true, rsvp: result });
+      return NextResponse.json({
+        success: true,
+        status: result.status,
+        conflicts: result.conflicts,
+        invitees: (await listInviteesForGuest(guest.id)).map(publicInvitee),
+      });
     }
 
     // Legacy path: one accept/decline for the whole party, free-text names.

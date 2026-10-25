@@ -129,6 +129,23 @@ export async function upsertRsvpResponse(guestId, attending, participantNames = 
   return findRsvpResponseByGuestId(guestId, exec);
 }
 
+/**
+ * Removes a party's mirrored response row, so every reader of rsvp_responses
+ * (dashboard, CSV export) sees it as "no answer yet". Used when a party with
+ * named people is still undecided overall -- one person declining while the
+ * rest have not answered must not read as a declined party.
+ */
+export async function deleteRsvpResponse(guestId, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
+    const index = rsvpResponses.findIndex((entry) => entry.guestId === guestId);
+    if (index !== -1) rsvpResponses.splice(index, 1);
+    return;
+  }
+
+  await run('DELETE FROM rsvp_responses WHERE guest_id = $1', [guestId]);
+}
+
 function listAllGuestCodes() {
   return guestStore.map((guest) => guest.code);
 }
