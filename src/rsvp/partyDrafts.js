@@ -5,9 +5,10 @@
  *
  * Pure functions, no React and no network, so the rules can be tested without a
  * browser. The page keeps `saved` (a snapshot of the server's answers) and
- * `drafts` (one { choice, notes } per approved person) and calls these.
+ * `drafts` (one { choice } per approved person) and calls these.
  *
- * choice: 'accepted' | 'declined' | null (null = nothing picked, i.e. pending).
+ * Each draft is { choice }: 'accepted' | 'declined' | null (null = nothing
+ * picked, i.e. pending).
  */
 
 export function choiceOf(status) {
@@ -17,7 +18,7 @@ export function choiceOf(status) {
 }
 
 export function draftFromInvitee(invitee) {
-  return { choice: choiceOf(invitee.rsvpStatus), notes: invitee.dietaryNotes ?? '' };
+  return { choice: choiceOf(invitee.rsvpStatus) };
 }
 
 /** Approved people only, in display order -- the ones that get an answer. */
@@ -32,14 +33,12 @@ export function draftsFor(invitees = []) {
 }
 
 /**
- * True when the draft would change what is saved: a different answer, or (for
- * someone attending) a different dietary note. A person nobody has picked for
- * is never "changed" -- they stay pending.
+ * True when the draft would change what is saved: a different answer. A person
+ * nobody has picked for is never "changed" -- they stay pending.
  */
 export function isChanged(invitee, draft) {
   if (!draft || !draft.choice) return false;
-  if (draft.choice !== choiceOf(invitee.rsvpStatus)) return true;
-  return draft.choice === 'accepted' && draft.notes.trim() !== (invitee.dietaryNotes ?? '');
+  return draft.choice !== choiceOf(invitee.rsvpStatus);
 }
 
 /**
@@ -57,10 +56,6 @@ export function buildResponses(approved, drafts) {
       attending: draft.choice === 'accepted',
       expectedStatus: invitee.rsvpStatus,
     };
-    const savedNotes = invitee.dietaryNotes ?? '';
-    if (draft.choice === 'accepted' && draft.notes.trim() !== savedNotes) entry.dietaryNotes = draft.notes.trim();
-    // Not attending: a dietary note no longer applies, so clear a saved one.
-    if (draft.choice === 'declined' && savedNotes) entry.dietaryNotes = '';
     entries.push(entry);
   }
   return entries;
@@ -93,7 +88,7 @@ export function mergeFreshInvitees(oldSaved, oldDrafts, fresh, { resetIds = /** 
   const drafts = {};
   for (const invitee of freshApproved) {
     const before = oldApproved.get(invitee.id);
-    if (!before || before.rsvpStatus !== invitee.rsvpStatus || (before.dietaryNotes ?? '') !== (invitee.dietaryNotes ?? '')) {
+    if (!before || before.rsvpStatus !== invitee.rsvpStatus) {
       changed = true;
     }
     const draft = oldDrafts[invitee.id];

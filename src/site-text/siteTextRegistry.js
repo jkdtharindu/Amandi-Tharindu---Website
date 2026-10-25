@@ -217,8 +217,6 @@ const ROWS = [
   ['rsvp.saveButton', 'RSVP — who is coming', 'Button: save answers', 'Save responses ({answered} of {total})', { tags: ['{answered}', '{total}'] }],
   ['rsvp.saveHintNone', 'RSVP — who is coming', 'Reason the button is off: nobody chosen', 'Choose Attending or Not attending for at least one guest to save.', { multiline: true }],
   ['rsvp.saveHintNoChange', 'RSVP — who is coming', 'Reason the button is off: nothing changed', 'No changes to save yet. Change an answer above to save it.', { multiline: true }],
-  ['rsvp.dietaryLabel', 'RSVP — who is coming', 'Dietary needs box label', 'Dietary needs (optional)'],
-  ['rsvp.dietaryPlaceholder', 'RSVP — who is coming', 'Dietary needs box hint', 'e.g. vegetarian, nut allergy'],
   ['rsvp.checking', 'RSVP — who is coming', 'Small line while checking for new answers', 'Checking for updates…'],
   ['rsvp.pendingApproval', 'RSVP — who is coming', 'Tag on a person waiting for approval', 'Waiting for admin approval'],
   ['rsvp.addPrompt', 'RSVP — who is coming', 'Add-a-person question', 'Need to add someone not on this list?'],
