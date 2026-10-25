@@ -76,7 +76,7 @@ export function saveWholePartyRsvp(
  * written; everyone else keeps whatever they had (usually 'pending'), so two
  * people in one party saving separately never overwrite each other.
  *
- * `inviteeResponses` is [{ id, attending, expectedStatus?, dietaryNotes? }].
+ * `inviteeResponses` is [{ id, attending, expectedStatus? }].
  * `expectedStatus` is the answer the page last showed for that person. If the
  * saved answer has since changed to something else (another phone saved first),
  * that entry is skipped and reported in `conflicts` instead of being silently
@@ -90,7 +90,7 @@ export function saveWholePartyRsvp(
  * not, and a half-answered party must not read as declined.
  *
  * @param {string} guestId
- * @param {{ id: string, attending: boolean, expectedStatus?: string, dietaryNotes?: string }[]} inviteeResponses
+ * @param {{ id: string, attending: boolean, expectedStatus?: string }[]} inviteeResponses
  * @param {{ transaction?: typeof runInRsvpTransaction }} [options]
  * @returns {Promise<{ status: string, response: object | null, invitees: object[], conflicts: string[] }>}
  */

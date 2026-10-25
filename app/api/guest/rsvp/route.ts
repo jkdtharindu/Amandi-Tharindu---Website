@@ -11,11 +11,9 @@ type InviteeResponse = {
   id: string;
   attending: boolean;
   expectedStatus?: 'pending' | 'accepted' | 'declined';
-  dietaryNotes?: string;
 };
 
 const STATUSES = new Set(['pending', 'accepted', 'declined']);
-const MAX_DIETARY_NOTES = 200;
 
 /** What the page needs to draw one person: no guest id, no timestamps. */
 function publicInvitee(invitee: Record<string, unknown>) {
@@ -23,7 +21,6 @@ function publicInvitee(invitee: Record<string, unknown>) {
     id: invitee.id,
     name: invitee.name,
     rsvpStatus: invitee.rsvpStatus,
-    dietaryNotes: invitee.dietaryNotes ?? null,
     addedBy: invitee.addedBy,
     approvalStatus: invitee.approvalStatus,
     displayOrder: invitee.displayOrder,
@@ -104,25 +101,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const valid: InviteeResponse[] = [];
       for (const entry of inviteeResponses as InviteeResponse[]) {
         if (!entry || typeof entry.attending !== 'boolean' || !approvedIds.has(entry.id)) continue;
-        let dietaryNotes: string | undefined;
-        if (entry.dietaryNotes !== undefined) {
-          if (typeof entry.dietaryNotes !== 'string' || entry.dietaryNotes.trim().length > MAX_DIETARY_NOTES) {
-            return NextResponse.json(
-              {
-                success: false,
-                reason: 'invalid_dietary_notes',
-                message: `Dietary notes must be ${MAX_DIETARY_NOTES} characters or fewer.`,
-              },
-              { status: 400 }
-            );
-          }
-          dietaryNotes = entry.dietaryNotes.trim();
-        }
         valid.push({
           id: entry.id,
           attending: entry.attending,
           expectedStatus: STATUSES.has(entry.expectedStatus as string) ? entry.expectedStatus : undefined,
-          dietaryNotes,
         });
       }
       if (valid.length === 0) {

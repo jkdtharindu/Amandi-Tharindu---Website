@@ -110,18 +110,6 @@ test('two phones saving the same answer is not a conflict', async () => {
   assert.deepEqual(result.conflicts, []);
 });
 
-test('dietary notes save for an attending guest and clear when they switch to not attending', async () => {
-  await saveInviteeRsvp('guest-1', [{ id: ana.id, attending: true, dietaryNotes: 'vegetarian' }]);
-  assert.equal((await listInviteesForGuest('guest-1')).find((p) => p.id === ana.id).dietaryNotes, 'vegetarian');
-
-  // A save that carries no note leaves the saved one alone.
-  await saveInviteeRsvp('guest-1', [{ id: ana.id, attending: true }]);
-  assert.equal((await listInviteesForGuest('guest-1')).find((p) => p.id === ana.id).dietaryNotes, 'vegetarian');
-
-  await saveInviteeRsvp('guest-1', [{ id: ana.id, attending: false, dietaryNotes: '' }]);
-  assert.equal((await listInviteesForGuest('guest-1')).find((p) => p.id === ana.id).dietaryNotes, null);
-});
-
 // --- the page's draft bookkeeping -------------------------------------------------
 
 test('only guests whose answer changed are sent', async () => {
