@@ -835,3 +835,7 @@ Verified: 792 tests, lint, type-check. Not opened in real Excel. Legacy `src/ser
 **Deliberately not done:** the admin CSV export and admin screens keep the old label. No pull request opened.
 **What the owner must pick up:** decide whether to merge the branch; after it deploys, open one guest invitation and one WhatsApp preview to see the new wording. Decide if the CSV export should match.
 **Verification at the end:** 792 tests pass, build passes (with throwaway env values), lint clean on changed files, `npm run check-docs` passes.
+
+[2026-10-27] Decision (Action 61, finding 4, small fixes, built with sensible defaults, no owner question): the probable-attendance estimate is capped at 500 and a blank box is refused instead of saving 0; the delete-table confirm says how many people sit there and how many seats lose their notes; the seating list and spreadsheet routes return a clean 500 on a fault. The 500 cap is my choice, easy to change (`MAX_BUFFER_COUNT`).
+Reason: four of the six listed items were already fixed by other work, so only these three remained. Checked the code first.
+Verified: 795 tests, lint, type-check. Not click-tested. No migration. Action 61 closed.
