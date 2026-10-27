@@ -44,6 +44,15 @@ export function tableLabel(table) {
   return name || `Table ${table?.table_number}`;
 }
 
+/**
+ * The table as written in guest messages: "Table 5 (Rose)", or just "Table 5"
+ * for a table with no name. Fills the `[TableNumber]` placeholder.
+ */
+export function tableLabelWithNumber(table) {
+  const name = String(table?.table_name ?? '').trim();
+  return name ? `Table ${table?.table_number} (${name})` : `Table ${table?.table_number}`;
+}
+
 /** Whether anyone — a guest, one of their people, or a placeholder — sits on the seat. */
 export function isSeatOccupied(seat) {
   return Boolean(seat.guestId || seat.probableAttendeeId || seat.inviteeId);
