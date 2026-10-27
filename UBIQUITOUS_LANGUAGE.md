@@ -180,7 +180,7 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Definition: A SeatingTable with TableSide `common`, where the bride-side and groom-side guests left over after each side has filled its own tables sit together. Both Admins see every CommonTable and who sits there; each Admin seats and removes only their own side's people on it.
 - Do not call it: `mixed table`, `shared table`, `leftover table`, `joint table`
 - Example: Bride side has 3 people left and groom side has 4; the leftover summary shows 7 and about one CommonTable still needed at 10 seats.
-- Note: Proposed 2026-09-20 (Grill Me session); built 2026-09-28 (Action 68, PRD §20), not yet on the live site. Numbered on its own line (Common 1, 2, 3…); guests see its required, unique table name, never its number. Either Admin deletes an empty CommonTable; one with anyone seated cannot be deleted or change side. Placeholders (ProbableAttendee) may sit at one, and either Admin may remove them.
+- Note: Proposed 2026-09-20 (Grill Me session); built 2026-09-28 (Action 68, PRD §20), not yet on the live site. Numbered on its own line (Common 1, 2, 3…); guests see it as "Table N - Name" (its number, then its required, unique name). Either Admin deletes an empty CommonTable; one with anyone seated cannot be deleted or change side. Placeholders (ProbableAttendee) may sit at one, and either Admin may remove them.
 
 ### SeatAssignment
 - Canonical name: `SeatAssignment`

@@ -44,6 +44,15 @@ export function tableLabel(table) {
   return name || `Table ${table?.table_number}`;
 }
 
+/**
+ * The guest-facing label: always led by the table number so everyone can find
+ * the same table — "Table 1 - Diamond", or just "Table 4" for an unnamed one.
+ */
+export function tableNumberedLabel(table) {
+  const name = String(table?.table_name ?? '').trim();
+  return name ? `Table ${table?.table_number} - ${name}` : `Table ${table?.table_number}`;
+}
+
 /** Whether anyone — a guest, one of their people, or a placeholder — sits on the seat. */
 export function isSeatOccupied(seat) {
   return Boolean(seat.guestId || seat.probableAttendeeId || seat.inviteeId);

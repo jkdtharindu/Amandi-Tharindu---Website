@@ -63,8 +63,8 @@ export default async function InvitationPage({
 
   // Where the admin has seated this party. Never throws, so a seating hiccup
   // only hides the table line instead of taking the invitation down. The line
-  // shows the table's name ("Table N" for an unnamed one) — never its number
-  // or its side, which are for the admins only (Action 68).
+  // shows "Table N - Name" ("Table N" for an unnamed one) — never its side,
+  // which is for the admins only (Action 68).
   let tableViews: { tableNumber: number; tableName: string | null; label: string; mates: string[] }[] = [];
   try {
     tableViews = await getGuestTableView(guest.id);
