@@ -829,3 +829,7 @@ Verified: 786 tests, lint, type-check. Not click-tested; SQL path tested through
 Reason: Excel warns when a file's name and contents disagree; a real .xlsx needs a new dependency the owner did not want.
 Caught while testing: the formula-injection guard put a stray apostrophe before every `+94…` number, so phone numbers are exempted when they are plain digits (anything else is still guarded).
 Verified: 792 tests, lint, type-check. Not opened in real Excel. Legacy `src/server.js` export route got the same file name and type. No migration.
+
+[2026-10-27] Decision (Action 61, finding 4, small fixes, built with sensible defaults, no owner question): the probable-attendance estimate is capped at 500 and a blank box is refused instead of saving 0; the delete-table confirm says how many people sit there and how many seats lose their notes; the seating list and spreadsheet routes return a clean 500 on a fault. The 500 cap is my choice, easy to change (`MAX_BUFFER_COUNT`).
+Reason: four of the six listed items were already fixed by other work, so only these three remained. Checked the code first.
+Verified: 795 tests, lint, type-check. Not click-tested. No migration. Action 61 closed.
