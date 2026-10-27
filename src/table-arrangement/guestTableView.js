@@ -1,6 +1,6 @@
 import { listSeatingTables } from './tableArrangementRepo.js';
 import { listApprovedInvitees } from '../invitees/inviteesRepo.js';
-import { tableLabel } from './tableSides.js';
+import { tableLabel, tableLabelWithNumber } from './tableSides.js';
 
 /** "Nimal Perera" -> "Nimal". A party name on a whole-party seat is left whole. */
 export function firstName(fullName) {
@@ -56,7 +56,7 @@ export async function getGuestTableView(guestId) {
 export function tableLabelsByGuest(tables) {
   const labels = new Map();
   for (const table of [...tables].sort((a, b) => a.table_number - b.table_number)) {
-    const label = tableLabel(table);
+    const label = tableLabelWithNumber(table);
     for (const seat of table.seats) {
       const guestId = seat.guestId || seat.inviteeGuestId;
       if (!guestId) continue;
@@ -74,12 +74,12 @@ export function tableLabelsByGuest(tables) {
  * placeholder fills with when a party's members sit at different tables, so
  * each person is told their own. A whole-party seat has no person to name, so
  * a party seated only that way is left out and the caller falls back to
- * tableLabelsByGuest(). Shows the table's label (its name), never its number.
+ * tableLabelsByGuest(). Shows the table's number and name, e.g. "Table 5 (Rose)".
  */
 export function tableMemberLinesByGuest(tables) {
   const lines = new Map();
   for (const table of [...tables].sort((a, b) => a.table_number - b.table_number)) {
-    const label = tableLabel(table);
+    const label = tableLabelWithNumber(table);
     for (const seat of table.seats) {
       if (!seat.inviteeId || !seat.inviteeGuestId) continue;
       const list = lines.get(seat.inviteeGuestId) ?? [];
