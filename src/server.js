@@ -2245,8 +2245,8 @@ export function createApp() {
     // Combine summary and arrangements in export
     const fullExport = summary + '\n' + arrangements;
 
-    res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="table-arrangements.xlsx"');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="table-arrangements.csv"');
     res.send(fullExport);
   });
 

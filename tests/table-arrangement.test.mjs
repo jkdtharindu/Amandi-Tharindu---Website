@@ -58,7 +58,7 @@ test('the export always emits its header row, even with no tables', () => {
   const tsv = buildTableArrangementExport([]);
   assert.equal(
     tsv,
-    'Table\tTable Name\tSide\tSeat\tGuest Name\tContact\tDietary Requirements\tSpecial Notes\n'
+    'Table,Table Name,Side,Seat,Guest Name,Contact,Dietary Requirements,Special Notes\n'
   );
 });
 
@@ -69,7 +69,7 @@ test('a table with no seats still gets a row, so it is not silently dropped', ()
   const rows = tsv.trimEnd().split('\n');
 
   assert.equal(rows.length, 2, 'header plus the empty table');
-  assert.match(rows[1], /^3\tOverflow\tCommon\t—\t\(No seats assigned\)/);
+  assert.match(rows[1], /^3,Overflow,Common,—,\(No seats assigned\)/);
 });
 
 test('unassigned seats are labelled rather than left blank', () => {
@@ -110,7 +110,7 @@ test('leading formula characters are neutralised so Excel does not execute them'
   assert.match(tsv, /'-5/);
 });
 
-test('tabs, newlines and quotes inside a value cannot break the column layout', () => {
+test('commas, newlines and quotes inside a value cannot break the column layout', () => {
   const tsv = buildTableArrangementExport([
     {
       table_number: 1,
@@ -120,14 +120,14 @@ test('tabs, newlines and quotes inside a value cannot break the column layout', 
           seatNumber: 1,
           guestId: 'g1',
           guestName: 'Anula',
-          dietaryRequirements: 'nuts\tdairy',
+          dietaryRequirements: 'nuts, dairy',
           specialNotes: 'says "no seafood"',
         },
       ],
     },
   ]);
 
-  assert.match(tsv, /"nuts\tdairy"/, 'a tabbed value is wrapped in quotes');
+  assert.match(tsv, /"nuts, dairy"/, 'a value with a comma is wrapped in quotes');
   assert.match(tsv, /"says ""no seafood"""/, 'inner quotes are doubled');
 });
 
@@ -146,10 +146,10 @@ test('the summary counts capacity, assignment and the gap between them', () => {
     { table_number: 2, capacity: 6, seats: [] },
   ]);
 
-  assert.match(summary, /Total Tables\t2/);
-  assert.match(summary, /Total Capacity\t10/);
-  assert.match(summary, /Assigned Guests\t2/);
-  assert.match(summary, /Unassigned Seats\t8/);
+  assert.match(summary, /Total Tables,2/);
+  assert.match(summary, /Total Capacity,10/);
+  assert.match(summary, /Assigned Guests,2/);
+  assert.match(summary, /Unassigned Seats,8/);
 });
 
 test('dietary requirements and special notes only appear when there are some', () => {
@@ -208,8 +208,8 @@ test('the summary counts a ProbableAttendee-occupied seat as assigned (P1-16)', 
     },
   ]);
 
-  assert.match(summary, /Assigned Guests\t1/);
-  assert.match(summary, /Unassigned Seats\t1/);
+  assert.match(summary, /Assigned Guests,1/);
+  assert.match(summary, /Unassigned Seats,1/);
   assert.match(summary, /Probable \(Pending\) #1/, 'the placeholder label is used for the dietary requirements row');
 });
 
@@ -225,7 +225,7 @@ test('a requirement on an unassigned seat is not counted', () => {
     },
   ]);
 
-  assert.match(summary, /Dietary Requirements\t0/);
+  assert.match(summary, /Dietary Requirements,0/);
   assert.doesNotMatch(summary, /stale leftover/);
 });
 
@@ -723,4 +723,82 @@ test('the export shows an invitee by their own name, not the party name', () => 
   ];
   const tsv = buildTableArrangementExport(tables);
   assert.ok(tsv.includes('John'));
+});
+
+// --- Export: contact, declined and removed people (Action 61, finding 3) ----------------
+
+test('the Contact column shows the guest\'s WhatsApp number, also for a named person in their party', () => {
+  const csv = buildTableArrangementExport(
+    [
+      {
+        table_number: 1,
+        table_name: 'Rose',
+        side: 'bride',
+        seats: [
+          { seatNumber: 1, guestId: 'g1', guestName: 'Anula' },
+          { seatNumber: 2, guestId: null, inviteeId: 'i1', inviteeName: 'Kamala', inviteeGuestId: 'g2' },
+          { seatNumber: 3, guestId: 'g3', guestName: 'No Number' },
+        ],
+      },
+    ],
+    { contactsByGuestId: { g1: '+94771111111', g2: '+94772222222' } }
+  );
+  const rows = csv.trimEnd().split('\n');
+
+  assert.match(rows[1], /Anula,\+94771111111/);
+  assert.match(rows[2], /Kamala,\+94772222222/);
+  assert.match(rows[3], /No Number,,/, 'no number on file leaves the cell blank');
+});
+
+test("a person without a number in the map (the other side's) shows no contact", () => {
+  const csv = buildTableArrangementExport([
+    { table_number: 1, side: 'common', seats: [{ seatNumber: 1, guestId: 'other', guestName: 'Other Side' }] },
+  ]);
+  assert.match(csv.trimEnd().split('\n')[1], /Other Side,,/);
+});
+
+test('a seated person who has declined is marked, so the team can fix the seat', () => {
+  const csv = buildTableArrangementExport([
+    {
+      table_number: 1,
+      seats: [{ seatNumber: 1, inviteeId: 'i1', inviteeName: 'Binu', occupantRsvpStatus: 'declined' }],
+    },
+  ]);
+  assert.match(csv, /Binu \(Declined\)/);
+});
+
+test('a seat left over from a removed guest is shown empty and is not counted as assigned', () => {
+  const tables = [
+    {
+      table_number: 1,
+      capacity: 2,
+      seats: [
+        { seatNumber: 1, guestId: 'g1', guestName: 'Removed Person', occupantRemoved: true, dietaryRequirements: 'vegan' },
+        { seatNumber: 2, guestId: 'g2', guestName: 'Still Here' },
+      ],
+    },
+  ];
+  const csv = buildTableArrangementExport(tables);
+  const summary = buildTableArrangementSummary(tables);
+
+  assert.doesNotMatch(csv, /Removed Person/);
+  assert.doesNotMatch(csv, /vegan/);
+  assert.match(csv, /\(Unassigned\)/);
+  assert.match(summary, /Assigned Guests,1/);
+  assert.doesNotMatch(summary, /vegan/);
+});
+
+test('a comma-separated row with a comma in a value keeps its columns', () => {
+  const csv = buildTableArrangementExport([
+    { table_number: 1, seats: [{ seatNumber: 1, guestId: 'g1', guestName: 'Perera, Anula' }] },
+  ]);
+  assert.match(csv, /"Perera, Anula"/);
+});
+
+test('a contact value that is not a plain phone number is still neutralised against formulas', () => {
+  const csv = buildTableArrangementExport(
+    [{ table_number: 1, seats: [{ seatNumber: 1, guestId: 'g1', guestName: 'Anula' }] }],
+    { contactsByGuestId: { g1: '=HYPERLINK("http://evil.test")' } }
+  );
+  assert.match(csv, /'=HYPERLINK/);
 });
