@@ -206,8 +206,10 @@ function fakeExec({ updateRows = [{ id: 'seat-1', seat_number: 1 }], seatExists 
     if (/^SELECT is_deleted, rsvp_status FROM guests/.test(sql)) {
       return { rows: [{ is_deleted: false, rsvp_status: 'accepted' }] };
     }
-    if (/^SELECT i.id, g.is_deleted, g.rsvp_status FROM invitees/.test(sql)) {
-      return { rows: [{ is_deleted: false, rsvp_status: 'accepted' }] };
+    if (/^SELECT i.id, i.approval_status/.test(sql)) {
+      return {
+        rows: [{ approval_status: 'approved', invitee_rsvp_status: 'accepted', is_deleted: false, rsvp_status: 'accepted' }],
+      };
     }
     return { rows: [] };
   };

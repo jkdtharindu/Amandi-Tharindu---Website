@@ -820,3 +820,7 @@ Merged to `main` as PR #46 (`6dca5b4`) after the owner's explicit yes at the HIT
 [2026-10-27] Decision (Action 61, finding 1 only, owner's choice): a seated person who later declines stays on their seat but stops counting in "Table Arranged" and the seat shows a red "Declined since seated" line; nobody is auto-unseated. Seats now carry `occupantRsvpStatus` (invitee's own answer, else the guest's).
 Reason: the TASKS.md entry for Action 61 was stale — the count unit and declined-guest exclusion were already built; only invitees and the on-seat warning were missing. Checked the code before building rather than trusting the entry.
 Verified: 778 tests, lint, type-check. Not click-tested in a browser. No migration.
+
+[2026-10-27] Decision (Action 61, finding 2): seating now also refuses a person who declined on their own (their party may still be accepted) and a person the admin has not approved, in both the in-memory and SQL paths; the assign route answers 404 instead of success when the seat no longer exists.
+Reason: each person in a party RSVPs on their own since 2026-10-25, so the party's answer no longer says whether one person is coming. The TASKS.md entry was again partly stale; the code was checked first.
+Verified: 786 tests, lint, type-check. Not click-tested; SQL path tested through a fake query function only. No migration.

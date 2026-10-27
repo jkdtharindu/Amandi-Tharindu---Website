@@ -748,7 +748,10 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
       // Derive invitee's RSVP status from their guest's status (invitees inherit their party's status)
       const guest = guestStore.find((g) => g.id === invitee.guestId);
       if (!guest || guest.isDeleted) throw new Error(INVITEE_NOT_FOUND);
-      if (guest.rsvpStatus === 'declined') throw new Error(INVITEE_DECLINED);
+      // A person the admin has not approved is not on the list yet (a guest's own request to add someone).
+      if (invitee.approvalStatus && invitee.approvalStatus !== 'approved') throw new Error(INVITEE_NOT_FOUND);
+      // The party may have accepted while this one person declined (each person RSVPs on their own).
+      if (guest.rsvpStatus === 'declined' || invitee.rsvpStatus === 'declined') throw new Error(INVITEE_DECLINED);
 
       if (seatHeldByAnother(found.seat, 'inviteeId', inviteeId)) {
         throw new Error(SEAT_ALREADY_TAKEN);
@@ -774,14 +777,16 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
     // Validate invitee exists and is in a valid state if assigning (not clearing)
     if (inviteeId) {
       const { rows: inviteeRows } = await run(
-        `SELECT i.id, g.is_deleted, g.rsvp_status FROM invitees i
-         JOIN guests g ON g.id = i.guest_id WHERE i.id = $1`,
+        `SELECT i.id, i.approval_status, i.rsvp_status AS invitee_rsvp_status, g.is_deleted, g.rsvp_status
+         FROM invitees i JOIN guests g ON g.id = i.guest_id WHERE i.id = $1`,
         [inviteeId]
       );
       if (!inviteeRows.length) throw new Error(INVITEE_NOT_FOUND);
       const invitee = inviteeRows[0];
-      if (invitee.is_deleted) throw new Error(INVITEE_NOT_FOUND);
-      if (invitee.rsvp_status === 'declined') throw new Error(INVITEE_DECLINED);
+      if (invitee.is_deleted || invitee.approval_status !== 'approved') throw new Error(INVITEE_NOT_FOUND);
+      if (invitee.rsvp_status === 'declined' || invitee.invitee_rsvp_status === 'declined') {
+        throw new Error(INVITEE_DECLINED);
+      }
     }
 
     const { rows } = await run(`
