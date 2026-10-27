@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateGuestInput } from '../src/admin/guestValidation.js';
-import { buildGuestTableView, firstName } from '../src/table-arrangement/guestTableView.js';
+import { buildGuestTableView, buildGuestPeopleLines, firstName } from '../src/table-arrangement/guestTableView.js';
 
 const base = { name: 'Silva Family', relationship: 'Friends' };
 const create = (input) => validateGuestInput({ ...base, ...input }, { requirePeople: true });
@@ -91,4 +91,32 @@ test('a party split over two tables gets one entry per table, in table order', (
 
 test('a guest nobody has seated gets no table entries', () => {
   assert.deepEqual(buildGuestTableView([{ table_number: 1, seats: [seat({})] }], { guestId: 'g-1' }), []);
+});
+
+test('each person shows their answer, and a table only once confirmed and seated', () => {
+  const tables = [
+    {
+      table_number: 1,
+      table_name: 'Diamond',
+      seats: [seat({ inviteeId: 'a' }), seat({ inviteeId: 'b' }), seat({ inviteeId: 'c' }), seat({ inviteeId: 'd' })],
+    },
+  ];
+  const invitees = [
+    { id: 'a', name: 'Kanthi', rsvpStatus: 'accepted', approvalStatus: 'approved' },
+    { id: 'b', name: 'Thusitha', rsvpStatus: 'accepted', approvalStatus: 'approved' },
+    { id: 'c', name: 'Janitha', rsvpStatus: 'pending', approvalStatus: 'approved' },
+    { id: 'd', name: 'Nobody', rsvpStatus: 'accepted', approvalStatus: 'pending_approval' },
+  ];
+  const lines = buildGuestPeopleLines(tables, { guest: { id: 'g-1', name: 'Family' }, invitees });
+  assert.deepEqual(lines, [
+    { name: 'Kanthi', status: 'accepted', table: 'Table 1 (Diamond)' },
+    { name: 'Thusitha', status: 'accepted', table: 'Table 1 (Diamond)' },
+    { name: 'Janitha', status: 'pending', table: null },
+  ]);
+});
+
+test('a party with no named people is one line under the guest\'s own name', () => {
+  const tables = [{ table_number: 4, table_name: null, seats: [seat({ guestId: 'g-1' })] }];
+  const lines = buildGuestPeopleLines(tables, { guest: { id: 'g-1', name: 'Perera', rsvpStatus: 'accepted' } });
+  assert.deepEqual(lines, [{ name: 'Perera', status: 'accepted', table: 'Table 4' }]);
 });

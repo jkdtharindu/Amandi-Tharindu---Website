@@ -48,6 +48,39 @@ export async function getGuestTableView(guestId) {
 }
 
 /**
+ * One line per person in the guest's party, for the invitation page:
+ * "Kanthi  RSVP Confirmed - Table 1 (Diamond)", "Janitha  RSVP Pending".
+ * The table shows only for a person who has confirmed and is seated. People the
+ * admin has not approved (or rejected) are left out. A party with no named
+ * people is one line under the guest's own name and answer.
+ *
+ * `invitees` is what listInviteesForGuest returns; `tables` is listSeatingTables().
+ */
+export function buildGuestPeopleLines(tables, { guest, invitees = [] }) {
+  const tableOf = (match) => {
+    const table = tables.find((candidate) => candidate.seats.some(match));
+    return table ? tableLabelWithNumber(table) : null;
+  };
+  const line = (name, status, table) => ({
+    name,
+    status,
+    table: status === 'accepted' ? table : null,
+  });
+
+  const approved = invitees.filter((person) => person.approvalStatus === 'approved');
+  if (approved.length === 0) {
+    return [line(guest.name, guest.rsvpStatus ?? 'pending', tableOf((seat) => seat.guestId === guest.id))];
+  }
+  return approved.map((person) =>
+    line(person.name, person.rsvpStatus ?? 'pending', tableOf((seat) => seat.inviteeId === person.id))
+  );
+}
+
+export async function getGuestPeopleLines(guest, invitees) {
+  return buildGuestPeopleLines(await listSeatingTables(), { guest, invitees });
+}
+
+/**
  * For each guest (party) id, the labels of the tables where anyone in that party
  * sits, in table-number order and without repeats — what the `[TableNumber]`
  * message placeholder fills with (PRD §20: the table's name, not its number).

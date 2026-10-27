@@ -459,8 +459,7 @@ test("the guest's invitation shows the table's name, falling back to \"Table N\"
   assert.equal(tableLabel({ table_number: 3, table_name: '  ' }), 'Table 3');
 
   const page = readFileSync(join(ROOT, 'app/(public)/invitation/[code]/page.tsx'), 'utf8');
-  assert.match(page, /Table \{view\.tableNumber\}/, 'the page shows the table number in front of each name');
-  assert.match(page, /\{view\.tableName &&/, 'and the table name below it');
+  assert.match(page, /person\.table/, 'the page shows each person\'s table, number first');
 });
 
 test('[TableNumber] fills with the table number and name, for whole parties and named people alike', async () => {

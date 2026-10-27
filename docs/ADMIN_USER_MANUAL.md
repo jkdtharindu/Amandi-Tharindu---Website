@@ -105,7 +105,7 @@ There is no message-tracking checklist on the Dashboard — that idea was replac
 
 If a party has **more than one seat**, you're asked to name each person (a party of one doesn't need this — they're just the one name). This matters because:
 - Each named person can be seated individually at Table Arrangement, rather than the whole party as a block
-- Their invitation shows **"Table N — Name"** for each seated person in their party (see [Table Assignment & Seating](#table-assignment--seating)), then the table's name, and if others are seated at the same table, it adds "With [their names]"
+- Their invitation lists each person in their party as "Name RSVP Confirmed - Table 1 (Diamond)" (or "RSVP Pending" / "RSVP Declined" with no table; see [Table Assignment & Seating](#table-assignment--seating)), and if others are seated at the same table, it adds "— with [their names]"
 
 You can add more named people to an existing party later from the **Edit** screen — type the names, then either use the small **Add these people** button on the spot, or type them and press the main **Save changes** button, which now saves everything together.
 
