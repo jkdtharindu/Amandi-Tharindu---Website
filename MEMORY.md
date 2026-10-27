@@ -816,3 +816,7 @@ Reason: one block per section looks cleaner; the title was the only wording gap 
 Edge case: if the Gallery panel is hidden (no photos), gallery custom sections still show as a separate block so they are never lost.
 Verified: 776 tests, lint and type-check clean; browser check on a throwaway in-memory server (custom sections inside panels, title shows). No migration.
 Merged to `main` as PR #46 (`6dca5b4`) after the owner's explicit yes at the HITL checkpoint; all CI checks were green. The Vercel production deploy was triggered by the merge but its result was not checked from this session.
+
+[2026-10-27] Decision (Action 61, finding 1 only, owner's choice): a seated person who later declines stays on their seat but stops counting in "Table Arranged" and the seat shows a red "Declined since seated" line; nobody is auto-unseated. Seats now carry `occupantRsvpStatus` (invitee's own answer, else the guest's).
+Reason: the TASKS.md entry for Action 61 was stale — the count unit and declined-guest exclusion were already built; only invitees and the on-seat warning were missing. Checked the code before building rather than trusting the entry.
+Verified: 778 tests, lint, type-check. Not click-tested in a browser. No migration.

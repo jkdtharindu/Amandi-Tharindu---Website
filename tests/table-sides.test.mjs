@@ -208,6 +208,16 @@ test('on a Common table each side sees everyone seated there, with the side each
   }
 });
 
+test("a seat carries its occupant's RSVP answer so the screen can flag someone who declined", async () => {
+  await assignInviteeToSeat(lotus.seats[0].id, kamala.id);
+
+  const common = (await listSeatingTablesByParty('bride')).find((table) => table.side === 'common');
+  const seat = common.seats.find((entry) => entry.inviteeId === kamala.id);
+  assert.equal(seat.occupantRsvpStatus, kamala.rsvpStatus);
+  assert.ok(seat.occupantRsvpStatus, 'a seated invitee has an RSVP status');
+  assert.equal(common.seats.find((entry) => !entry.inviteeId).occupantRsvpStatus, null);
+});
+
 test("the unassigned people list is the signed-in side's only", async () => {
   assert.deepEqual((await listUnassignedInviteesByParty('bride')).map((p) => p.name), ['Kamala', 'Nirmala']);
   assert.deepEqual((await listUnassignedInviteesByParty('groom')).map((p) => p.name), ['Rani', 'Sunil']);
