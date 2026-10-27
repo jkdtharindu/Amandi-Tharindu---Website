@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { findGuestById, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
 import { listInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
-import { getGuestTableView } from '@/src/table-arrangement/guestTableView.js';
+import { getGuestTableView, getGuestPeopleLines } from '@/src/table-arrangement/guestTableView.js';
 import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
@@ -62,14 +62,21 @@ export default async function InvitationPage({
   }
 
   // Where the admin has seated this party. Never throws, so a seating hiccup
-  // only hides the table line instead of taking the invitation down. Each of
-  // the guest's seated people is shown as "Table N — Name", with the table's
-  // name below. The side stays admin-only (Action 68).
+  // only hides the table line instead of taking the invitation down. Each person
+  // shows as "Name RSVP Confirmed - Table N (Name)"; the side stays admin-only.
   let tableViews: { tableNumber: number; tableName: string | null; label: string; people: string[]; mates: string[] }[] = [];
   try {
     tableViews = await getGuestTableView(guest.id);
   } catch (error) {
     console.error('getGuestTableView failed, hiding the table line:', error);
+  }
+
+  // One line per person: their RSVP answer and, once confirmed and seated, their table.
+  let peopleLines: { name: string; status: string; table: string | null }[] = [];
+  try {
+    peopleLines = await getGuestPeopleLines(guest, invitees);
+  } catch (error) {
+    console.error('getGuestPeopleLines failed, hiding the people lines:', error);
   }
 
   // getThemeSettings() hits the DB on every request; this must never throw,
@@ -106,28 +113,28 @@ export default async function InvitationPage({
 
           {/* Guest Info Card */}
           <div className="bg-white rounded-3xl shadow-lg p-5 sm:p-8">
-            <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
+            <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${peopleLines.length > 0 ? 'mb-2' : 'mb-6'}`}>
               {t('invitation.heading', { guestName: guest.name })}
             </h1>
 
-            {tableViews.length > 0 && (
-              <div className="mb-6" data-testid="table-assignment">
-                {tableViews.map((view, index) => (
-                  <div key={`${index}-${view.label}`} className="text-gray-700">
-                    {(view.people.length > 0 ? view.people : [guest.name]).map((person, personIndex) => (
-                      <p key={`${personIndex}-${person}`}>
-                        <span className="text-lg font-semibold text-gray-900">Table {view.tableNumber}</span>
-                        <span className="text-lg text-gray-900"> — {person}</span>
-                      </p>
-                    ))}
-                    {view.tableName && (
-                      <p className="text-sm text-gray-600">{view.tableName}</p>
-                    )}
-                    {view.mates.length > 0 && (
-                      <p className="text-sm text-gray-600">With {view.mates.join(', ')}</p>
-                    )}
-                  </div>
+            {peopleLines.length > 0 && (
+              <div className="mb-6 space-y-1" data-testid="table-assignment">
+                {peopleLines.map((person, index) => (
+                  <p key={`${index}-${person.name}`} className="text-lg text-gray-900">
+                    <span className="font-semibold">{person.name}</span>{' '}
+                    <strong className="text-base">
+                      {person.status === 'accepted' ? 'RSVP Confirmed' : person.status === 'declined' ? 'RSVP Declined' : 'RSVP Pending'}
+                    </strong>
+                    {person.table && <span> - {person.table}</span>}
+                  </p>
                 ))}
+                {tableViews.map((view, index) =>
+                  view.mates.length > 0 ? (
+                    <p key={`${index}-${view.label}`} className="text-sm text-gray-600">
+                      Table {view.tableNumber}{view.tableName ? ` (${view.tableName})` : ''} — with {view.mates.join(', ')}
+                    </p>
+                  ) : null
+                )}
               </div>
             )}
 
