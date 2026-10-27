@@ -829,3 +829,9 @@ Verified: 786 tests, lint, type-check. Not click-tested; SQL path tested through
 Reason: Excel warns when a file's name and contents disagree; a real .xlsx needs a new dependency the owner did not want.
 Caught while testing: the formula-injection guard put a stray apostrophe before every `+94…` number, so phone numbers are exempted when they are plain digits (anything else is still guarded).
 Verified: 792 tests, lint, type-check. Not opened in real Excel. Legacy `src/server.js` export route got the same file name and type. No migration.
+
+[2026-10-27] Summary (Sonnet 5, a small guest-facing change; no migration): the owner noticed the table line on the invitation showed only the table's name and asked for the number first, e.g. "Table 1 - Diamond".
+**Shipped:** `tableNumberedLabel()` in `src/table-arrangement/tableSides.js`, used by `guestTableView.js` for the invitation page and the `[TableNumber]` message text. Tests in `tests/table-sides.test.mjs` updated to the new text; one line in `UBIQUITOUS_LANGUAGE.md` corrected (it said guests never see the number). Pushed as `91a7a8d` on `claude/confident-brown-bmsgbc`.
+**Deliberately not done:** the admin CSV export and admin screens keep the old label. No pull request opened.
+**What the owner must pick up:** decide whether to merge the branch; after it deploys, open one guest invitation and one WhatsApp preview to see the new wording. Decide if the CSV export should match.
+**Verification at the end:** 792 tests pass, build passes (with throwaway env values), lint clean on changed files, `npm run check-docs` passes.
