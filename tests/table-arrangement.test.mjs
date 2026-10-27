@@ -802,3 +802,50 @@ test('a contact value that is not a plain phone number is still neutralised agai
   );
   assert.match(csv, /'=HYPERLINK/);
 });
+
+// --- Small fixes (Action 61, finding 4) -------------------------------------------------
+
+import { deleteTableWarning } from '../src/table-arrangement/deleteTableWarning.js';
+
+test('the delete warning says how many people are seated and what is lost', () => {
+  assert.match(deleteTableWarning({ side: 'bride', seats: [{}, {}] }, 'Rose'), /no one seated/);
+
+  const warning = deleteTableWarning(
+    {
+      side: 'bride',
+      seats: [
+        { guestId: 'g1', specialNotes: 'near the door' },
+        { inviteeId: 'i1' },
+        { probableAttendeeId: 'p1', dietaryRequirements: 'vegan' },
+        { guestId: null },
+      ],
+    },
+    'Rose'
+  );
+  assert.match(warning, /3 people are seated here/);
+  assert.match(warning, /2 seats will be lost for good/);
+
+  assert.match(deleteTableWarning({ side: 'bride', seats: [{ guestId: 'g1' }] }, 'Rose'), /1 person is seated here/);
+  assert.doesNotMatch(deleteTableWarning({ side: 'bride', seats: [{ guestId: 'g1' }] }, 'Rose'), /lost/);
+  assert.equal(deleteTableWarning({ side: 'common', seats: [] }, 'Lotus'), 'Delete the Common table "Lotus"?');
+});
+
+test('the probable estimate must be a real number: blank, missing or huge values are refused', async () => {
+  for (const bad of ['', null, undefined, '  ', true, 501, 1e9]) {
+    await assert.rejects(() => setProbableAttendeeBuffer('declined', bad), /non-negative whole number/, String(bad));
+  }
+  await setProbableAttendeeBuffer('declined', 500);
+  const [declined] = await getProbableAttendanceSummary();
+  assert.equal(declined.bufferCount, 500);
+  await setProbableAttendeeBuffer('declined', '3');
+  assert.equal((await getProbableAttendanceSummary())[0].bufferCount, 3, 'a numeric string still works');
+});
+
+test('the seating list and spreadsheet routes answer a clean 500 instead of throwing', async () => {
+  const { readFileSync } = await import('node:fs');
+  for (const file of ['app/api/admin/table-arrangement/route.ts', 'app/api/admin/table-arrangement/export/route.ts']) {
+    const get = readFileSync(file, 'utf8').split(/export async function POST/)[0];
+    assert.match(get, /try \{/, `${file} GET has a try block`);
+    assert.match(get, /status: 500/, `${file} GET answers 500 on a fault`);
+  }
+});
