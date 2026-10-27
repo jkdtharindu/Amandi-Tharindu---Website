@@ -33,6 +33,7 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Definition: The current state of a Guest’s RSVP: pending, accepted, or declined.
 - Do not call it: `state`, `status`, `outcome`
 - Example: `guests.rsvp_status` is updated when a Guest changes their reply.
+- Note (2026-10-25): for a party with named Invitees each person has their own status, and the party's is derived from theirs (see `deriveGuestRsvpStatus`). A person nobody has answered for shows as "Awaiting response"; a saved one shows as "Confirmed". Each person can answer on their own, at a different time.
 
 ### RSVPResponse
 - Canonical name: `RSVPResponse`
