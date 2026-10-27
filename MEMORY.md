@@ -833,3 +833,13 @@ Verified: 792 tests, lint, type-check. Not opened in real Excel. Legacy `src/ser
 [2026-10-27] Decision (Action 61, finding 4, small fixes, built with sensible defaults, no owner question): the probable-attendance estimate is capped at 500 and a blank box is refused instead of saving 0; the delete-table confirm says how many people sit there and how many seats lose their notes; the seating list and spreadsheet routes return a clean 500 on a fault. The 500 cap is my choice, easy to change (`MAX_BUFFER_COUNT`).
 Reason: four of the six listed items were already fixed by other work, so only these three remained. Checked the code first.
 Verified: 795 tests, lint, type-check. Not click-tested. No migration. Action 61 closed.
+
+[2026-10-27] Mistake: pushed finished work to a newly invented branch (`claude/table-declined-warning`) instead of the session's designated branch, `claude/determined-wright-crkj8i`.
+Reason: I created a topic branch out of habit before reading the branch rule. The remote refused to delete it afterwards, so an extra branch with the same commit stays on GitHub.
+Correction: moved the commit to the designated branch and opened the PR from there; the owner can delete the extra branch on GitHub. Check the session's designated branch before the first push.
+
+[2026-10-27] Mistake: TASKS.md's Action 61 and Action 88 entries were partly stale (Action 61's count unit and declined-guest rules were already built; Action 88 said "not pushed" after PR #40 merged).
+Reason: entries describing open work were never revisited when other sessions finished parts of it.
+Correction: read the code before building each Action 61 finding, and corrected both entries. Lesson: for any "open, not started" entry older than a few weeks, check the code first.
+
+[2026-10-27] Last session summary: shipped and merged Action 82's leftovers (custom sections inside panels, editable page title; PR #46) and all of Action 61 (PRs #49-#52), each with the owner's explicit HITL "yes" before merging; three docs-only PRs (#47, #48, plus the notes) kept TASKS.md and MEMORY.md accurate. 795 tests, lint, type-check, check-docs all pass. Deliberately not done: a real .xlsx (owner chose CSV), editing the table line / FAQ / error wording, and Actions 70/71. The owner must pick up: confirm the Vercel production deploys are Ready; click-test the changed admin screens and open the CSV in Excel; confirm migration 033 is applied; Actions 82 (street addresses), 83 (print the QR), 88 (preview photos).
