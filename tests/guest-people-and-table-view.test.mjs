@@ -60,6 +60,7 @@ test('the table view lists the table number and the first names of the other peo
   const [view] = buildGuestTableView(tables, { guestId: 'g-1', inviteeIds: ['mine-1'] });
   assert.equal(view.tableNumber, 5);
   assert.deepEqual(view.mates, ['Nimal', 'Fernando Family']);
+  assert.deepEqual(view.people, ['Kamala']);
 });
 
 test('the guest\'s own party is not listed back to them', () => {

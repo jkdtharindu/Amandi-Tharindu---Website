@@ -13,9 +13,9 @@ export function firstName(fullName) {
  * Anonymous probable-attendance placeholders are left out.
  *
  * `label` is the table's name, or "Table N" for a table created before names
- * were required (Action 68). The number stays admin-facing: guests are shown
- * `label`, never `tableNumber`, which is kept only to order the lines. A table's
- * side (bride, groom or Common) is never part of what a guest sees.
+ * were required (Action 68). `tableNumber` is now shown to the guest too, in
+ * front of each of their own seated people (`people`). A table's side (bride,
+ * groom or Common) is never part of what a guest sees.
  *
  * `tables` is the shape listSeatingTables returns; `inviteeIds` are the guest's
  * own people, so their party is never listed back to them.
@@ -31,6 +31,10 @@ export function buildGuestTableView(tables, { guestId, inviteeIds = [] }) {
       tableNumber: table.table_number,
       tableName: table.table_name || null,
       label: tableLabel(table),
+      people: table.seats
+        .filter(isOwn)
+        .map((seat) => (seat.inviteeName ? firstName(seat.inviteeName) : seat.guestName))
+        .filter(Boolean),
       mates: table.seats
         .filter((seat) => !isOwn(seat))
         .map((seat) => (seat.inviteeName ? firstName(seat.inviteeName) : seat.guestName))
