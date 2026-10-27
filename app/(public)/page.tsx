@@ -39,7 +39,8 @@ async function loadThemeSettings() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await loadThemeSettings();
-  return { title: `${settings.coupleNames} — Home` };
+  const t = createT(await getSiteTextSafe());
+  return { title: `${settings.coupleNames} — ${t("meta.homeTitleSuffix")}` };
 }
 
 /** Ports the prototype's `GET /home` route from src/server.js. */
@@ -189,8 +190,8 @@ export default async function HomePage() {
             </div>
           ))}
         </div>
+        <CustomSections sections={ourStorySections} inPanel />
       </section>
-      <CustomSections sections={ourStorySections} />
         </>
       )}
       {hasCoupleProfiles && (
@@ -306,8 +307,8 @@ export default async function HomePage() {
           </div>
         ))}
         </div>
+        <CustomSections sections={celebrationSections} inPanel />
       </section>
-      <CustomSections sections={celebrationSections} />
         </>
       )}
       {hasGalleryPhotos && (
@@ -330,10 +331,11 @@ export default async function HomePage() {
               </div>
             ))}
           </div>
+          <CustomSections sections={gallerySections} inPanel />
           </section>
         </>
       )}
-      <CustomSections sections={gallerySections} />
+      {!hasGalleryPhotos && <CustomSections sections={gallerySections} />}
       {hasFaq && (
         <section id="faq" className="hero-panel hero-panel--light">
           <span className="hero-flag">{t("faq.flag")}</span>
@@ -353,8 +355,8 @@ export default async function HomePage() {
             {t("wishes.button")}
           </Link>
         </div>
+        <CustomSections sections={wishesSections} inPanel />
       </section>
-      <CustomSections sections={wishesSections} />
         </>
       )}
       <CustomSections sections={sections} />

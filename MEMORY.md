@@ -810,3 +810,8 @@ Sequencing (HITL): run `npm run migrate` (034) BEFORE deploying; saving a dietar
 
 [2026-10-25] Decision (owner request): removed the optional dietary-needs box from the RSVP form, and with it the `dietaryNotes` field in the API, the repo and the page's draft logic, the wording keys `rsvp.dietary*`, and migration 034 (never applied to the live database, so nothing to undo; if it was already run by hand, the empty `invitees.dietary_notes` column is harmless and unused). Supersedes the dietary part of the 2026-10-25 per-person RSVP entry above; everything else in it stands, and no migration is needed for that feature now. The Table Arrangement seat fields with similar names are an older, separate feature and were not touched.
 Verified: tests, lint, type-check and build clean.
+
+[2026-10-27] Decision (Action 82 leftovers, owner chose each): custom sections an admin adds now render inside their homepage panel (`CustomSections` has an `inPanel` mode) instead of as separate blocks below it; the page title suffix ("Home") is editable as site wording `meta.homeTitleSuffix`; admin screens were reviewed at 375px with no real overflow. Other wording gaps (table line, FAQ/custom content, error messages) stay fixed text by owner choice.
+Reason: one block per section looks cleaner; the title was the only wording gap the owner cared about.
+Edge case: if the Gallery panel is hidden (no photos), gallery custom sections still show as a separate block so they are never lost.
+Verified: 776 tests, lint and type-check clean; browser check on a throwaway in-memory server (custom sections inside panels, title shows). No migration.

@@ -12,6 +12,7 @@
  */
 
 export const SITE_TEXT_GROUPS = [
+  'Browser tab',
   'Menu',
   'Home — top banner',
   'Home — countdown',
@@ -38,6 +39,9 @@ const ACCEPTED_TAGS = {
 /** @type {[string, string, string, string, { multiline?: boolean, tags?: string[] }?][]} */
 // [key, group, label, default text, options]
 const ROWS = [
+  // Browser tab
+  ['meta.homeTitleSuffix', 'Browser tab', 'Home page title, after the couple names', 'Home'],
+
   // Menu
   ['menu.home', 'Menu', 'Menu: Home', 'Home'],
   ['menu.ourStory', 'Menu', 'Menu: Our Story', 'Our Story'],
