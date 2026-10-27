@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/components/Toast';
 import { seatOccupantLabel } from '@/src/table-arrangement/seatLabel.js';
 import { sideLabel, tableLabel } from '@/src/table-arrangement/tableSides.js';
+import { deleteTableWarning } from '@/src/table-arrangement/deleteTableWarning.js';
 
 export type Party = 'bride' | 'groom';
 export type TableSide = Party | 'common';
@@ -191,11 +192,7 @@ export default function TableArrangement({
   }
 
   async function handleDeleteTable(table: SeatingTable) {
-    const confirmed = window.confirm(
-      table.side === 'common'
-        ? `Delete the Common table "${tableLabel(table)}"?`
-        : `Delete "${tableLabel(table)}"? Seated guests will become unassigned.`
-    );
+    const confirmed = window.confirm(deleteTableWarning(table, tableLabel(table)));
     if (!confirmed) return;
 
     setBusy(true);
@@ -308,6 +305,11 @@ export default function TableArrangement({
   }
 
   async function handleSetBuffer(bucket: ProbableBucket, count: number) {
+    // A blank box reads as 0 and a huge number fails in the database with a vague error, so check here first.
+    if (!Number.isInteger(count) || count < 0 || count > 500) {
+      showToast({ kind: 'error', text: 'Enter a whole number from 0 to 500.' });
+      return;
+    }
     setBusy(true);
 
     try {
@@ -658,6 +660,7 @@ function ProbableAttendancePanel({
                 id={`buffer-${row.bucket}`}
                 type="number"
                 min={0}
+                max={500}
                 value={drafts[row.bucket]}
                 onChange={(e) => setDrafts({ ...drafts, [row.bucket]: e.target.value })}
                 className="w-20 px-2 py-1 rounded-md border border-slate-300 text-xs"
@@ -665,7 +668,7 @@ function ProbableAttendancePanel({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => onSetBuffer(row.bucket, Number(drafts[row.bucket]))}
+                onClick={() => onSetBuffer(row.bucket, drafts[row.bucket].trim() === '' ? NaN : Number(drafts[row.bucket]))}
                 className="px-2 py-1 rounded-md bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
               >
                 Save

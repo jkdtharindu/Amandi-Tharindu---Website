@@ -19,7 +19,9 @@ const PROBABLE_ALREADY_SEATED = 'This probable attendee is already assigned to a
 const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat';
 const SEAT_ALREADY_TAKEN = 'That seat already has someone on it.';
 const BUFFER_BELOW_SEATED = 'Cannot reduce below the number already seated — unassign them first';
-const INVALID_BUFFER_COUNT = 'Count must be a non-negative whole number';
+// A wedding is nowhere near this size; the cap just stops a typo creating thousands of placeholder rows.
+const MAX_BUFFER_COUNT = 500;
+const INVALID_BUFFER_COUNT = `Count must be a non-negative whole number, at most ${MAX_BUFFER_COUNT}`;
 const GUEST_NOT_FOUND = 'That guest no longer exists (may have been removed).';
 const GUEST_DECLINED = 'Cannot seat a guest who has declined their invitation.';
 const GUEST_DELETED = 'Cannot seat a deleted guest — they have been removed.';
@@ -1140,8 +1142,10 @@ export async function setProbableAttendeeBuffer(bucket, count) {
   if (!PROBABLE_BUCKETS.includes(bucket)) {
     throw new Error(`Unknown RSVP bucket: ${bucket}`);
   }
-  const targetCount = Number(count);
-  if (!Number.isInteger(targetCount) || targetCount < 0) {
+  // Number('') and Number(null) are 0, so a blank box would silently save 0 — only a real number or numeric text counts.
+  const isNumeric = typeof count === 'number' || (typeof count === 'string' && count.trim() !== '');
+  const targetCount = isNumeric ? Number(count) : NaN;
+  if (!Number.isInteger(targetCount) || targetCount < 0 || targetCount > MAX_BUFFER_COUNT) {
     throw new Error(INVALID_BUFFER_COUNT);
   }
 
