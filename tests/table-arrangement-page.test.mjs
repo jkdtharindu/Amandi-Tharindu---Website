@@ -258,7 +258,7 @@ test('the export downloads the seating plan for the events team', async () => {
     assert.equal(res.statusCode, 200);
     assert.match(res.text, /Anula Gunasekara/);
     assert.match(res.text, /vegetarian/);
-    assert.match(res.text, /Total Tables\t1/);
+    assert.match(res.text, /Total Tables,1/);
   });
 });
 

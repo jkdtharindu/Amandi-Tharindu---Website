@@ -490,9 +490,9 @@ test("the spreadsheet shows each table's side and name", async () => {
   const tsv = buildTableArrangementExport(await listSeatingTablesByParty('bride'));
   const [header, ...rows] = tsv.trimEnd().split('\n');
 
-  assert.deepEqual(header.split('\t').slice(0, 4), ['Table', 'Table Name', 'Side', 'Seat']);
-  assert.ok(rows.some((row) => row.startsWith('1\tRose\tBride\t1\t')));
-  assert.ok(rows.some((row) => row.startsWith('1\tLotus\tCommon\t1\tKamala')));
+  assert.deepEqual(header.split(',').slice(0, 4), ['Table', 'Table Name', 'Side', 'Seat']);
+  assert.ok(rows.some((row) => row.startsWith('1,Rose,Bride,1,')));
+  assert.ok(rows.some((row) => row.startsWith('1,Lotus,Common,1,Kamala')));
   assert.ok(!rows.some((row) => row.includes('Jasmine')), "the groom's own tables are not in the bride's export");
 });
 

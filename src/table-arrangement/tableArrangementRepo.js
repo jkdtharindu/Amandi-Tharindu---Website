@@ -119,6 +119,7 @@ const SEAT_JSON = `
         'inviteeGuestId', i.guest_id,
         'occupantSide', COALESCE(g.assigned_to_party, ig.assigned_to_party),
         'occupantRsvpStatus', COALESCE(i.rsvp_status, g.rsvp_status),
+        'occupantRemoved', COALESCE(g.is_deleted, ig.is_deleted, false),
         'dietaryRequirements', ts.dietary_requirements,
         'specialNotes', ts.special_notes
       ) ORDER BY ts.seat_number
@@ -180,6 +181,12 @@ function occupantRsvpStatusFor(seat) {
   return guest?.rsvpStatus ?? null;
 }
 
+/** True when the guest (or the invitee's guest) on an in-memory seat has been removed. */
+function occupantRemovedFor(seat) {
+  const guestId = seat.guestId || invitees.find((entry) => entry.id === seat.inviteeId)?.guestId;
+  return Boolean(guestId && guestStore.find((entry) => entry.id === guestId)?.isDeleted);
+}
+
 function probableAttendeeLabel(bucket, slotIndex) {
   const capitalized = bucket.charAt(0).toUpperCase() + bucket.slice(1);
   return `Probable (${capitalized}) #${slotIndex}`;
@@ -228,6 +235,7 @@ function hydrateMemoryTable(table) {
       inviteeGuestId: invitees.find((entry) => entry.id === seat.inviteeId)?.guestId ?? null,
       occupantSide: occupantSideFor(seat),
       occupantRsvpStatus: occupantRsvpStatusFor(seat),
+      occupantRemoved: occupantRemovedFor(seat),
       dietaryRequirements: seat.dietaryRequirements,
       specialNotes: seat.specialNotes,
     })),

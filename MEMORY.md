@@ -824,3 +824,8 @@ Verified: 778 tests, lint, type-check. Not click-tested in a browser. No migrati
 [2026-10-27] Decision (Action 61, finding 2): seating now also refuses a person who declined on their own (their party may still be accepted) and a person the admin has not approved, in both the in-memory and SQL paths; the assign route answers 404 instead of success when the seat no longer exists.
 Reason: each person in a party RSVPs on their own since 2026-10-25, so the party's answer no longer says whether one person is coming. The TASKS.md entry was again partly stale; the code was checked first.
 Verified: 786 tests, lint, type-check. Not click-tested; SQL path tested through a fake query function only. No migration.
+
+[2026-10-27] Decision (Action 61, finding 3, owner's choices): the Table Arrangement spreadsheet download is a plain CSV (`table-arrangements.csv`), not tab text named `.xlsx`; no Excel library was added. Contact = the guest's WhatsApp number, built from the signed-in side's own guests only so the other side's people never show a number. Removed guests' leftover seats show as empty; declined people stay listed with "(Declined)".
+Reason: Excel warns when a file's name and contents disagree; a real .xlsx needs a new dependency the owner did not want.
+Caught while testing: the formula-injection guard put a stray apostrophe before every `+94…` number, so phone numbers are exempted when they are plain digits (anything else is still guarded).
+Verified: 792 tests, lint, type-check. Not opened in real Excel. Legacy `src/server.js` export route got the same file name and type. No migration.

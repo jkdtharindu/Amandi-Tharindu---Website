@@ -1,8 +1,10 @@
 /**
- * Table arrangement Excel export for event management team.
+ * Table arrangement spreadsheet export for the event management team.
  *
- * Generates tab-separated values with proper escaping for Excel compatibility.
- * To enable proper .xlsx format, install 'exceljs' library and uncomment the section below.
+ * Generates comma-separated values (a .csv file), which Excel and Google Sheets
+ * open directly. It used to be tab-separated text named .xlsx, which Excel warns
+ * about (Action 61, finding 3). The route adds a byte-order mark so Excel reads
+ * the "—" and any Sinhala/Tamil names as UTF-8.
  *
  * Each row carries the table's number, name and side (Bride, Groom or Common —
  * Action 68). Numbers restart on each side, so "Table 1" alone no longer names
@@ -21,32 +23,66 @@ function escapeForExcel(value) {
 }
 
 /**
- * Escape TSV field (tab-separated).
+ * Escape one CSV field: wrap it in quotes when it holds a comma, quote or line break.
  */
-function escapeTsvValue(raw) {
-  const value = escapeForExcel(String(raw ?? ''));
-  return value.includes('\t') || value.includes('\n') || value.includes('"')
-    ? `"${value.replace(/"/g, '""')}"`
-    : value;
+function escapeCsvValue(raw) {
+  // A phone number such as +94771234567 starts with "+" but is plain digits, so it needs no
+  // formula guard (which would print a stray apostrophe in front of it). Excel shows it without the "+".
+  const isPhone = raw && typeof raw === 'object' && /^\+\d[\d ]{5,19}$/.test(raw.phone);
+  const value = isPhone ? raw.phone : escapeForExcel(String(raw?.phone ?? raw ?? ''));
+  return /[",\n\r\t]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-function toTsvRow(values) {
-  return values.map(escapeTsvValue).join('\t');
+function toCsvRow(values) {
+  return values.map(escapeCsvValue).join(',');
 }
 
 /**
- * Generate a TSV file (tab-separated values) that Excel can open as .xlsx.
- * This format is fully compatible with Excel, Google Sheets, and other spreadsheet apps.
+ * A seat whose guest has since been removed is really free: show it as empty and
+ * drop its notes, so a leftover seat is neither listed nor counted as assigned.
  */
-export function buildTableArrangementExport(tables = []) {
+function withoutRemovedOccupants(tables) {
+  return tables.map((table) => ({
+    ...table,
+    seats: (Array.isArray(table.seats) ? table.seats : []).map((seat) =>
+      seat.occupantRemoved
+        ? {
+            ...seat,
+            guestId: null,
+            guestName: null,
+            inviteeId: null,
+            inviteeName: null,
+            probableAttendeeId: null,
+            probableAttendeeLabel: null,
+            dietaryRequirements: null,
+            specialNotes: null,
+          }
+        : seat
+    ),
+  }));
+}
+
+function occupantName(seat) {
+  const name = seat.guestName || seat.inviteeName || seat.probableAttendeeLabel;
+  return name && seat.occupantRsvpStatus === 'declined' ? `${name} (Declined)` : name;
+}
+
+/**
+ * Generate the per-seat CSV.
+ *
+ * `contactsByGuestId` maps a guest id to their WhatsApp number. The caller builds it
+ * from the signed-in side's own guests only, so the other side's people at a Common
+ * table show no number.
+ */
+export function buildTableArrangementExport(tables = [], { contactsByGuestId = {} } = {}) {
   const rows = [];
 
-  tables.forEach((table) => {
+  withoutRemovedOccupants(tables).forEach((table) => {
     const seats = Array.isArray(table.seats) ? table.seats : [];
 
     if (seats.length === 0) {
       // Show empty table
-      rows.push(toTsvRow([
+      rows.push(toCsvRow([
         table.table_number || '',
         table.table_name || '',
         sideLabel(table.side),
@@ -58,13 +94,13 @@ export function buildTableArrangementExport(tables = []) {
       ]));
     } else {
       seats.forEach((seat) => {
-        rows.push(toTsvRow([
+        rows.push(toCsvRow([
           table.table_number || '',
           table.table_name || '',
           sideLabel(table.side),
           seat.seatNumber || '',
-          seat.guestName || seat.inviteeName || seat.probableAttendeeLabel || '(Unassigned)',
-          seat.guestName ? '' : '',
+          occupantName(seat) || '(Unassigned)',
+          { phone: contactsByGuestId[seat.guestId || seat.inviteeGuestId] || '' },
           seat.dietaryRequirements || '',
           seat.specialNotes || '',
         ]));
@@ -72,7 +108,7 @@ export function buildTableArrangementExport(tables = []) {
     }
   });
 
-  return [toTsvRow(COLUMNS), ...rows].join('\n') + '\n';
+  return [toCsvRow(COLUMNS), ...rows].join('\n') + '\n';
 }
 
 /**
@@ -82,7 +118,8 @@ export function buildTableArrangementExport(tables = []) {
  * - Total unassigned seats
  * - Dietary requirements count
  */
-export function buildTableArrangementSummary(tables = []) {
+export function buildTableArrangementSummary(rawTables = []) {
+  const tables = withoutRemovedOccupants(rawTables);
   let totalCapacity = 0;
   let totalAssigned = 0;
   let dietaryRequirements = [];
@@ -98,14 +135,14 @@ export function buildTableArrangementSummary(tables = []) {
         if (seat.dietaryRequirements) {
           dietaryRequirements.push({
             table: tableLabel(table),
-            guest: seat.guestName || seat.inviteeName || seat.probableAttendeeLabel,
+            guest: occupantName(seat),
             requirement: seat.dietaryRequirements,
           });
         }
         if (seat.specialNotes) {
           specialNotes.push({
             table: tableLabel(table),
-            guest: seat.guestName || seat.inviteeName || seat.probableAttendeeLabel,
+            guest: occupantName(seat),
             note: seat.specialNotes,
           });
         }
@@ -114,21 +151,21 @@ export function buildTableArrangementSummary(tables = []) {
   });
 
   const rows = [];
-  rows.push(toTsvRow(['SEATING ARRANGEMENT SUMMARY']));
+  rows.push(toCsvRow(['SEATING ARRANGEMENT SUMMARY']));
   rows.push('');
-  rows.push(toTsvRow(['Metric', 'Count']));
-  rows.push(toTsvRow(['Total Tables', String(tables.length)]));
-  rows.push(toTsvRow(['Total Capacity', String(totalCapacity)]));
-  rows.push(toTsvRow(['Assigned Guests', String(totalAssigned)]));
-  rows.push(toTsvRow(['Unassigned Seats', String(totalCapacity - totalAssigned)]));
-  rows.push(toTsvRow(['Dietary Requirements', String(dietaryRequirements.length)]));
+  rows.push(toCsvRow(['Metric', 'Count']));
+  rows.push(toCsvRow(['Total Tables', String(tables.length)]));
+  rows.push(toCsvRow(['Total Capacity', String(totalCapacity)]));
+  rows.push(toCsvRow(['Assigned Guests', String(totalAssigned)]));
+  rows.push(toCsvRow(['Unassigned Seats', String(totalCapacity - totalAssigned)]));
+  rows.push(toCsvRow(['Dietary Requirements', String(dietaryRequirements.length)]));
 
   if (dietaryRequirements.length > 0) {
     rows.push('');
-    rows.push(toTsvRow(['DIETARY REQUIREMENTS']));
-    rows.push(toTsvRow(['Table', 'Guest', 'Requirement']));
+    rows.push(toCsvRow(['DIETARY REQUIREMENTS']));
+    rows.push(toCsvRow(['Table', 'Guest', 'Requirement']));
     dietaryRequirements.forEach((item) => {
-      rows.push(toTsvRow([
+      rows.push(toCsvRow([
         String(item.table),
         item.guest,
         item.requirement,
@@ -138,10 +175,10 @@ export function buildTableArrangementSummary(tables = []) {
 
   if (specialNotes.length > 0) {
     rows.push('');
-    rows.push(toTsvRow(['SPECIAL NOTES']));
-    rows.push(toTsvRow(['Table', 'Guest', 'Note']));
+    rows.push(toCsvRow(['SPECIAL NOTES']));
+    rows.push(toCsvRow(['Table', 'Guest', 'Note']));
     specialNotes.forEach((item) => {
-      rows.push(toTsvRow([
+      rows.push(toCsvRow([
         String(item.table),
         item.guest,
         item.note,
