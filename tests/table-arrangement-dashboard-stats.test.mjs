@@ -111,3 +111,23 @@ test('seating someone moves them from the balance into arranged', () => {
   assert.deepEqual([before.tableArranged, before.balanceToArrange], [0, 1]);
   assert.deepEqual([after.tableArranged, after.balanceToArrange], [1, 0]);
 });
+
+test('a seated invitee who has since declined stops counting as arranged', () => {
+  const stats = buildDashboardStats({
+    tables: [
+      {
+        seats: [
+          { inviteeId: 'inv-1', occupantRsvpStatus: 'accepted' },
+          { inviteeId: 'inv-2', occupantRsvpStatus: 'declined' },
+          { inviteeId: 'inv-3' },
+        ],
+      },
+    ],
+    assignedGuests: [],
+    unassignedGuests: [],
+    unassignedInvitees: [],
+    rsvpStats: RSVP,
+  });
+
+  assert.equal(stats.tableArranged, 2);
+});

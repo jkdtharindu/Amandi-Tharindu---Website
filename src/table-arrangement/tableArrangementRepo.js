@@ -118,6 +118,7 @@ const SEAT_JSON = `
         'inviteeGuestName', ig.name,
         'inviteeGuestId', i.guest_id,
         'occupantSide', COALESCE(g.assigned_to_party, ig.assigned_to_party),
+        'occupantRsvpStatus', COALESCE(i.rsvp_status, g.rsvp_status),
         'dietaryRequirements', ts.dietary_requirements,
         'specialNotes', ts.special_notes
       ) ORDER BY ts.seat_number
@@ -171,6 +172,14 @@ function occupantSideFor(seat) {
   return guest ? sideOf(guest) : null;
 }
 
+/** The RSVP answer of whoever sits on an in-memory seat, null for a placeholder/empty seat. */
+function occupantRsvpStatusFor(seat) {
+  const invitee = seat.inviteeId ? invitees.find((entry) => entry.id === seat.inviteeId) : null;
+  if (invitee?.rsvpStatus) return invitee.rsvpStatus;
+  const guest = seat.guestId ? guestStore.find((entry) => entry.id === seat.guestId) : null;
+  return guest?.rsvpStatus ?? null;
+}
+
 function probableAttendeeLabel(bucket, slotIndex) {
   const capitalized = bucket.charAt(0).toUpperCase() + bucket.slice(1);
   return `Probable (${capitalized}) #${slotIndex}`;
@@ -218,6 +227,7 @@ function hydrateMemoryTable(table) {
       inviteeGuestName: inviteeGuestNameFor(seat.inviteeId),
       inviteeGuestId: invitees.find((entry) => entry.id === seat.inviteeId)?.guestId ?? null,
       occupantSide: occupantSideFor(seat),
+      occupantRsvpStatus: occupantRsvpStatusFor(seat),
       dietaryRequirements: seat.dietaryRequirements,
       specialNotes: seat.specialNotes,
     })),

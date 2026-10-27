@@ -20,6 +20,8 @@ type Seat = {
   inviteeGuestName: string | null;
   /** The side of the guest or invitee on the seat; null for a placeholder or an empty seat. */
   occupantSide: Party | null;
+  /** The RSVP answer of the guest or invitee on the seat; null for a placeholder or an empty seat. */
+  occupantRsvpStatus?: string | null;
 };
 
 export type SeatingTable = {
@@ -904,6 +906,11 @@ function SeatCard({
           {seatOccupantLabel(seat)}
           {!removable && seat.occupantSide && (
             <span className="block text-xs font-normal text-slate-500">{sideLabel(seat.occupantSide)}&apos;s side</span>
+          )}
+          {seat.occupantRsvpStatus === 'declined' && (
+            <span className="block text-xs font-semibold text-red-700">
+              Declined since seated{removable ? ' — remove them from this seat' : ''}
+            </span>
           )}
         </p>
       ) : (
