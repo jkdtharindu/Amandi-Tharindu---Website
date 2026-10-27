@@ -830,6 +830,13 @@ Reason: Excel warns when a file's name and contents disagree; a real .xlsx needs
 Caught while testing: the formula-injection guard put a stray apostrophe before every `+94…` number, so phone numbers are exempted when they are plain digits (anything else is still guarded).
 Verified: 792 tests, lint, type-check. Not opened in real Excel. Legacy `src/server.js` export route got the same file name and type. No migration.
 
+[2026-10-27] Decision (Action 89, owner's request): guests now see the table number. This reverses the Action 68 / PRD §20 rule that guests see only the table's name. The invitation shows "Table N — Name" per seated person; the `[TableNumber]` placeholder fills with "Table 5 (Rose)".
+Reason: the owner asked for it directly, so the old rule no longer holds. Side (bride, groom, Common) stays hidden from guests.
+Alternative considered: number only, no name. Rejected because named tables would lose their name, which guests were already using.
+Verified: 792 tests, docs check, lint on changed files. Build could not finish in this container (no `DATABASE_URL`). Not browser-tested. No migration.
+
+Last session summary (2026-10-27, Action 89): shipped the guest-facing table number (invitation page and message placeholder), pushed to `claude/intelligent-bell-vxdzvo` as `a39e028` and `7ddaeb1`. Not done: merge to `main`, a browser check, a real build. Owner picks up: review and merge; decide whether PRD §20 should be reworded.
+
 [2026-10-27] Decision (Action 61, finding 4, small fixes, built with sensible defaults, no owner question): the probable-attendance estimate is capped at 500 and a blank box is refused instead of saving 0; the delete-table confirm says how many people sit there and how many seats lose their notes; the seating list and spreadsheet routes return a clean 500 on a fault. The 500 cap is my choice, easy to change (`MAX_BUFFER_COUNT`).
 Reason: four of the six listed items were already fixed by other work, so only these three remained. Checked the code first.
 Verified: 795 tests, lint, type-check. Not click-tested. No migration. Action 61 closed.

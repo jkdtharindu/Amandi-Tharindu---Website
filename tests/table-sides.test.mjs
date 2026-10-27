@@ -459,19 +459,19 @@ test("the guest's invitation shows the table's name, falling back to \"Table N\"
   assert.equal(tableLabel({ table_number: 3, table_name: '  ' }), 'Table 3');
 
   const page = readFileSync(join(ROOT, 'app/(public)/invitation/[code]/page.tsx'), 'utf8');
-  assert.match(page, /\{view\.label\}/, 'the page renders the label');
-  assert.doesNotMatch(page, /Table \{view\.tableNumber\}/, 'and no longer the bare number');
+  assert.match(page, /Table \{view\.tableNumber\}/, 'the page shows the table number in front of each name');
+  assert.match(page, /\{view\.tableName &&/, 'and the table name below it');
 });
 
-test('[TableNumber] fills with the table name, for whole parties and named people alike', async () => {
+test('[TableNumber] fills with the table number and name, for whole parties and named people alike', async () => {
   await assignGuestToSeat(rose.seats[0].id, 'b1');
   await assignInviteeToSeat(lotus.seats[0].id, kamala.id);
   await assignInviteeToSeat(rose.seats[1].id, nirmala.id);
 
   const labels = tableLabelsByGuest(await listSeatingTablesByParty('bride'));
 
-  assert.deepEqual(labels.get('b1'), ['Rose']);
-  assert.deepEqual(labels.get('b2'), ['Rose', 'Lotus'], "one party at two tables gets both, in table order");
+  assert.deepEqual(labels.get('b1'), ['Table 1 (Rose)']);
+  assert.deepEqual(labels.get('b2'), ['Table 1 (Rose)', 'Table 1 (Lotus)'], "one party at two tables gets both, in table order");
   assert.equal(labels.get('g1'), undefined, "the groom's people are not the bride's to message");
   assert.equal(
     renderTemplate('Dear [Name], you are at [TableNumber].', { name: 'Perera Family', tablenumber: 'Rose' }),
@@ -531,8 +531,8 @@ test('[TableNumber] can name each seated member and their own table', async () =
   const lines = tableMemberLinesByGuest(await listSeatingTablesByParty('bride'));
   const text = lines.get('b2');
 
-  assert.match(text, /Kamala – Lotus/);
-  assert.match(text, /Nirmala – Rose/);
+  assert.match(text, /Kamala – Table 1 \(Lotus\)/);
+  assert.match(text, /Nirmala – Table 1 \(Rose\)/);
   assert.equal(text.split('\n').length, 2, 'one line per person, in table order');
   assert.equal(lines.get('g1'), undefined, "the other side's people are not listed");
 });

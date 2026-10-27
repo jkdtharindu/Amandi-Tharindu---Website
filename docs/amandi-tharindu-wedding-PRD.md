@@ -934,7 +934,7 @@ Every table has a **side** — bride, groom or common. The side is chosen when t
 
 ### Assumptions made without asking (owner can overrule)
 - A person's side is their party's side (`guests.assigned_to_party`); an invitee inherits it through `guest_id`.
-- The table **number** stays as an admin-facing ordering only; guests never see it.
+- The table **number** is now shown to guests too (2026-10-27, Action 89): "Table N — Name" per seated person on the invitation, and "Table 5 (Rose)" in the `[TableNumber]` placeholder. The side is still never shown.
 - A table name must be unique across the whole venue, compared without regard to capital letters. Existing tables with no name are left alone; the guest page falls back to "Table N" for them.
 - The message placeholder `[TableNumber]` fills with the table **name** (the placeholder itself stays, so saved templates keep working).
 - Deleting: an admin deletes their own side's tables as today; a Common table can be deleted only while empty (either admin).
