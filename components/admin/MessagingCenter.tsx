@@ -86,7 +86,7 @@ function GuestTicks({ events }: { events: Recipient['messageEvents'] }) {
           {entry.done ? '✓' : '○'} {entry.number}. {entry.label}
         </span>
       ))}
-      <span className="tabular-nums">
+      <span className="font-stat">
         {doneCount}/{total} · {percent}%
       </span>
     </p>
@@ -317,7 +317,7 @@ export default function MessagingCenter({
                 <p className="text-xs font-semibold text-slate-500">
                   {entry.number}. {entry.label}
                 </p>
-                <p className="mt-1 text-2xl font-bold tabular-nums">{entry.percent}%</p>
+                <p className="mt-1 text-2xl font-bold font-stat">{entry.percent}%</p>
                 <div className="mt-2 h-1.5 rounded-full bg-slate-100" aria-hidden="true">
                   <div
                     className="h-1.5 rounded-full bg-emerald-500"
@@ -516,7 +516,7 @@ export default function MessagingCenter({
                 {current.name}{' '}
                 <span className="font-mono text-xs text-slate-500">{current.code}</span>
               </h2>
-              <span className="text-xs text-slate-500 tabular-nums">
+              <span className="text-xs text-slate-500 font-stat">
                 {(queueIndex ?? 0) + 1} of {recipients.length}
               </span>
             </div>

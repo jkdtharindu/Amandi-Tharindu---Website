@@ -414,9 +414,9 @@ export default function TableArrangement({
                   {row.label}
                   {row.hint && <span className="block text-xs text-slate-400">{row.hint}</span>}
                 </th>
-                <td className="py-2 text-right text-lg font-bold tabular-nums">{row.yours}</td>
+                <td className="py-2 text-right text-lg font-bold font-stat">{row.yours}</td>
                 {overallDashboardStats && (
-                  <td className="py-2 text-right text-lg font-bold tabular-nums">{row.overall}</td>
+                  <td className="py-2 text-right text-lg font-bold font-stat">{row.overall}</td>
                 )}
               </tr>
             ))}
@@ -587,9 +587,9 @@ function LeftoverPanel({
                 {nameOf(side)}
                 {side === party && <span className="block text-xs text-slate-400">you</span>}
               </th>
-              <td className="py-2 text-right text-lg font-bold tabular-nums">{summary[side].unseated}</td>
-              <td className="py-2 pl-2 text-right text-lg font-bold tabular-nums">{summary[side].freeSeats}</td>
-              <td className="py-2 pl-2 text-right text-lg font-bold tabular-nums">{summary[side].leftover}</td>
+              <td className="py-2 text-right text-lg font-bold font-stat">{summary[side].unseated}</td>
+              <td className="py-2 pl-2 text-right text-lg font-bold font-stat">{summary[side].freeSeats}</td>
+              <td className="py-2 pl-2 text-right text-lg font-bold font-stat">{summary[side].leftover}</td>
             </tr>
           ))}
         </tbody>
@@ -601,18 +601,18 @@ function LeftoverPanel({
               Combined leftover
               <span className="block text-xs text-slate-400">Both sides, after their own tables</span>
             </th>
-            <td className="py-2 text-right text-lg font-bold tabular-nums">{summary.combinedLeftover}</td>
+            <td className="py-2 text-right text-lg font-bold font-stat">{summary.combinedLeftover}</td>
           </tr>
           <tr>
             <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">Free seats at Common tables</th>
-            <td className="py-2 text-right text-lg font-bold tabular-nums">{summary.commonFreeSeats}</td>
+            <td className="py-2 text-right text-lg font-bold font-stat">{summary.commonFreeSeats}</td>
           </tr>
           <tr>
             <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
               Common tables still needed
               <span className="block text-xs text-slate-400">Roughly, at {summary.seatsPerCommonTable} seats each</span>
             </th>
-            <td className="py-2 text-right text-lg font-bold tabular-nums">{summary.commonTablesNeeded}</td>
+            <td className="py-2 text-right text-lg font-bold font-stat">{summary.commonTablesNeeded}</td>
           </tr>
         </tbody>
       </table>
