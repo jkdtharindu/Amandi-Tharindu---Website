@@ -19,7 +19,9 @@ const PROBABLE_ALREADY_SEATED = 'This probable attendee is already assigned to a
 const INVITEE_ALREADY_SEATED = 'This person is already assigned to another seat';
 const SEAT_ALREADY_TAKEN = 'That seat already has someone on it.';
 const BUFFER_BELOW_SEATED = 'Cannot reduce below the number already seated — unassign them first';
-const INVALID_BUFFER_COUNT = 'Count must be a non-negative whole number';
+// A wedding is nowhere near this size; the cap just stops a typo creating thousands of placeholder rows.
+const MAX_BUFFER_COUNT = 500;
+const INVALID_BUFFER_COUNT = `Count must be a non-negative whole number, at most ${MAX_BUFFER_COUNT}`;
 const GUEST_NOT_FOUND = 'That guest no longer exists (may have been removed).';
 const GUEST_DECLINED = 'Cannot seat a guest who has declined their invitation.';
 const GUEST_DELETED = 'Cannot seat a deleted guest — they have been removed.';
@@ -118,6 +120,8 @@ const SEAT_JSON = `
         'inviteeGuestName', ig.name,
         'inviteeGuestId', i.guest_id,
         'occupantSide', COALESCE(g.assigned_to_party, ig.assigned_to_party),
+        'occupantRsvpStatus', COALESCE(i.rsvp_status, g.rsvp_status),
+        'occupantRemoved', COALESCE(g.is_deleted, ig.is_deleted, false),
         'dietaryRequirements', ts.dietary_requirements,
         'specialNotes', ts.special_notes
       ) ORDER BY ts.seat_number
@@ -171,6 +175,20 @@ function occupantSideFor(seat) {
   return guest ? sideOf(guest) : null;
 }
 
+/** The RSVP answer of whoever sits on an in-memory seat, null for a placeholder/empty seat. */
+function occupantRsvpStatusFor(seat) {
+  const invitee = seat.inviteeId ? invitees.find((entry) => entry.id === seat.inviteeId) : null;
+  if (invitee?.rsvpStatus) return invitee.rsvpStatus;
+  const guest = seat.guestId ? guestStore.find((entry) => entry.id === seat.guestId) : null;
+  return guest?.rsvpStatus ?? null;
+}
+
+/** True when the guest (or the invitee's guest) on an in-memory seat has been removed. */
+function occupantRemovedFor(seat) {
+  const guestId = seat.guestId || invitees.find((entry) => entry.id === seat.inviteeId)?.guestId;
+  return Boolean(guestId && guestStore.find((entry) => entry.id === guestId)?.isDeleted);
+}
+
 function probableAttendeeLabel(bucket, slotIndex) {
   const capitalized = bucket.charAt(0).toUpperCase() + bucket.slice(1);
   return `Probable (${capitalized}) #${slotIndex}`;
@@ -218,6 +236,8 @@ function hydrateMemoryTable(table) {
       inviteeGuestName: inviteeGuestNameFor(seat.inviteeId),
       inviteeGuestId: invitees.find((entry) => entry.id === seat.inviteeId)?.guestId ?? null,
       occupantSide: occupantSideFor(seat),
+      occupantRsvpStatus: occupantRsvpStatusFor(seat),
+      occupantRemoved: occupantRemovedFor(seat),
       dietaryRequirements: seat.dietaryRequirements,
       specialNotes: seat.specialNotes,
     })),
@@ -738,7 +758,10 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
       // Derive invitee's RSVP status from their guest's status (invitees inherit their party's status)
       const guest = guestStore.find((g) => g.id === invitee.guestId);
       if (!guest || guest.isDeleted) throw new Error(INVITEE_NOT_FOUND);
-      if (guest.rsvpStatus === 'declined') throw new Error(INVITEE_DECLINED);
+      // A person the admin has not approved is not on the list yet (a guest's own request to add someone).
+      if (invitee.approvalStatus && invitee.approvalStatus !== 'approved') throw new Error(INVITEE_NOT_FOUND);
+      // The party may have accepted while this one person declined (each person RSVPs on their own).
+      if (guest.rsvpStatus === 'declined' || invitee.rsvpStatus === 'declined') throw new Error(INVITEE_DECLINED);
 
       if (seatHeldByAnother(found.seat, 'inviteeId', inviteeId)) {
         throw new Error(SEAT_ALREADY_TAKEN);
@@ -764,14 +787,16 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
     // Validate invitee exists and is in a valid state if assigning (not clearing)
     if (inviteeId) {
       const { rows: inviteeRows } = await run(
-        `SELECT i.id, g.is_deleted, g.rsvp_status FROM invitees i
-         JOIN guests g ON g.id = i.guest_id WHERE i.id = $1`,
+        `SELECT i.id, i.approval_status, i.rsvp_status AS invitee_rsvp_status, g.is_deleted, g.rsvp_status
+         FROM invitees i JOIN guests g ON g.id = i.guest_id WHERE i.id = $1`,
         [inviteeId]
       );
       if (!inviteeRows.length) throw new Error(INVITEE_NOT_FOUND);
       const invitee = inviteeRows[0];
-      if (invitee.is_deleted) throw new Error(INVITEE_NOT_FOUND);
-      if (invitee.rsvp_status === 'declined') throw new Error(INVITEE_DECLINED);
+      if (invitee.is_deleted || invitee.approval_status !== 'approved') throw new Error(INVITEE_NOT_FOUND);
+      if (invitee.rsvp_status === 'declined' || invitee.invitee_rsvp_status === 'declined') {
+        throw new Error(INVITEE_DECLINED);
+      }
     }
 
     const { rows } = await run(`
@@ -1117,8 +1142,10 @@ export async function setProbableAttendeeBuffer(bucket, count) {
   if (!PROBABLE_BUCKETS.includes(bucket)) {
     throw new Error(`Unknown RSVP bucket: ${bucket}`);
   }
-  const targetCount = Number(count);
-  if (!Number.isInteger(targetCount) || targetCount < 0) {
+  // Number('') and Number(null) are 0, so a blank box would silently save 0 — only a real number or numeric text counts.
+  const isNumeric = typeof count === 'number' || (typeof count === 'string' && count.trim() !== '');
+  const targetCount = isNumeric ? Number(count) : NaN;
+  if (!Number.isInteger(targetCount) || targetCount < 0 || targetCount > MAX_BUFFER_COUNT) {
     throw new Error(INVALID_BUFFER_COUNT);
   }
 

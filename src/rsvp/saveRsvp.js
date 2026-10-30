@@ -1,6 +1,6 @@
 import { withTransaction } from '../db.js';
-import { updateGuestRsvpStatus, upsertRsvpResponse } from '../guest-auth/guestRepo.js';
-import { deriveGuestRsvpStatus, updateInviteeRsvpStatuses } from '../invitees/inviteesRepo.js';
+import { deleteRsvpResponse, updateGuestRsvpStatus, upsertRsvpResponse } from '../guest-auth/guestRepo.js';
+import { deriveGuestRsvpStatus, listApprovedInvitees, updateInviteeRsvpStatuses } from '../invitees/inviteesRepo.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -71,15 +71,28 @@ export function saveWholePartyRsvp(
 }
 
 /**
- * A guest with named invitees answers per person. The party's own status is
- * derived from those answers and mirrored, with the accepted names, into
- * rsvp_responses so every existing reader (CSV export, dashboard stats) keeps
- * working unchanged. `inviteeResponses` is [{ id, attending }]; ids that are not
- * one of this guest's approved invitees are ignored.
+ * A guest with named invitees answers per person, and each person can answer on
+ * their own, at a different time. Only the people in `inviteeResponses` are
+ * written; everyone else keeps whatever they had (usually 'pending'), so two
+ * people in one party saving separately never overwrite each other.
+ *
+ * `inviteeResponses` is [{ id, attending, expectedStatus? }].
+ * `expectedStatus` is the answer the page last showed for that person. If the
+ * saved answer has since changed to something else (another phone saved first),
+ * that entry is skipped and reported in `conflicts` instead of being silently
+ * overwritten; the rest of the batch still saves. Ids that are not one of this
+ * guest's approved invitees are ignored.
+ *
+ * The party's own status is derived from all the answers and mirrored, with the
+ * accepted names, into rsvp_responses so every existing reader (CSV export,
+ * dashboard stats) keeps working unchanged. A party that is still undecided
+ * overall has no mirrored row at all: rsvp_responses can only say attending or
+ * not, and a half-answered party must not read as declined.
  *
  * @param {string} guestId
- * @param {{ id: string, attending: boolean }[]} inviteeResponses
+ * @param {{ id: string, attending: boolean, expectedStatus?: string }[]} inviteeResponses
  * @param {{ transaction?: typeof runInRsvpTransaction }} [options]
+ * @returns {Promise<{ status: string, response: object | null, invitees: object[], conflicts: string[] }>}
  */
 export function saveInviteeRsvp(
   guestId,
@@ -88,12 +101,33 @@ export function saveInviteeRsvp(
 ) {
   return transaction(async (exec) => {
     await lockGuest(exec, guestId);
-    const updated = await updateInviteeRsvpStatuses(guestId, inviteeResponses, exec);
+
+    // Read under the lock, so no one can change an answer between this check
+    // and the write below.
+    const current = new Map((await listApprovedInvitees(guestId, exec)).map((invitee) => [invitee.id, invitee]));
+    const toApply = [];
+    const conflicts = [];
+    for (const entry of inviteeResponses) {
+      const saved = current.get(entry.id);
+      if (!saved) continue;
+      const desired = entry.attending ? 'accepted' : 'declined';
+      const changedUnderUser =
+        entry.expectedStatus !== undefined && saved.rsvpStatus !== entry.expectedStatus && saved.rsvpStatus !== desired;
+      if (changedUnderUser) conflicts.push(entry.id);
+      else toApply.push(entry);
+    }
+
+    const updated = await updateInviteeRsvpStatuses(guestId, toApply, exec);
     const status = deriveGuestRsvpStatus(updated);
     const acceptedNames = updated.filter((invitee) => invitee.rsvpStatus === 'accepted').map((invitee) => invitee.name);
 
-    const result = await upsertRsvpResponse(guestId, status === 'accepted', acceptedNames, exec);
+    let response = null;
+    if (status === 'pending') {
+      await deleteRsvpResponse(guestId, exec);
+    } else {
+      response = await upsertRsvpResponse(guestId, status === 'accepted', acceptedNames, exec);
+    }
     await updateGuestRsvpStatus(guestId, status, exec);
-    return result;
+    return { status, response, invitees: updated, conflicts };
   });
 }

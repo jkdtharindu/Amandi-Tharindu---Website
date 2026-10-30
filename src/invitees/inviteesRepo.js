@@ -190,9 +190,10 @@ export async function rejectInvitee(id) {
 
 /**
  * Updates rsvp_status for a batch of a guest's own approved invitees.
- * `updates` is [{ id, attending }]; ids that don't belong to this guest or
- * aren't approved are silently ignored, so a tampered id can't touch
- * someone else's invitee.
+ * `updates` is [{ id, attending }]; ids that don't belong to this
+ * guest or aren't approved are silently ignored, so a tampered id can't touch
+ * someone else's invitee. Only the invitees named in `updates` are written --
+ * everyone else keeps their saved answer.
  */
 export async function updateInviteeRsvpStatuses(guestId, updates = [], exec) {
   const approvedIds = new Set((await listApprovedInvitees(guestId, exec)).map((invitee) => invitee.id));

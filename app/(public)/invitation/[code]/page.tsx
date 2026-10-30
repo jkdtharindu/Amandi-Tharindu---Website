@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { findGuestById, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
 import { listInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
-import { getGuestTableView } from '@/src/table-arrangement/guestTableView.js';
+import { getGuestTableView, getGuestPeopleLines } from '@/src/table-arrangement/guestTableView.js';
 import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
@@ -37,8 +37,8 @@ export default async function InvitationPage({
   if (guest.code !== code) redirect(`/invitation/${encodeURIComponent(guest.code)}`);
 
   const rsvp = await findRsvpResponseByGuestId(guest.id);
-  const hasResponded = Boolean(rsvp);
-  const rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
+  let hasResponded = Boolean(rsvp);
+  let rsvpStatus = rsvp ? (rsvp.attending ? 'accepted' : 'declined') : 'pending';
 
   // Multi-person invitations with named invitees (2026-09) let the guest
   // accept/decline per person instead of one status for the whole party.
@@ -52,15 +52,31 @@ export default async function InvitationPage({
     invitees = [];
   }
 
+  // A party with named people answers person by person, so it counts as
+  // "responded" as soon as one person has, and its status is the one derived
+  // from everyone's answers (still 'pending' while someone has not answered).
+  const approvedPeople = invitees.filter((invitee: { approvalStatus: string }) => invitee.approvalStatus === 'approved');
+  if (approvedPeople.length > 0) {
+    hasResponded = approvedPeople.some((invitee: { rsvpStatus: string }) => invitee.rsvpStatus !== 'pending');
+    rsvpStatus = guest.rsvpStatus ?? 'pending';
+  }
+
   // Where the admin has seated this party. Never throws, so a seating hiccup
-  // only hides the table line instead of taking the invitation down. The line
-  // shows the table's name ("Table N" for an unnamed one) — never its number
-  // or its side, which are for the admins only (Action 68).
-  let tableViews: { tableNumber: number; tableName: string | null; label: string; mates: string[] }[] = [];
+  // only hides the table line instead of taking the invitation down. Each person
+  // shows as "Name RSVP Confirmed - Table N (Name)"; the side stays admin-only.
+  let tableViews: { tableNumber: number; tableName: string | null; label: string; people: string[]; mates: string[] }[] = [];
   try {
     tableViews = await getGuestTableView(guest.id);
   } catch (error) {
     console.error('getGuestTableView failed, hiding the table line:', error);
+  }
+
+  // One line per person: their RSVP answer and, once confirmed and seated, their table.
+  let peopleLines: { name: string; status: string; table: string | null }[] = [];
+  try {
+    peopleLines = await getGuestPeopleLines(guest, invitees);
+  } catch (error) {
+    console.error('getGuestPeopleLines failed, hiding the people lines:', error);
   }
 
   // getThemeSettings() hits the DB on every request; this must never throw,
@@ -97,20 +113,28 @@ export default async function InvitationPage({
 
           {/* Guest Info Card */}
           <div className="bg-white rounded-3xl shadow-lg p-5 sm:p-8">
-            <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${tableViews.length > 0 ? 'mb-2' : 'mb-6'}`}>
+            <h1 className={`text-3xl md:text-4xl font-bold text-gray-900 ${peopleLines.length > 0 ? 'mb-2' : 'mb-6'}`}>
               {t('invitation.heading', { guestName: guest.name })}
             </h1>
 
-            {tableViews.length > 0 && (
-              <div className="mb-6" data-testid="table-assignment">
-                {tableViews.map((view, index) => (
-                  <p key={`${index}-${view.label}`} className="text-gray-700">
-                    <span className="text-lg font-semibold text-gray-900">{view.label}</span>
-                    {view.mates.length > 0 && (
-                      <span className="text-sm text-gray-600"> — with {view.mates.join(', ')}</span>
-                    )}
+            {peopleLines.length > 0 && (
+              <div className="mb-6 space-y-1" data-testid="table-assignment">
+                {peopleLines.map((person, index) => (
+                  <p key={`${index}-${person.name}`} className="text-lg text-gray-900">
+                    <span className="font-semibold">{person.name}</span>{' '}
+                    <strong className="text-base">
+                      {person.status === 'accepted' ? 'RSVP Confirmed' : person.status === 'declined' ? 'RSVP Declined' : 'RSVP Pending'}
+                    </strong>
+                    {person.table && <span> - {person.table}</span>}
                   </p>
                 ))}
+                {tableViews.map((view, index) =>
+                  view.mates.length > 0 ? (
+                    <p key={`${index}-${view.label}`} className="text-sm text-gray-600">
+                      Table {view.tableNumber}{view.tableName ? ` (${view.tableName})` : ''} — with {view.mates.join(', ')}
+                    </p>
+                  ) : null
+                )}
               </div>
             )}
 

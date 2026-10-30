@@ -12,6 +12,7 @@
  */
 
 export const SITE_TEXT_GROUPS = [
+  'Browser tab',
   'Menu',
   'Home — top banner',
   'Home — countdown',
@@ -38,6 +39,9 @@ const ACCEPTED_TAGS = {
 /** @type {[string, string, string, string, { multiline?: boolean, tags?: string[] }?][]} */
 // [key, group, label, default text, options]
 const ROWS = [
+  // Browser tab
+  ['meta.homeTitleSuffix', 'Browser tab', 'Home page title, after the couple names', 'Home'],
+
   // Menu
   ['menu.home', 'Menu', 'Menu: Home', 'Home'],
   ['menu.ourStory', 'Menu', 'Menu: Our Story', 'Our Story'],
@@ -206,6 +210,18 @@ const ROWS = [
   ['rsvp.submit', 'RSVP — who is coming', 'Button: submit', 'Submit RSVP'],
   ['rsvp.submitBusy', 'RSVP — who is coming', 'Button while saving', 'Processing…'],
   ['rsvp.overlay', 'RSVP — who is coming', 'Full-screen message while saving', 'Processing your RSVP…'],
+  ['rsvp.choiceAttending', 'RSVP — who is coming', 'Choice: attending', 'Attending'],
+  ['rsvp.choiceDeclined', 'RSVP — who is coming', 'Choice: not attending', 'Not attending'],
+  ['rsvp.badgeAttending', 'RSVP — who is coming', 'Badge: saved as attending', 'Attending'],
+  ['rsvp.badgeDeclined', 'RSVP — who is coming', 'Badge: saved as not attending', 'Not attending'],
+  ['rsvp.badgeWaiting', 'RSVP — who is coming', 'Badge: no answer yet', 'Awaiting response'],
+  ['rsvp.confirmed', 'RSVP — who is coming', 'Small tag: this person has answered', 'Confirmed'],
+  ['rsvp.unsaved', 'RSVP — who is coming', 'Small tag: change not saved yet', 'Not saved yet'],
+  ['rsvp.progress', 'RSVP — who is coming', 'Progress line at the top', '{answered} of {total} guests have responded', { tags: ['{answered}', '{total}'] }],
+  ['rsvp.saveButton', 'RSVP — who is coming', 'Button: save answers', 'Save responses ({answered} of {total})', { tags: ['{answered}', '{total}'] }],
+  ['rsvp.saveHintNone', 'RSVP — who is coming', 'Reason the button is off: nobody chosen', 'Choose Attending or Not attending for at least one guest to save.', { multiline: true }],
+  ['rsvp.saveHintNoChange', 'RSVP — who is coming', 'Reason the button is off: nothing changed', 'No changes to save yet. Change an answer above to save it.', { multiline: true }],
+  ['rsvp.checking', 'RSVP — who is coming', 'Small line while checking for new answers', 'Checking for updates…'],
   ['rsvp.pendingApproval', 'RSVP — who is coming', 'Tag on a person waiting for approval', 'Waiting for admin approval'],
   ['rsvp.addPrompt', 'RSVP — who is coming', 'Add-a-person question', 'Need to add someone not on this list?'],
   ['rsvp.addPlaceholder', 'RSVP — who is coming', 'Add-a-person box hint', 'Their full name'],
@@ -230,7 +246,35 @@ const ROWS = [
     'Request sent! {coupleFirstName}’s admin will need to approve it before it’s added.',
     { multiline: true, tags: ['{coupleFirstName}'] },
   ],
-  ['rsvp.errorUnanswered', 'RSVP — messages', 'Message: someone not answered', 'Please accept or decline for everyone in the list.', { multiline: true }],
+  [
+    'rsvp.thanksSomeLeft',
+    'RSVP — messages',
+    'Message after saving: some guests still to answer',
+    'Thanks! {pending} guests still need to respond. You can come back to this link anytime.',
+    { multiline: true, tags: ['{pending}'] },
+  ],
+  [
+    'rsvp.thanksOneLeft',
+    'RSVP — messages',
+    'Message after saving: one guest still to answer',
+    'Thanks! 1 guest still needs to respond. You can come back to this link anytime.',
+    { multiline: true },
+  ],
+  [
+    'rsvp.refreshed',
+    'RSVP — messages',
+    'Message: another person updated answers',
+    'Someone in your party just updated their answers, so we refreshed this page.',
+    { multiline: true },
+  ],
+  [
+    'rsvp.conflict',
+    'RSVP — messages',
+    'Message: a saved answer was changed by someone else',
+    'Some answers were changed by someone else a moment ago, so we kept theirs and refreshed. Please check them and save again if you still want to change them.',
+    { multiline: true },
+  ],
+  ['rsvp.errorSave', 'RSVP — messages', 'Message: save failed', 'We could not save your answers. Nothing you entered was lost — please try again.', { multiline: true }],
 
   // RSVP — single answer (older invitations)
   [

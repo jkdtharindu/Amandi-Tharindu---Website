@@ -208,6 +208,16 @@ test('on a Common table each side sees everyone seated there, with the side each
   }
 });
 
+test("a seat carries its occupant's RSVP answer so the screen can flag someone who declined", async () => {
+  await assignInviteeToSeat(lotus.seats[0].id, kamala.id);
+
+  const common = (await listSeatingTablesByParty('bride')).find((table) => table.side === 'common');
+  const seat = common.seats.find((entry) => entry.inviteeId === kamala.id);
+  assert.equal(seat.occupantRsvpStatus, kamala.rsvpStatus);
+  assert.ok(seat.occupantRsvpStatus, 'a seated invitee has an RSVP status');
+  assert.equal(common.seats.find((entry) => !entry.inviteeId).occupantRsvpStatus, null);
+});
+
 test("the unassigned people list is the signed-in side's only", async () => {
   assert.deepEqual((await listUnassignedInviteesByParty('bride')).map((p) => p.name), ['Kamala', 'Nirmala']);
   assert.deepEqual((await listUnassignedInviteesByParty('groom')).map((p) => p.name), ['Rani', 'Sunil']);
@@ -449,19 +459,18 @@ test("the guest's invitation shows the table's name, falling back to \"Table N\"
   assert.equal(tableLabel({ table_number: 3, table_name: '  ' }), 'Table 3');
 
   const page = readFileSync(join(ROOT, 'app/(public)/invitation/[code]/page.tsx'), 'utf8');
-  assert.match(page, /\{view\.label\}/, 'the page renders the label');
-  assert.doesNotMatch(page, /Table \{view\.tableNumber\}/, 'and no longer the bare number');
+  assert.match(page, /person\.table/, 'the page shows each person\'s table, number first');
 });
 
-test('[TableNumber] fills with the table name, for whole parties and named people alike', async () => {
+test('[TableNumber] fills with the table number and name, for whole parties and named people alike', async () => {
   await assignGuestToSeat(rose.seats[0].id, 'b1');
   await assignInviteeToSeat(lotus.seats[0].id, kamala.id);
   await assignInviteeToSeat(rose.seats[1].id, nirmala.id);
 
   const labels = tableLabelsByGuest(await listSeatingTablesByParty('bride'));
 
-  assert.deepEqual(labels.get('b1'), ['Rose']);
-  assert.deepEqual(labels.get('b2'), ['Rose', 'Lotus'], "one party at two tables gets both, in table order");
+  assert.deepEqual(labels.get('b1'), ['Table 1 (Rose)']);
+  assert.deepEqual(labels.get('b2'), ['Table 1 (Rose)', 'Table 1 (Lotus)'], "one party at two tables gets both, in table order");
   assert.equal(labels.get('g1'), undefined, "the groom's people are not the bride's to message");
   assert.equal(
     renderTemplate('Dear [Name], you are at [TableNumber].', { name: 'Perera Family', tablenumber: 'Rose' }),
@@ -480,9 +489,9 @@ test("the spreadsheet shows each table's side and name", async () => {
   const tsv = buildTableArrangementExport(await listSeatingTablesByParty('bride'));
   const [header, ...rows] = tsv.trimEnd().split('\n');
 
-  assert.deepEqual(header.split('\t').slice(0, 4), ['Table', 'Table Name', 'Side', 'Seat']);
-  assert.ok(rows.some((row) => row.startsWith('1\tRose\tBride\t1\t')));
-  assert.ok(rows.some((row) => row.startsWith('1\tLotus\tCommon\t1\tKamala')));
+  assert.deepEqual(header.split(',').slice(0, 4), ['Table', 'Table Name', 'Side', 'Seat']);
+  assert.ok(rows.some((row) => row.startsWith('1,Rose,Bride,1,')));
+  assert.ok(rows.some((row) => row.startsWith('1,Lotus,Common,1,Kamala')));
   assert.ok(!rows.some((row) => row.includes('Jasmine')), "the groom's own tables are not in the bride's export");
 });
 
@@ -521,8 +530,8 @@ test('[TableNumber] can name each seated member and their own table', async () =
   const lines = tableMemberLinesByGuest(await listSeatingTablesByParty('bride'));
   const text = lines.get('b2');
 
-  assert.match(text, /Kamala – Lotus/);
-  assert.match(text, /Nirmala – Rose/);
+  assert.match(text, /Kamala – Table 1 \(Lotus\)/);
+  assert.match(text, /Nirmala – Table 1 \(Rose\)/);
   assert.equal(text.split('\n').length, 2, 'one line per person, in table order');
   assert.equal(lines.get('g1'), undefined, "the other side's people are not listed");
 });

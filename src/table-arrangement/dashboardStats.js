@@ -23,7 +23,7 @@
  * wedding row) every seated invitee counts.
  *
  * @param {object} input
- * @param {{ seats: { inviteeId: string | null, occupantSide?: string | null }[] }[]} input.tables
+ * @param {{ seats: { inviteeId: string | null, occupantSide?: string | null, occupantRsvpStatus?: string | null }[] }[]} input.tables
  * @param {{ rsvpStatus: string, participantCount?: number }[]} input.assignedGuests
  * @param {{ participantCount?: number }[]} input.unassignedGuests
  * @param {{ participantCount?: number }[]} input.unassignedInvitees
@@ -39,10 +39,18 @@ export function buildDashboardStats({
   side,
 }) {
   // Seated invitees (individuals from a multi-person invitation) count toward
-  // "Table Arranged" the same as seated guest parties do.
+  // "Table Arranged" the same as seated guest parties do — unless they have since
+  // declined, which (like a declined guest below) stops counting without
+  // auto-unseating them; the seat shows a warning instead (Action 61).
   const seatedInviteeCount = tables.reduce(
     (total, table) =>
-      total + table.seats.filter((seat) => seat.inviteeId && (!side || seat.occupantSide === side)).length,
+      total +
+      table.seats.filter(
+        (seat) =>
+          seat.inviteeId &&
+          seat.occupantRsvpStatus !== 'declined' &&
+          (!side || seat.occupantSide === side)
+      ).length,
     0
   );
 

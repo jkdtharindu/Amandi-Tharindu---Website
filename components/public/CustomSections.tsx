@@ -6,12 +6,20 @@ import type { Section } from "@/components/admin/SectionManager";
  * src/server.js's renderSections() — visible sections only, already ordered
  * by the repo (sectionsRepo.js: displayOrder ASC).
  */
-export default function CustomSections({ sections }: { sections: Section[] }) {
+export default function CustomSections({
+  sections,
+  inPanel = false,
+}: {
+  sections: Section[];
+  /** Render only the cards, to sit inside a homepage panel instead of below it. */
+  inPanel?: boolean;
+}) {
   const visible = sections.filter((section) => section.isVisible);
   if (visible.length === 0) return null;
 
+  const Wrapper = inPanel ? "div" : "section";
   return (
-    <section className="custom-sections">
+    <Wrapper className={inPanel ? "panel-cards grid-panel custom-sections" : "custom-sections"}>
       {visible.map((section) => (
         <article className="story-card" key={section.id}>
           {section.imageUrl && (
@@ -28,6 +36,6 @@ export default function CustomSections({ sections }: { sections: Section[] }) {
           {section.content && <p>{section.content}</p>}
         </article>
       ))}
-    </section>
+    </Wrapper>
   );
 }

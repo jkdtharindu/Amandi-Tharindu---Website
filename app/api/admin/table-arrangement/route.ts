@@ -22,8 +22,16 @@ export async function GET(): Promise<NextResponse> {
   const session = await getAdminSession();
   if (!session) return unauthorizedResponse();
 
-  const view = await loadTableArrangementView(session.party);
-  return NextResponse.json({ success: true, ...view });
+  try {
+    const view = await loadTableArrangementView(session.party);
+    return NextResponse.json({ success: true, ...view });
+  } catch (error) {
+    console.error('Failed to load the table arrangement:', error);
+    return NextResponse.json(
+      { success: false, message: 'Could not load the seating plan. Please try again.' },
+      { status: 500 }
+    );
+  }
 }
 
 /**

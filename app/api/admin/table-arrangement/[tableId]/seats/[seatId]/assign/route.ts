@@ -81,6 +81,8 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     } else {
       seat = await assignGuestToSeat(seatId, guestId, { dietaryRequirements, specialNotes });
     }
+    // The repo answers null when the seat is gone (e.g. its table was deleted a moment ago) — not a success.
+    if (!seat) return NextResponse.json({ success: false, message: 'Seat not found.' }, { status: 404 });
     return NextResponse.json({ success: true, seat });
   } catch (error) {
     // "already assigned to another seat" is the admin's answer; a constraint
