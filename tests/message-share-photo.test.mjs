@@ -96,3 +96,14 @@ test('cropShareImage shows an off-shape picture whole instead of cutting it', as
   assert.ok(r > 150 && b1 < 100, 'left edge of the picture is still red');
   assert.ok(b2 > 150 && r2 < 100, 'right edge of the picture is still blue');
 });
+
+test('the image prompt uses the site colours when set and falls back when not', async () => {
+  const { buildSharePhotoPrompt } = await import('../src/messaging/sharePhotoPrompt.js');
+  const withColors = buildSharePhotoPrompt('main_invitation', {
+    coupleNames: 'A & B',
+    colors: { name: 'Rose Gold', primary: '#B76E79', secondary: '#F5E6E8', accent: '#C9A227' },
+  });
+  assert.ok(withColors.includes('#B76E79') && withColors.includes('#C9A227') && withColors.includes('Rose Gold'));
+  const without = buildSharePhotoPrompt('main_invitation', { coupleNames: 'A & B' });
+  assert.ok(!without.includes('#') && without.includes('ivory'));
+});

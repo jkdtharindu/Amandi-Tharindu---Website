@@ -13,12 +13,19 @@ export async function loadPlaceholderContext() {
   let weddingDate = '';
   let venueName = '';
   let coupleNames = '';
+  let colors = {};
 
   try {
     const theme = await getThemeSettings();
     weddingDate = theme?.weddingDate ? formatWeddingDate(theme.weddingDate) : '';
     venueName = theme?.venueName || '';
     coupleNames = theme?.coupleNames || '';
+    colors = {
+      name: theme?.paletteName || '',
+      primary: theme?.primaryColor || '',
+      secondary: theme?.secondaryColor || '',
+      accent: theme?.accentColor || '',
+    };
   } catch {
     // fall through to the event lookup below
   }
@@ -32,5 +39,5 @@ export async function loadPlaceholderContext() {
     }
   }
 
-  return { weddingDate, venueName, coupleNames };
+  return { weddingDate, venueName, coupleNames, colors };
 }
