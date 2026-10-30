@@ -14,6 +14,7 @@ const CSV_COLUMNS = [
   'RSVP Status',
   'WhatsApp Number',
   'Participant Names',
+  'Members',
 ];
 
 /** Filters out soft-deleted guests, then applies status/relationship/search. */
@@ -142,11 +143,25 @@ function escapeCsvField(value) {
   return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
-/** Renders the given guests as CSV, one row each, with their participants. */
-export function guestsToCsv(guests = [], responses = []) {
+/**
+ * Renders the given guests as CSV, one row each, with their participants.
+ * `Members` lists every approved person in the party with their own answer, e.g.
+ * "Anna (accepted); Ben (pending)" -- unlike `Participant Names`, which only holds
+ * the accepted names once the party has a saved response.
+ */
+export function guestsToCsv(guests = [], responses = [], invitees = []) {
   const responseByGuestId = new Map(
     responses.map((response) => [response.guestId, response])
   );
+  const membersByGuestId = new Map();
+  [...invitees]
+    .filter((invitee) => invitee.approvalStatus === 'approved')
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+    .forEach((invitee) => {
+      const list = membersByGuestId.get(invitee.guestId) ?? [];
+      list.push(`${invitee.name} (${invitee.rsvpStatus ?? 'pending'})`);
+      membersByGuestId.set(invitee.guestId, list);
+    });
 
   const rows = guests.map((guest) => {
     const response = responseByGuestId.get(guest.id);
@@ -158,6 +173,7 @@ export function guestsToCsv(guests = [], responses = []) {
       guest.rsvpStatus,
       guest.whatsappNumber,
       (response?.participantNames ?? []).join(', '),
+      (membersByGuestId.get(guest.id) ?? []).join('; '),
     ]
       .map(escapeCsvField)
       .join(',');

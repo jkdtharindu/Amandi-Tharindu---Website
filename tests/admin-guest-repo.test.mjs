@@ -190,3 +190,22 @@ test('guestsToCsv cannot be used to inject a spreadsheet formula', () => {
   const csv = guestsToCsv(guests, []);
   assert.ok(!/(^|,)"?=/m.test(csv), 'leading = must be neutralised');
 });
+
+test('guestsToCsv lists every approved member with their own answer, in order', () => {
+  const guests = [
+    { id: 'g1', code: 'X-001', name: 'Nimal Silva', relationship: 'Family', slotCount: 3, rsvpStatus: 'accepted', whatsappNumber: null, isDeleted: false },
+    { id: 'g2', code: 'X-002', name: 'Kumara Perera', relationship: 'Friend', slotCount: 1, rsvpStatus: 'pending', whatsappNumber: null, isDeleted: false },
+  ];
+  const invitees = [
+    { guestId: 'g1', name: 'Ben', rsvpStatus: 'declined', approvalStatus: 'approved', displayOrder: 1 },
+    { guestId: 'g1', name: 'Ana', rsvpStatus: 'accepted', approvalStatus: 'approved', displayOrder: 0 },
+    { guestId: 'g1', name: 'Cara', rsvpStatus: 'pending', approvalStatus: 'approved', displayOrder: 2 },
+    { guestId: 'g1', name: 'Not Yet Approved', rsvpStatus: 'pending', approvalStatus: 'pending_approval', displayOrder: 3 },
+  ];
+  const lines = guestsToCsv(guests, [], invitees).trim().split('\n');
+
+  assert.match(lines[0], /,Members$/);
+  assert.ok(lines[1].endsWith(',Ana (accepted); Ben (declined); Cara (pending)') || lines[1].endsWith(',"Ana (accepted); Ben (declined); Cara (pending)"'));
+  assert.ok(!lines[1].includes('Not Yet Approved'), 'unapproved requests are left out');
+  assert.ok(lines[2].endsWith(','), 'a party with no named members has an empty Members cell');
+});

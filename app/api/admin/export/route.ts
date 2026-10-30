@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { listGuestsByParty, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
+import { listAllInvitees, listGuestsByParty, listAllRsvpResponses } from '@/src/admin/adminRepo.js';
 import { filterGuests, guestsToCsv } from '@/src/admin/guestQueries.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
@@ -8,12 +8,13 @@ export async function GET(): Promise<NextResponse> {
   const session = await getAdminSession();
   if (!session) return unauthorizedResponse();
 
-  const [guests, responses] = await Promise.all([
+  const [guests, responses, invitees] = await Promise.all([
     listGuestsByParty(session.party),
     listAllRsvpResponses(),
+    listAllInvitees(),
   ]);
 
-  const csv = guestsToCsv(filterGuests(guests, {}), responses);
+  const csv = guestsToCsv(filterGuests(guests, {}), responses, invitees);
   const filename = `guest-list-${new Date().toISOString().slice(0, 10)}.csv`;
 
   return new NextResponse(csv, {
