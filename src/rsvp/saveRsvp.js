@@ -89,15 +89,23 @@ export function saveWholePartyRsvp(
  * overall has no mirrored row at all: rsvp_responses can only say attending or
  * not, and a half-answered party must not read as declined.
  *
+ * Another-device check: `answeredBy` is a label for the device making this save
+ * (see answeredByLabel). When someone changes a saved answer that a DIFFERENT
+ * device gave, the change is held back and its id is returned in `needsConfirm`;
+ * the page asks "are you sure?" and sends the entry again with `confirmed: true`.
+ * Nothing is held back when either label is unknown (answers saved before this
+ * existed, or no usable address), when the answer is not actually changing, or
+ * when the person was still pending.
+ *
  * @param {string} guestId
- * @param {{ id: string, attending: boolean, expectedStatus?: string }[]} inviteeResponses
- * @param {{ transaction?: typeof runInRsvpTransaction }} [options]
- * @returns {Promise<{ status: string, response: object | null, invitees: object[], conflicts: string[] }>}
+ * @param {{ id: string, attending: boolean, expectedStatus?: string, confirmed?: boolean }[]} inviteeResponses
+ * @param {{ transaction?: typeof runInRsvpTransaction, answeredBy?: string | null }} [options]
+ * @returns {Promise<{ status: string, response: object | null, invitees: object[], conflicts: string[], needsConfirm: string[] }>}
  */
 export function saveInviteeRsvp(
   guestId,
   inviteeResponses,
-  { transaction = runInRsvpTransaction } = {}
+  { transaction = runInRsvpTransaction, answeredBy = null } = {}
 ) {
   return transaction(async (exec) => {
     await lockGuest(exec, guestId);
@@ -107,14 +115,20 @@ export function saveInviteeRsvp(
     const current = new Map((await listApprovedInvitees(guestId, exec)).map((invitee) => [invitee.id, invitee]));
     const toApply = [];
     const conflicts = [];
+    const needsConfirm = [];
     for (const entry of inviteeResponses) {
       const saved = current.get(entry.id);
       if (!saved) continue;
       const desired = entry.attending ? 'accepted' : 'declined';
       const changedUnderUser =
         entry.expectedStatus !== undefined && saved.rsvpStatus !== entry.expectedStatus && saved.rsvpStatus !== desired;
+      const changesOtherDevicesAnswer =
+        saved.rsvpStatus !== 'pending' &&
+        saved.rsvpStatus !== desired &&
+        Boolean(answeredBy && saved.answeredBy && saved.answeredBy !== answeredBy);
       if (changedUnderUser) conflicts.push(entry.id);
-      else toApply.push(entry);
+      else if (changesOtherDevicesAnswer && !entry.confirmed) needsConfirm.push(entry.id);
+      else toApply.push({ ...entry, answeredBy });
     }
 
     const updated = await updateInviteeRsvpStatuses(guestId, toApply, exec);
@@ -128,6 +142,6 @@ export function saveInviteeRsvp(
       response = await upsertRsvpResponse(guestId, status === 'accepted', acceptedNames, exec);
     }
     await updateGuestRsvpStatus(guestId, status, exec);
-    return { status, response, invitees: updated, conflicts };
+    return { status, response, invitees: updated, conflicts, needsConfirm };
   });
 }

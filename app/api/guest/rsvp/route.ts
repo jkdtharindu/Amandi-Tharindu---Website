@@ -3,6 +3,7 @@ import { findGuestById } from '@/src/guest-auth/guestRepo.js';
 import { listApprovedInvitees, listInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
 import { validateParticipantNames } from '@/src/invitees/validateInvitees.js';
 import { saveInviteeRsvp, saveWholePartyRsvp } from '@/src/rsvp/saveRsvp.js';
+import { answeredByLabel, clientIpFrom } from '@/src/rsvp/answeredBy.js';
 import { authorizeRsvp } from '@/src/guest-auth/authorizeRsvp.js';
 import { verifySession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
@@ -11,6 +12,8 @@ type InviteeResponse = {
   id: string;
   attending: boolean;
   expectedStatus?: 'pending' | 'accepted' | 'declined';
+  /** The guest said yes to "change <name>'s answer, which another device gave?". */
+  confirmed?: boolean;
 };
 
 const STATUSES = new Set(['pending', 'accepted', 'declined']);
@@ -105,6 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           id: entry.id,
           attending: entry.attending,
           expectedStatus: STATUSES.has(entry.expectedStatus as string) ? entry.expectedStatus : undefined,
+          confirmed: entry.confirmed === true,
         });
       }
       if (valid.length === 0) {
@@ -114,12 +118,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // answer. See saveInviteeRsvp(). Everything it writes is one transaction
       // -- if any part fails it throws, and the guest gets the error below
       // rather than a false "saved".
-      const result = await saveInviteeRsvp(guest.id, valid);
+      const result = await saveInviteeRsvp(guest.id, valid, {
+        answeredBy: answeredByLabel(clientIpFrom(request.headers)),
+      });
+      const invitees = await listInviteesForGuest(guest.id);
+      // Changes held back because another device gave the saved answer: the page
+      // asks the guest to confirm, by name, then sends them again.
+      const needsConfirm = result.needsConfirm.map((id: string) => ({
+        id,
+        name: invitees.find((invitee: { id: string }) => invitee.id === id)?.name ?? '',
+      }));
       return NextResponse.json({
         success: true,
         status: result.status,
         conflicts: result.conflicts,
-        invitees: (await listInviteesForGuest(guest.id)).map(publicInvitee),
+        needsConfirm,
+        invitees: invitees.map(publicInvitee),
       });
     }
 

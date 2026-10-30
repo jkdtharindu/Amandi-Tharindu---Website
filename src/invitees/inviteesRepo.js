@@ -20,6 +20,7 @@ export function mapInviteeRow(row) {
     addedBy: row.added_by,
     approvalStatus: row.approval_status,
     displayOrder: row.display_order,
+    answeredBy: row.answered_by ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -193,7 +194,8 @@ export async function rejectInvitee(id) {
  * `updates` is [{ id, attending }]; ids that don't belong to this
  * guest or aren't approved are silently ignored, so a tampered id can't touch
  * someone else's invitee. Only the invitees named in `updates` are written --
- * everyone else keeps their saved answer.
+ * everyone else keeps their saved answer. `answeredBy` (optional, per update) is the
+ * device label to remember for that answer; without one the old label stays.
  */
 export async function updateInviteeRsvpStatuses(guestId, updates = [], exec) {
   const approvedIds = new Set((await listApprovedInvitees(guestId, exec)).map((invitee) => invitee.id));
@@ -201,20 +203,23 @@ export async function updateInviteeRsvpStatuses(guestId, updates = [], exec) {
 
   const run = exec ?? (useDb ? query : null);
   if (!run) {
-    valid.forEach(({ id, attending }) => {
+    valid.forEach(({ id, attending, answeredBy }) => {
       const invitee = invitees.find((entry) => entry.id === id);
       if (invitee) {
         invitee.rsvpStatus = attending ? 'accepted' : 'declined';
+        if (answeredBy) invitee.answeredBy = answeredBy;
         invitee.updatedAt = new Date().toISOString();
       }
     });
     return listApprovedInvitees(guestId);
   }
 
-  for (const { id, attending } of valid) {
+  for (const { id, attending, answeredBy } of valid) {
     await run(
-      `UPDATE invitees SET rsvp_status = $1, updated_at = now() WHERE id = $2 AND guest_id = $3`,
-      [attending ? 'accepted' : 'declined', id, guestId]
+      `UPDATE invitees
+          SET rsvp_status = $1, answered_by = COALESCE($4, answered_by), updated_at = now()
+        WHERE id = $2 AND guest_id = $3`,
+      [attending ? 'accepted' : 'declined', id, guestId, answeredBy ?? null]
     );
   }
   return listApprovedInvitees(guestId, exec);

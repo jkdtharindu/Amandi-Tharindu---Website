@@ -274,6 +274,15 @@ const ROWS = [
     'Some answers were changed by someone else a moment ago, so we kept theirs and refreshed. Please check them and save again if you still want to change them.',
     { multiline: true },
   ],
+  [
+    'rsvp.confirmChange',
+    'RSVP — messages',
+    'Question: changing an answer given from another device',
+    'An answer for {names} was already given from a different phone or computer. Are you sure you want to change it?',
+    { multiline: true },
+  ],
+  ['rsvp.confirmYes', 'RSVP — messages', 'Button: yes, change the answer', 'Yes, change it'],
+  ['rsvp.confirmNo', 'RSVP — messages', 'Button: no, keep the saved answer', 'No, keep it'],
   ['rsvp.errorSave', 'RSVP — messages', 'Message: save failed', 'We could not save your answers. Nothing you entered was lost — please try again.', { multiline: true }],
 
   // RSVP — single answer (older invitations)
