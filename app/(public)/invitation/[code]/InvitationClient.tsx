@@ -324,6 +324,8 @@ function InviteeChecklist({
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [thanks, setThanks] = useState('');
+  // People whose saved answer came from another device: waiting for "are you sure?".
+  const [confirmAsk, setConfirmAsk] = useState<{ id: string; name: string }[] | null>(null);
   const submittingRef = useRef(false);
   const partyRef = useRef(party);
   useEffect(() => {
@@ -387,27 +389,52 @@ function InviteeChecklist({
     setParty((prev) => ({ ...prev, drafts: { ...prev.drafts, [id]: { ...prev.drafts[id], choice } } }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    return send(entries);
+  }
+
+  /** "Yes, change it": sends the held-back answers again, marked as confirmed. */
+  function confirmChange() {
+    const ids = new Set((confirmAsk ?? []).map((person) => person.id));
+    return send(buildResponses(approved, party.drafts).filter((entry) => ids.has(entry.id)).map((entry) => ({ ...entry, confirmed: true })));
+  }
+
+  /** "No, keep it": drops those picks so the saved answers stay as they are. */
+  function keepSaved() {
+    const ids = new Set((confirmAsk ?? []).map((person) => person.id));
+    setParty((prev) => ({
+      ...prev,
+      drafts: {
+        ...prev.drafts,
+        ...Object.fromEntries(approvedInvitees(prev.saved).filter((invitee) => ids.has(invitee.id)).map((invitee) => [invitee.id, draftFromInvitee(invitee)])),
+      },
+    }));
+    setConfirmAsk(null);
+  }
+
+  async function send(toSend: { id: string; attending: boolean; expectedStatus?: string; confirmed?: boolean }[]) {
     // A double-tap must not send two requests (the server also guards this).
-    if (submittingRef.current || entries.length === 0) return;
+    if (submittingRef.current || toSend.length === 0) return;
 
     submittingRef.current = true;
     setSaving(true);
     setError('');
     setNotice('');
     setThanks('');
+    setConfirmAsk(null);
     let leaving = false;
     try {
       const res = await fetch('/api/guest/rsvp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ code: guestCode, inviteeResponses: entries }),
+        body: JSON.stringify({ code: guestCode, inviteeResponses: toSend }),
       });
       const data = await res.json();
 
       if (res.ok && data.success) {
         const conflicts: string[] = data.conflicts ?? [];
+        const heldBack: { id: string; name: string }[] = data.needsConfirm ?? [];
         const current = partyRef.current;
         const merged = mergeFreshInvitees(current.saved, current.drafts, data.invitees, { resetIds: conflicts });
         setParty({ saved: data.invitees, drafts: merged.drafts });
@@ -416,7 +443,10 @@ function InviteeChecklist({
         const stillPending = fresh.filter((invitee) => invitee.rsvpStatus === 'pending').length;
         if (conflicts.length > 0) setNotice(t('rsvp.conflict'));
 
-        if (stillPending > 0) {
+        if (heldBack.length > 0) {
+          // Not saved yet: ask first, and say nothing else until they answer.
+          setConfirmAsk(heldBack);
+        } else if (stillPending > 0) {
           setThanks(stillPending === 1 ? t('rsvp.thanksOneLeft') : t('rsvp.thanksSomeLeft', { pending: stillPending }));
         } else {
           const anyAccepted = fresh.some((invitee) => invitee.rsvpStatus === 'accepted');
@@ -505,6 +535,35 @@ function InviteeChecklist({
         <p role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {notice}
         </p>
+      )}
+
+      {confirmAsk && (
+        <div
+          role="alertdialog"
+          aria-live="assertive"
+          data-testid="rsvp-confirm-change"
+          className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <p>{t('rsvp.confirmChange', { names: confirmAsk.map((person) => person.name).join(', ') })}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={confirmChange}
+              disabled={saving}
+              className="rounded-full bg-amber-700 px-4 py-2 font-semibold text-white disabled:opacity-60"
+            >
+              {t('rsvp.confirmYes')}
+            </button>
+            <button
+              type="button"
+              onClick={keepSaved}
+              disabled={saving}
+              className="rounded-full border border-amber-400 bg-white px-4 py-2 font-semibold text-amber-900 disabled:opacity-60"
+            >
+              {t('rsvp.confirmNo')}
+            </button>
+          </div>
+        </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
