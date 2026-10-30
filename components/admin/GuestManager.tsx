@@ -41,7 +41,7 @@ function SeatingBadge({ info }: { info?: SeatingStatus }) {
       <span className={'inline-block h-3 w-3 rounded-full ' + style.dot} aria-hidden="true" />
       <span>{style.label}</span>
       {info.total > 0 && (
-        <span className="tabular-nums text-slate-400">
+        <span className="font-stat text-slate-400">
           {info.seated}/{info.total}
         </span>
       )}
@@ -96,7 +96,7 @@ function MessageTicks({ events }: { events: MessageEvent[] }) {
           {level.done ? '✓' : level.number}
         </span>
       ))}
-      <span className="ml-1 tabular-nums text-slate-500">
+      <span className="ml-1 font-stat text-slate-500">
         {doneCount}/{total} · {percent}%
       </span>
     </span>
@@ -1063,7 +1063,7 @@ export default function GuestManager({
                   <td className="px-4 py-3 font-medium">{guest.name}</td>
                   <td className="px-4 py-3 font-mono text-xs">{guest.code}</td>
                   <td className="px-4 py-3 text-slate-600">{guest.relationship}</td>
-                  <td className="px-4 py-3 tabular-nums">{guest.slotCount}</td>
+                  <td className="px-4 py-3 font-stat">{guest.slotCount}</td>
                   <td className="px-4 py-3">
                     <span
                       className={
