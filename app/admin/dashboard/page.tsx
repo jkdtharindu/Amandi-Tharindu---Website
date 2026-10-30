@@ -18,7 +18,7 @@ type Totals = {
 
 function StatRow({ totals }: { totals: Totals }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
       <StatCard label="Invitation codes" value={totals.codes} hint="Total codes issued" />
       <StatCard label="Invitees" value={totals.invited} hint="People across all codes" />
       <StatCard label="Accepted" value={totals.accepted} hint="People attending" />
@@ -39,7 +39,8 @@ function StatRow({ totals }: { totals: Totals }) {
 
 export default async function AdminDashboardPage() {
   const session = await requireAdminPage();
-  const { sideBreakdown, overallBreakdown, overallStats } = await loadDashboardStats(session.party);
+  const { sideBreakdown, otherBreakdown, overallStats } = await loadDashboardStats(session.party);
+  const otherPartyLabel = session.party === 'bride' ? 'Groom' : 'Bride';
 
   return (
     <>
@@ -56,14 +57,16 @@ export default async function AdminDashboardPage() {
           </a>
         </div>
 
-        <div className="mb-8">
-          <h2 className="text-sm font-semibold text-slate-500 mb-3">Your Party</h2>
+        <div className="mb-5">
+          <h2 className="text-sm font-semibold text-slate-500 mb-2">Your Party</h2>
           <StatRow totals={sideBreakdown.totals} />
         </div>
 
         <div className="mb-8">
-          <h2 className="text-sm font-semibold text-slate-500 mb-3">Overall (Both Parties)</h2>
-          <StatRow totals={overallBreakdown.totals} />
+          <h2 className="text-sm font-semibold text-slate-500 mb-2">
+            {otherPartyLabel} Party
+          </h2>
+          <StatRow totals={otherBreakdown.totals} />
         </div>
 
         <section className="bg-white rounded-xl border border-slate-200 p-6">

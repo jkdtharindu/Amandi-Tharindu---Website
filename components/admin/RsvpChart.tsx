@@ -54,8 +54,8 @@ export default function RsvpChart({ stats }: { stats: Stats }) {
           <li key={segment.key} className="flex items-center gap-2 text-sm">
             <span className={`h-2.5 w-2.5 rounded-full ${segment.dot}`} aria-hidden="true" />
             <span className="text-slate-600">{segment.label}</span>
-            <span className="font-semibold tabular-nums">{stats[segment.key]}</span>
-            <span className="text-slate-400 tabular-nums">
+            <span className="font-stat font-semibold">{stats[segment.key]}</span>
+            <span className="font-stat text-slate-400">
               ({pct(stats[segment.key])}%)
             </span>
           </li>

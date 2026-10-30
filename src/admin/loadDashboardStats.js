@@ -15,8 +15,10 @@ import { computeCodeBreakdown, computeRsvpStats } from './guestQueries.js';
  * @param {'bride' | 'groom'} party
  */
 export async function loadDashboardStats(party) {
-  const [sideGuests, allGuests, responses, invitees] = await Promise.all([
+  const otherParty = party === 'bride' ? 'groom' : 'bride';
+  const [sideGuests, otherGuests, allGuests, responses, invitees] = await Promise.all([
     listGuestsByParty(party),
+    listGuestsByParty(otherParty),
     listAllGuests(),
     listAllRsvpResponses(),
     listAllInvitees(),
@@ -26,6 +28,7 @@ export async function loadDashboardStats(party) {
     sideStats: computeRsvpStats(sideGuests, responses),
     overallStats: computeRsvpStats(allGuests, responses),
     sideBreakdown: computeCodeBreakdown(sideGuests, responses, invitees),
+    otherBreakdown: computeCodeBreakdown(otherGuests, responses, invitees),
     overallBreakdown: computeCodeBreakdown(allGuests, responses, invitees),
   };
 }
