@@ -60,6 +60,7 @@
 /* Admin dashboard figures: lining, fixed-width digits so columns line up. */
 .font-stat {
   font-family: var(--font-stat), var(--font-sans);
+  font-style: normal;
   font-variant-numeric: lining-nums tabular-nums;
 }
 
