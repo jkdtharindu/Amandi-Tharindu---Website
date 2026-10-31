@@ -371,45 +371,14 @@ export default function ThemeEditor({
             csrfToken={csrfToken}
           />
           <p className="mt-1 text-xs text-slate-500">
-            Shown behind the countdown on the home page. The dark overlay adjusts automatically to
-            the photo&apos;s own color. Leave empty to use the default design.
+            Shown behind the countdown on the home page, exactly as uploaded (no dark layer). The
+            words get a soft shadow so they stay readable. Leave empty to use the default design.
           </p>
-          <label className="mt-3 flex items-start gap-3 text-sm">
-            <input
-              id="heroOverlayEnabled"
-              type="checkbox"
-              checked={form.heroOverlayEnabled}
-              onChange={(e) => setForm({ ...form, heroOverlayEnabled: e.target.checked })}
-              className="mt-1 h-5 w-5"
-            />
-            <span>
-              <span className="font-semibold">Dark layer on the hero photo</span>
-              <span className="block text-xs text-slate-500">
-                Untick to show your photo exactly as uploaded. The white names and countdown can
-                be hard to read on a bright photo without the dark layer.
-              </span>
-            </span>
-          </label>
-          {form.heroOverlayEnabled && (
-            <div className="mt-3">
-              <label htmlFor="heroOverlayStrength" className="flex justify-between text-xs font-semibold text-slate-500 mb-1">
-                <span>Dark layer strength</span>
-                <span className="font-normal">{form.heroOverlayStrength}%</span>
-              </label>
-              <input
-                id="heroOverlayStrength"
-                type="range"
-                min={0}
-                max={100}
-                value={form.heroOverlayStrength}
-                onChange={(e) => setForm({ ...form, heroOverlayStrength: Number(e.target.value) })}
-                className="w-full"
-              />
-              <p className="text-xs text-slate-500">
-                100 is the full dark layer. Lower it to lighten the tint and let more of the photo show.
-              </p>
-            </div>
-          )}
+          <p className="mt-2 text-xs text-slate-500">
+            <span className="font-semibold">Best size:</span> a landscape photo about 2400 × 1600
+            pixels (3:2), saved as a JPEG under 1 MB (the limit is 5 MB). Keep the main subject in
+            the middle: phones show only the centre strip (about a quarter of the width).
+          </p>
         </div>
 
         <h2 className="font-semibold mb-4">Bride &amp; Groom</h2>
