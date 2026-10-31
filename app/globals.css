@@ -318,26 +318,24 @@ button {
 
   /*
    * Admin-uploaded hero photo (Phase 6 homepage redesign). Background image
-   * set inline via --hero-image-url; a dark overlay keeps the countdown and
-   * heading readable regardless of how bright or busy the photo is, rather
-   * than depending on the admin picking a photo with a dark enough area.
+   * set inline via --hero-image-url. There is no dark tint over the photo any
+   * more (it dulled the picture); the words stay readable through a soft dark
+   * text shadow instead. text-shadow is inherited, so setting it here covers
+   * the heading, intro, date flag and the countdown. The solid button is reset
+   * so its label is not smudged.
    */
   .hero-panel--photo {
     background-image: var(--hero-image-url);
     background-size: cover;
     background-position: center;
     box-shadow: none;
+    text-shadow:
+      0 0 2px rgba(0, 0, 0, 0.85),
+      0 1px 4px rgba(0, 0, 0, 0.8),
+      0 2px 18px rgba(0, 0, 0, 0.65);
   }
-  .hero-panel--photo::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    inset: 0;
-    border-radius: inherit;
-    /* Adapted to the photo's own color (Action 65) -- see
-       src/theme/heroOverlay.js. Falls back to this project's original fixed
-       45% black for a hero photo with no computed color. */
-    background: var(--hero-overlay, rgba(0, 0, 0, 0.45));
+  .hero-panel--photo .button-primary {
+    text-shadow: none;
   }
   /*
    * Text on the dark photo uses the admin's "Inverted text" colour (it used
