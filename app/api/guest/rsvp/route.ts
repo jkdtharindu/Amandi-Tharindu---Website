@@ -4,6 +4,7 @@ import { listApprovedInvitees, listInviteesForGuest } from '@/src/invitees/invit
 import { validateParticipantNames } from '@/src/invitees/validateInvitees.js';
 import { saveInviteeRsvp, saveWholePartyRsvp } from '@/src/rsvp/saveRsvp.js';
 import { answeredByLabel, clientIpFrom } from '@/src/rsvp/answeredBy.js';
+import { withInviteeTables } from '@/src/table-arrangement/guestTableView.js';
 import { authorizeRsvp } from '@/src/guest-auth/authorizeRsvp.js';
 import { verifySession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
@@ -27,6 +28,8 @@ function publicInvitee(invitee: Record<string, unknown>) {
     addedBy: invitee.addedBy,
     approvalStatus: invitee.approvalStatus,
     displayOrder: invitee.displayOrder,
+    // { number, name } once confirmed and seated, else null (see withInviteeTables).
+    table: invitee.table ?? null,
   };
 }
 
@@ -42,7 +45,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!guest) {
       return NextResponse.json({ success: false, reason: 'not_signed_in' }, { status: 401 });
     }
-    const invitees = await listInviteesForGuest(guest.id);
+    const invitees = await withInviteeTables(await listInviteesForGuest(guest.id));
     return NextResponse.json(
       { success: true, invitees: invitees.map(publicInvitee) },
       { headers: { 'Cache-Control': 'no-store' } }
@@ -121,7 +124,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const result = await saveInviteeRsvp(guest.id, valid, {
         answeredBy: answeredByLabel(clientIpFrom(request.headers)),
       });
-      const invitees = await listInviteesForGuest(guest.id);
+      const invitees = await withInviteeTables(await listInviteesForGuest(guest.id));
       // Changes held back because another device gave the saved answer: the page
       // asks the guest to confirm, by name, then sends them again.
       const needsConfirm = result.needsConfirm.map((id: string) => ({

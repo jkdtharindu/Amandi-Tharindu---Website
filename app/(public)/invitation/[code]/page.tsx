@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { findGuestById, findRsvpResponseByGuestId } from '@/src/guest-auth/guestRepo.js';
 import { listInviteesForGuest } from '@/src/invitees/inviteesRepo.js';
-import { getGuestTableView, getGuestPeopleLines } from '@/src/table-arrangement/guestTableView.js';
+import { getGuestTableView, getGuestPeopleLines, withInviteeTables } from '@/src/table-arrangement/guestTableView.js';
 import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
@@ -204,7 +204,7 @@ export default async function InvitationPage({
             hasResponded={hasResponded}
             currentRsvpStatus={rsvpStatus}
             coupleNames={settings.coupleNames}
-            invitees={invitees}
+            invitees={await withInviteeTables(invitees)}
             weddingDate={settings.weddingDate ? formatWeddingDate(settings.weddingDate) : ''}
           />
 

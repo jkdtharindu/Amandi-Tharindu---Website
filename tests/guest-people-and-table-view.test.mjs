@@ -120,3 +120,26 @@ test('a party with no named people is one line under the guest\'s own name', () 
   const lines = buildGuestPeopleLines(tables, { guest: { id: 'g-1', name: 'Perera', rsvpStatus: 'accepted' } });
   assert.deepEqual(lines, [{ name: 'Perera', status: 'accepted', table: 'Table 4' }]);
 });
+
+// --- per-person table for the RSVP form badge ---
+
+test('buildInviteeTables maps each seated person to their table number and name', async () => {
+  const { buildInviteeTables } = await import('../src/table-arrangement/guestTableView.js');
+  const tables = [
+    { table_number: 2, table_name: 'Rose', seats: [seat({ inviteeId: 'ana' }), seat({ guestId: 'g9' })] },
+    { table_number: 5, table_name: null, seats: [seat({ inviteeId: 'ben' })] },
+  ];
+  const byInvitee = buildInviteeTables(tables);
+  assert.deepEqual(byInvitee.get('ana'), { number: 2, name: 'Rose' });
+  assert.deepEqual(byInvitee.get('ben'), { number: 5, name: null });
+  assert.equal(byInvitee.get('nobody'), undefined);
+});
+
+test('a person at two tables keeps the first (lowest-listed) one', async () => {
+  const { buildInviteeTables } = await import('../src/table-arrangement/guestTableView.js');
+  const tables = [
+    { table_number: 1, table_name: 'A', seats: [seat({ inviteeId: 'ana' })] },
+    { table_number: 2, table_name: 'B', seats: [seat({ inviteeId: 'ana' })] },
+  ];
+  assert.deepEqual(buildInviteeTables(tables).get('ana'), { number: 1, name: 'A' });
+});

@@ -49,6 +49,8 @@ export interface Invitee {
   addedBy: 'admin' | 'guest';
   approvalStatus: 'approved' | 'pending_approval' | 'rejected';
   displayOrder: number;
+  /** Set once the person has confirmed and the admin has seated them. */
+  table?: { number: number; name: string | null } | null;
 }
 
 interface InvitationClientProps {
@@ -572,7 +574,14 @@ function InviteeChecklist({
           const savedChoice = choiceOf(invitee.rsvpStatus);
           const unsaved = isChanged(invitee, draft);
           const badge =
-            savedChoice === 'accepted'
+            savedChoice === 'accepted' && invitee.table
+              ? {
+                  text: invitee.table.name
+                    ? t('rsvp.badgeSeated', { tableNumber: invitee.table.number, tableName: invitee.table.name })
+                    : t('rsvp.badgeSeatedNoName', { tableNumber: invitee.table.number }),
+                  cls: 'bg-green-100 text-green-800',
+                }
+              : savedChoice === 'accepted'
               ? { text: t('rsvp.badgeAttending'), cls: 'bg-green-100 text-green-800' }
               : savedChoice === 'declined'
                 ? { text: t('rsvp.badgeDeclined'), cls: 'bg-rose-100 text-rose-800' }
