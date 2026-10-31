@@ -204,7 +204,7 @@ function LegacyRsvpForm({
                   setAttending(false);
                   setShowForm(true);
                 }}
-                className="py-2 px-6 rounded-full bg-gray-500 text-white font-semibold hover:bg-gray-600 transition-colors"
+                className="py-2 px-6 rounded-full bg-rose-600 text-white font-semibold hover:bg-rose-700 transition-colors"
               >
                 {t('rsvp.decline')}
               </button>
@@ -575,7 +575,7 @@ function InviteeChecklist({
             savedChoice === 'accepted'
               ? { text: t('rsvp.badgeAttending'), cls: 'bg-green-100 text-green-800' }
               : savedChoice === 'declined'
-                ? { text: t('rsvp.badgeDeclined'), cls: 'bg-gray-200 text-gray-800' }
+                ? { text: t('rsvp.badgeDeclined'), cls: 'bg-rose-100 text-rose-800' }
                 : { text: t('rsvp.badgeWaiting'), cls: 'bg-amber-100 text-amber-800' };
           const options: { value: 'accepted' | 'declined'; label: string }[] = [
             { value: 'accepted', label: t('rsvp.choiceAttending') },
@@ -595,8 +595,14 @@ function InviteeChecklist({
                 {options.map((option) => (
                   <label
                     key={option.value}
-                    className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 text-gray-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[color:var(--color-accent)] ${
-                      draft.choice === option.value ? 'border-gray-900 bg-gray-50 font-semibold' : 'border-gray-300'
+                    className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[color:var(--color-accent)] ${
+                      draft.choice === option.value
+                        ? option.value === 'accepted'
+                          ? 'border-green-600 bg-green-50 font-semibold text-green-900'
+                          : 'border-rose-600 bg-rose-50 font-semibold text-rose-900'
+                        : option.value === 'accepted'
+                          ? 'border-green-200 text-green-900 hover:bg-green-50'
+                          : 'border-rose-200 text-rose-900 hover:bg-rose-50'
                     }`}
                   >
                     <input
@@ -606,7 +612,7 @@ function InviteeChecklist({
                       checked={draft.choice === option.value}
                       onChange={() => pick(invitee.id, option.value)}
                       disabled={saving}
-                      className="h-5 w-5 shrink-0 cursor-pointer"
+                      className={`h-5 w-5 shrink-0 cursor-pointer ${option.value === 'accepted' ? 'accent-green-600' : 'accent-rose-600'}`}
                     />
                     <span>{option.label}</span>
                   </label>
