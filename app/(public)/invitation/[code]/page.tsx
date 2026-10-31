@@ -71,10 +71,14 @@ export default async function InvitationPage({
     console.error('getGuestTableView failed, hiding the table line:', error);
   }
 
-  // One line per person: their RSVP answer and, once confirmed and seated, their table.
+  // One line per seated person: their name and table. People with no table yet
+  // get no line -- their answer is shown in the RSVP form below, so the old
+  // "Name RSVP Pending" lines were dropped (they only repeated it).
   let peopleLines: { name: string; status: string; table: string | null }[] = [];
   try {
-    peopleLines = await getGuestPeopleLines(guest, invitees);
+    peopleLines = (await getGuestPeopleLines(guest, invitees)).filter(
+      (person: { table: string | null }) => Boolean(person.table)
+    );
   } catch (error) {
     console.error('getGuestPeopleLines failed, hiding the people lines:', error);
   }
@@ -121,11 +125,8 @@ export default async function InvitationPage({
               <div className="mb-6 space-y-1" data-testid="table-assignment">
                 {peopleLines.map((person, index) => (
                   <p key={`${index}-${person.name}`} className="text-lg text-gray-900">
-                    <span className="font-semibold">{person.name}</span>{' '}
-                    <strong className="text-base">
-                      {person.status === 'accepted' ? 'RSVP Confirmed' : person.status === 'declined' ? 'RSVP Declined' : 'RSVP Pending'}
-                    </strong>
-                    {person.table && <span> - {person.table}</span>}
+                    <span className="font-semibold">{person.name}</span>
+                    <span> - {person.table}</span>
                   </p>
                 ))}
                 {tableViews.map((view, index) =>
