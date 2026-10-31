@@ -213,6 +213,18 @@ const ROWS = [
   ['rsvp.choiceAttending', 'RSVP — who is coming', 'Choice: attending', 'Attending'],
   ['rsvp.choiceDeclined', 'RSVP — who is coming', 'Choice: not attending', 'Not attending'],
   ['rsvp.badgeAttending', 'RSVP — who is coming', 'Badge: saved as attending', 'Attending'],
+  [
+    'rsvp.badgeSeated',
+    'RSVP — who is coming',
+    'Badge: confirmed and seated at a named table',
+    'RSVP confirmed & table assigned - Table No. {tableNumber} - Table name {tableName}',
+  ],
+  [
+    'rsvp.badgeSeatedNoName',
+    'RSVP — who is coming',
+    'Badge: confirmed and seated at a table with no name',
+    'RSVP confirmed & table assigned - Table No. {tableNumber}',
+  ],
   ['rsvp.badgeDeclined', 'RSVP — who is coming', 'Badge: saved as not attending', 'Not attending'],
   ['rsvp.badgeWaiting', 'RSVP — who is coming', 'Badge: no answer yet', 'Awaiting response'],
   ['rsvp.confirmed', 'RSVP — who is coming', 'Small tag: this person has answered', 'Confirmed'],

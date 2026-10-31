@@ -76,6 +76,43 @@ export function buildGuestPeopleLines(tables, { guest, invitees = [] }) {
   );
 }
 
+/**
+ * The table each seated named person sits at: inviteeId -> { number, name }.
+ * `name` is null for a table that has no name. A table's side is never included.
+ * `tables` is the shape listSeatingTables returns.
+ */
+export function buildInviteeTables(tables) {
+  const byInvitee = new Map();
+  for (const table of tables) {
+    for (const seat of table.seats) {
+      if (!seat.inviteeId || byInvitee.has(seat.inviteeId)) continue;
+      byInvitee.set(seat.inviteeId, { number: table.table_number, name: table.table_name || null });
+    }
+  }
+  return byInvitee;
+}
+
+/**
+ * Adds `table` to each invitee for the invitation form: their { number, name }
+ * once they have confirmed AND are seated, otherwise null. Never throws -- a
+ * seating hiccup only hides the table, so the RSVP form keeps working.
+ *
+ * @param {any[]} invitees what listInviteesForGuest returns
+ * @returns {Promise<any[]>}
+ */
+export async function withInviteeTables(invitees) {
+  let tableOf = new Map();
+  try {
+    tableOf = buildInviteeTables(await listSeatingTables());
+  } catch (error) {
+    console.error('listSeatingTables failed, hiding per-person tables:', error);
+  }
+  return invitees.map((person) => ({
+    ...person,
+    table: person.rsvpStatus === 'accepted' ? tableOf.get(person.id) ?? null : null,
+  }));
+}
+
 export async function getGuestPeopleLines(guest, invitees) {
   return buildGuestPeopleLines(await listSeatingTables(), { guest, invitees });
 }
