@@ -145,12 +145,13 @@ test('computeRsvpStats handles an empty guest list', () => {
   });
 });
 
-test('guestsToCsv emits a header row and one row per guest', () => {
+test('guestsToCsv emits a header row and rows for every non-deleted guest', () => {
   const csv = guestsToCsv(filterGuests(GUESTS, {}), RESPONSES);
   const lines = csv.trim().split('\n');
 
   assert.match(lines[0], /^Code,Name,Relationship/);
-  assert.equal(lines.length, 5, 'header + 4 non-deleted guests');
+  const codes = new Set(lines.slice(1).map((line) => line.split(',')[0]));
+  assert.equal(codes.size, 4, '4 non-deleted guests');
 });
 
 test('guestsToCsv quotes fields containing commas or quotes', () => {
@@ -171,7 +172,7 @@ test('guestsToCsv quotes fields containing commas or quotes', () => {
   ]);
 
   assert.ok(csv.includes('"Silva, Nimal ""Nim"""'), 'comma and quotes escaped');
-  assert.ok(csv.includes('"A, B"'), 'participant names escaped');
+  assert.ok(csv.includes('"A, B"'), 'person name escaped');
 });
 
 test('guestsToCsv cannot be used to inject a spreadsheet formula', () => {
@@ -191,7 +192,7 @@ test('guestsToCsv cannot be used to inject a spreadsheet formula', () => {
   assert.ok(!/(^|,)"?=/m.test(csv), 'leading = must be neutralised');
 });
 
-test('guestsToCsv lists every approved member with their own answer, in order', () => {
+test('guestsToCsv puts each approved member in their own columns, in order', () => {
   const guests = [
     { id: 'g1', code: 'X-001', name: 'Nimal Silva', relationship: 'Family', slotCount: 3, rsvpStatus: 'accepted', whatsappNumber: null, isDeleted: false },
     { id: 'g2', code: 'X-002', name: 'Kumara Perera', relationship: 'Friend', slotCount: 1, rsvpStatus: 'pending', whatsappNumber: null, isDeleted: false },
@@ -204,8 +205,11 @@ test('guestsToCsv lists every approved member with their own answer, in order', 
   ];
   const lines = guestsToCsv(guests, [], invitees).trim().split('\n');
 
-  assert.match(lines[0], /,Members$/);
-  assert.ok(lines[1].endsWith(',Ana (accepted); Ben (declined); Cara (pending)') || lines[1].endsWith(',"Ana (accepted); Ben (declined); Cara (pending)"'));
-  assert.ok(!lines[1].includes('Not Yet Approved'), 'unapproved requests are left out');
-  assert.ok(lines[2].endsWith(','), 'a party with no named members has an empty Members cell');
+  assert.equal(lines.length, 5, 'header + 3 people for X-001 + 1 blank row for X-002');
+  assert.match(lines[0], /,Person,Person RSVP$/);
+  assert.ok(lines[1].startsWith('X-001,') && lines[1].endsWith(',Ana,accepted'));
+  assert.ok(lines[2].startsWith('X-001,Nimal Silva,') && lines[2].endsWith(',Ben,declined'), 'code repeats on every person row');
+  assert.ok(lines[3].startsWith('X-001,Nimal Silva,') && lines[3].endsWith(',Cara,pending'));
+  assert.ok(!lines.join('\n').includes('Not Yet Approved'), 'unapproved requests are left out');
+  assert.ok(lines[4].startsWith('X-002,') && lines[4].endsWith(',,'), 'a party with no people keeps one row with blank person cells');
 });

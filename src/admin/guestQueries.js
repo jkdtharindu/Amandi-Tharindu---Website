@@ -13,8 +13,8 @@ const CSV_COLUMNS = [
   'Slot Count',
   'RSVP Status',
   'WhatsApp Number',
-  'Participant Names',
-  'Members',
+  'Person',
+  'Person RSVP',
 ];
 
 /** Filters out soft-deleted guests, then applies status/relationship/search. */
@@ -144,10 +144,10 @@ function escapeCsvField(value) {
 }
 
 /**
- * Renders the given guests as CSV, one row each, with their participants.
- * `Members` lists every approved person in the party with their own answer, e.g.
- * "Anna (accepted); Ben (pending)" -- unlike `Participant Names`, which only holds
- * the accepted names once the party has a saved response.
+ * Renders the given guests as CSV with one row per person (name + RSVP). The
+ * guest code and party details repeat on each of the party's rows, so the sheet
+ * can be sorted and filtered. A party with no approved people falls back to the names on its
+ * saved response, then to a single row with the person cells blank.
  */
 export function guestsToCsv(guests = [], responses = [], invitees = []) {
   const responseByGuestId = new Map(
@@ -159,24 +159,25 @@ export function guestsToCsv(guests = [], responses = [], invitees = []) {
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .forEach((invitee) => {
       const list = membersByGuestId.get(invitee.guestId) ?? [];
-      list.push(`${invitee.name} (${invitee.rsvpStatus ?? 'pending'})`);
+      list.push({ name: invitee.name, status: invitee.rsvpStatus ?? 'pending' });
       membersByGuestId.set(invitee.guestId, list);
     });
 
-  const rows = guests.map((guest) => {
-    const response = responseByGuestId.get(guest.id);
-    return [
-      guest.code,
-      guest.name,
-      guest.relationship,
-      guest.slotCount,
-      guest.rsvpStatus,
-      guest.whatsappNumber,
-      (response?.participantNames ?? []).join(', '),
-      (membersByGuestId.get(guest.id) ?? []).join('; '),
-    ]
-      .map(escapeCsvField)
-      .join(',');
+  const peopleFor = (guest) => {
+    const members = membersByGuestId.get(guest.id) ?? [];
+    if (members.length > 0) return members;
+    const names = responseByGuestId.get(guest.id)?.participantNames ?? [];
+    return names.map((name) => ({ name, status: 'accepted' }));
+  };
+
+  const rows = guests.flatMap((guest) => {
+    const people = peopleFor(guest);
+    const lines = people.length > 0 ? people : [{ name: '', status: '' }];
+
+    // The code and party details repeat on every row so the sheet can be sorted
+    // and filtered without separating a person from their code.
+    const party = [guest.code, guest.name, guest.relationship, guest.slotCount, guest.rsvpStatus, guest.whatsappNumber];
+    return lines.map((person) => [...party, person.name, person.status].map(escapeCsvField).join(','));
   });
 
   return [CSV_COLUMNS.join(','), ...rows].join('\n') + '\n';
