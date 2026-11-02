@@ -166,6 +166,21 @@ export default function GuestMessageModal({
     }
   }
 
+  // The Windows WhatsApp app can turn emoji in a pre-filled link into "�".
+  // Pasting the copied text keeps every emoji intact.
+  async function handleCopy() {
+    if (!message.trim()) {
+      setError('Message cannot be empty.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(message);
+      showToast({ kind: 'ok', text: 'Message copied. Paste it into WhatsApp.' });
+    } catch {
+      showToast({ kind: 'error', text: 'Could not copy. Select the text and copy it by hand.' });
+    }
+  }
+
   async function toggleTick() {
     if (!csrfToken) return;
     const nextCompleted = !isCompleted(kind.eventName);
@@ -294,6 +309,13 @@ export default function GuestMessageModal({
             className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
           >
             Open in WhatsApp
+          </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-100"
+          >
+            Copy message
           </button>
           <button
             type="button"

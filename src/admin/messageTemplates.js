@@ -95,11 +95,17 @@ export function toWhatsAppNumber(phoneNumber) {
   return digits;
 }
 
-/** Builds a wa.me deep link that opens WhatsApp with `message` pre-filled. */
+/**
+ * Builds a deep link that opens WhatsApp with `message` pre-filled.
+ *
+ * Uses api.whatsapp.com/send directly, not the wa.me short link: wa.me redirects
+ * to api.whatsapp.com and, on the way, swaps every emoji for a replacement
+ * character (checked 2026-11-02). Same link, same behaviour, emoji intact.
+ */
 export function buildWhatsAppLink(phoneNumber, message) {
   const digits = toWhatsAppNumber(phoneNumber);
   if (digits.length < MIN_PHONE_DIGITS) {
     throw new Error('invalid_phone_number');
   }
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  return `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}`;
 }

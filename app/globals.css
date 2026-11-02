@@ -1466,6 +1466,36 @@ button {
   }
 }
 
+/* Instant "opening" screen for /invitation while the server looks up the card. */
+@layer components {
+  .invitation-loading {
+    padding: 4rem 2rem;
+  }
+  .invitation-loading p {
+    margin: 1rem auto 0;
+  }
+  .invitation-loading-dot {
+    display: inline-block;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    border: 3px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-top-color: var(--color-accent);
+    animation: invitation-spin 0.9s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .invitation-loading-dot {
+      animation: none;
+    }
+  }
+}
+
+@keyframes invitation-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /*
  * Crystal depth (PRD §22, round 3, owner Grill Me 2026-10-11): the panels and
  * the cards inside them read as thick crystal slabs stacked on the page.
