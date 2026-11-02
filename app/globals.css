@@ -338,6 +338,52 @@ button {
     text-shadow: none;
   }
   /*
+   * Readability on any photo: a soft fade that darkens only the lower part
+   * of the picture (the top stays bright), and the words sit in a frosted
+   * dark box so a bright patch of photo can never wash them out.
+   */
+  .hero-panel--photo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.18) 40%,
+      rgba(0, 0, 0, 0.5) 100%
+    );
+  }
+  .hero-panel--photo .hero-text-box {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 1.75rem 1.5rem;
+    border-radius: 24px;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+  .hero-panel--photo .hero-text-box p {
+    max-width: 36rem;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 1.15rem;
+    font-weight: 500;
+  }
+  .hero-panel--photo .hero-flag {
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--color-text-inverted, #ffffff);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    text-shadow: none;
+  }
+  .hero-panel--photo .hero-sprig,
+  .hero-panel--photo .hero-sprig-mirror {
+    display: none;
+  }
+  /*
    * Text on the dark photo uses the admin's "Inverted text" colour (it used
    * to borrow Surface, which is a card background and can be any colour).
    * The doubled class beats `.hero-panel p` further down, which was
