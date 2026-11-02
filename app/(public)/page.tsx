@@ -138,9 +138,12 @@ export default async function HomePage() {
   const heroClassName = settings.heroImageUrl
     ? "hero-panel hero-panel--photo"
     : "hero-panel";
+  // The admin's "text box opacity" slider (0-100) maps to 30%-90% cream.
+  const heroBoxAlpha = (0.3 + 0.6 * (Number(settings.heroOverlayStrength ?? 100) / 100)).toFixed(2);
   const heroStyle = settings.heroImageUrl
     ? ({
         "--hero-image-url": `url(${JSON.stringify(settings.heroImageUrl)})`,
+        "--hero-box-alpha": heroBoxAlpha,
       } as CSSProperties)
     : undefined;
 
@@ -169,7 +172,7 @@ export default async function HomePage() {
             <Link className="button button-primary" href="/invitation">
               {t("hero.buttonInvitation")}
             </Link>
-            <Link className="button button-secondary" href="#our-story">
+            <Link className="button button-secondary" href={t("hero.buttonStoryLink")}>
               {t("hero.buttonStory")}
             </Link>
           </div>

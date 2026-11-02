@@ -54,7 +54,7 @@ export const FIELD_LABELS = {
   groomBio: { label: "Groom's short bio", hint: 'A sentence or two, shown under his name' },
   heroOverlayEnabled: { label: 'Dark layer on hero photo', hint: 'On keeps the dark layer that makes the white text readable; off shows the photo as uploaded' },
   couplePhoto: { label: 'Couple photo size, fade and position', hint: 'Frame size, edge fade, and each portrait’s zoom and position' },
-  heroOverlayStrength: { label: 'Dark layer strength', hint: '0 to 100 — 100 is the full dark layer, 0 is see-through' },
+  heroOverlayStrength: { label: 'Hero text box opacity', hint: '0 to 100 — 100 is the most solid cream box, 0 is the most see-through' },
   sectionGlassEnabled: { label: 'Section tint & glass', hint: 'Tints the big section panels with the hero photo colour and gives them a frosted-glass look' },
   sectionGlassStrength: { label: 'Tint strength', hint: '0 to 100 — how strongly the panels pick up the tint' },
   invitationCodeSurnamePosition: {

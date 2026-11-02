@@ -36,7 +36,20 @@ const ACCEPTED_TAGS = {
   guest: '{guestName}',
 };
 
-/** @type {[string, string, string, string, { multiline?: boolean, tags?: string[] }?][]} */
+// Where a homepage button may send guests: [link, plain-language name]. A row
+// with `choices` is a dropdown in Admin > Site wording and only these links are
+// ever saved or used, so an edit can never become an unsafe link.
+const BUTTON_LINK_CHOICES = [
+  ['#our-story', 'Our Story section'],
+  ['#family-details', 'Family Details section'],
+  ['#event-details', 'Event Details section'],
+  ['#gallery', 'Gallery section'],
+  ['#faq', 'FAQ section'],
+  ['#wishes', 'Wishes section'],
+  ['/invitation', 'Invitation page'],
+];
+
+/** @type {[string, string, string, string, { multiline?: boolean, tags?: string[], choices?: string[][] }?][]} */
 // [key, group, label, default text, options]
 const ROWS = [
   // Browser tab
@@ -63,6 +76,7 @@ const ROWS = [
   ],
   ['hero.buttonInvitation', 'Home — top banner', 'Button: open invitation', 'View Your Invitation'],
   ['hero.buttonStory', 'Home — top banner', 'Button: our story', 'Our Story'],
+  ['hero.buttonStoryLink', 'Home — top banner', 'Button: our story — where it goes', '#our-story', { choices: BUTTON_LINK_CHOICES }],
 
   // Home — countdown
   ['countdown.days', 'Home — countdown', 'Countdown: Days', 'Days'],
@@ -319,6 +333,7 @@ export const SITE_TEXT_FIELDS = ROWS.map(([key, group, label, defaultText, optio
   defaultText,
   multiline: Boolean(options.multiline),
   tags: options.tags ?? [],
+  choices: options.choices ?? [],
 }));
 
 export const SITE_TEXT_KEYS = SITE_TEXT_FIELDS.map((field) => field.key);
@@ -329,6 +344,13 @@ export const MAX_SITE_TEXT_LENGTH = 1000;
 
 export function defaultSiteText(key) {
   return DEFAULTS[key] ?? '';
+}
+
+/** True when `value` is allowed for `key`: any text, or one of the dropdown's links. */
+export function isAllowedSiteText(key, value) {
+  const field = SITE_TEXT_FIELDS.find((f) => f.key === key);
+  if (!field || field.choices.length === 0) return true;
+  return field.choices.some(([link]) => link === value);
 }
 
 /** Replaces {tag} with vars.tag. A tag with no value is left as written. */
@@ -346,7 +368,8 @@ export function fillText(template, vars = {}) {
 export function createT(texts = {}) {
   return (key, vars) => {
     const edited = texts[key];
-    const template = typeof edited === 'string' && edited !== '' ? edited : defaultSiteText(key);
+    const usable = typeof edited === 'string' && edited !== '' && isAllowedSiteText(key, edited);
+    const template = usable ? edited : defaultSiteText(key);
     return fillText(template, vars);
   };
 }
