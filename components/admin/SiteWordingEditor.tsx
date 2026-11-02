@@ -10,6 +10,7 @@ type Field = {
   defaultText: string;
   multiline: boolean;
   tags: string[];
+  choices: string[][];
 };
 
 /**
@@ -109,7 +110,20 @@ export default function SiteWordingEditor({
                       <label htmlFor={id} className="block text-xs font-semibold text-slate-500 mb-1">
                         {field.label}
                       </label>
-                      {field.multiline ? (
+                      {field.choices.length > 0 ? (
+                        <select
+                          id={id}
+                          value={value}
+                          onChange={(e) => setValues({ ...values, [field.key]: e.target.value })}
+                          className={inputClass}
+                        >
+                          {field.choices.map(([link, name]) => (
+                            <option key={link} value={link}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : field.multiline ? (
                         <textarea
                           id={id}
                           rows={3}

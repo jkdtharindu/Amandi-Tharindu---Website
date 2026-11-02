@@ -362,7 +362,7 @@ button {
     padding: 1.75rem 1.5rem;
     border-radius: 24px;
     /* Warm cream glass with a thin gold edge; dark text sits on it. */
-    background: rgba(255, 251, 244, 0.78);
+    background: rgba(255, 251, 244, var(--hero-box-alpha, 0.78));
     border: 1px solid color-mix(in srgb, var(--color-accent-deep) 45%, white);
     box-shadow: 0 12px 40px rgba(60, 40, 20, 0.18);
     -webkit-backdrop-filter: blur(10px) saturate(120%);
@@ -674,11 +674,22 @@ button {
     border-radius: var(--radius-countdown);
     padding: 1.3rem;
     text-align: center;
+    /* The photo hero's text shadow is inherited; the numbers sit on solid gold. */
+    text-shadow: none;
   }
 
+  /*
+   * Cinzel has even, same-height numbers (the page's serif font drops some
+   * below the line, so "11" looked like "ll"). tabular-nums stops the boxes
+   * from wobbling as the seconds tick.
+   */
   .countdown-item strong {
     display: block;
-    font-size: 2rem;
+    font-family: "Cinzel", var(--font-sans);
+    font-weight: 600;
+    font-variant-numeric: lining-nums tabular-nums;
+    letter-spacing: 0.04em;
+    font-size: 2.1rem;
     line-height: 1;
   }
 

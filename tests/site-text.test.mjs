@@ -69,3 +69,19 @@ test('an unknown key, a non-text value or over-long text saves nothing at all', 
   assert.equal((await saveSiteText({ 'menu.gallery': 'x'.repeat(MAX_SITE_TEXT_LENGTH + 1) })).success, false);
   assert.deepEqual(await getSiteTextOverrides(), {});
 });
+
+test('the Our Story button link only accepts the dropdown links', async () => {
+  const { saveSiteText } = await import('../src/site-text/siteTextRepo.js');
+  assert.equal(defaultSiteText('hero.buttonStoryLink'), '#our-story');
+
+  const bad = await saveSiteText({ 'hero.buttonStoryLink': 'javascript:alert(1)' });
+  assert.equal(bad.success, false);
+  assert.equal(bad.errors[0].reason, 'not_a_choice');
+
+  const good = await saveSiteText({ 'hero.buttonStoryLink': '#gallery' });
+  assert.equal(good.success, true);
+  assert.equal(createT({ 'hero.buttonStoryLink': '#gallery' })('hero.buttonStoryLink'), '#gallery');
+  // An unsafe value that somehow reached the database is ignored.
+  assert.equal(createT({ 'hero.buttonStoryLink': 'https://evil.test' })('hero.buttonStoryLink'), '#our-story');
+  await saveSiteText({ 'hero.buttonStoryLink': '' });
+});

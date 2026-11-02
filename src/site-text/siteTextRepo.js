@@ -1,5 +1,5 @@
 import { query } from '../db.js';
-import { SITE_TEXT_KEYS, MAX_SITE_TEXT_LENGTH, defaultSiteText } from './siteTextRegistry.js';
+import { SITE_TEXT_KEYS, MAX_SITE_TEXT_LENGTH, defaultSiteText, isAllowedSiteText } from './siteTextRegistry.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -49,6 +49,7 @@ export async function saveSiteText(values) {
     if (!SITE_TEXT_KEYS.includes(key)) errors.push({ key, reason: 'unknown_key' });
     else if (typeof value !== 'string') errors.push({ key, reason: 'not_text' });
     else if (value.trim().length > MAX_SITE_TEXT_LENGTH) errors.push({ key, reason: 'too_long' });
+    else if (value.trim() !== '' && !isAllowedSiteText(key, value.trim())) errors.push({ key, reason: 'not_a_choice' });
   }
   if (errors.length > 0) return { success: false, errors };
 

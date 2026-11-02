@@ -260,6 +260,33 @@ export default function ThemeEditor({
           </div>
         </div>
 
+        <h2 className="font-semibold mb-4">Hero Text Box</h2>
+        <div className="mb-6">
+          <label
+            htmlFor="heroOverlayStrength"
+            className="block text-xs font-semibold text-slate-500 mb-1"
+          >
+            Cream glass opacity: {form.heroOverlayStrength}
+          </label>
+          <input
+            id="heroOverlayStrength"
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={form.heroOverlayStrength}
+            onChange={(e) => setForm({ ...form, heroOverlayStrength: Number(e.target.value) })}
+            className="w-full"
+          />
+          <p className="text-xs text-slate-500">
+            The cream box behind the home page heading. 0 shows the most photo through it;
+            100 is the most solid. If the words are hard to read, slide it up.
+          </p>
+          {fieldErrors.heroOverlayStrength && (
+            <p className="mt-1 text-xs text-red-700">{fieldErrors.heroOverlayStrength}</p>
+          )}
+        </div>
+
         <h2 className="font-semibold mb-4">Typography</h2>
         <div className="grid gap-4 sm:grid-cols-2 mb-6">
           <div>
