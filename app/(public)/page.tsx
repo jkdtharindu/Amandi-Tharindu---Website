@@ -162,15 +162,17 @@ export default async function HomePage() {
         <span className="hero-flag">
           {t("hero.flag", { weddingDate: formatWeddingDate(settings.weddingDate) })}
         </span>
-        <h1>{t("hero.heading")}</h1>
-        <p>{t("hero.intro", { coupleNames: settings.coupleNames })}</p>
-        <div className="button-group">
-          <Link className="button button-primary" href="/invitation">
-            {t("hero.buttonInvitation")}
-          </Link>
-          <Link className="button button-secondary" href="#our-story">
-            {t("hero.buttonStory")}
-          </Link>
+        <div className="hero-text-box">
+          <h1>{t("hero.heading")}</h1>
+          <p>{t("hero.intro", { coupleNames: settings.coupleNames })}</p>
+          <div className="button-group">
+            <Link className="button button-primary" href="/invitation">
+              {t("hero.buttonInvitation")}
+            </Link>
+            <Link className="button button-secondary" href="#our-story">
+              {t("hero.buttonStory")}
+            </Link>
+          </div>
         </div>
         <Countdown targetDate={`${settings.weddingDate}T${settings.weddingTime}:00+05:30`} />
       </section>
