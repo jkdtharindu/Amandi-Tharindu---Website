@@ -52,14 +52,14 @@ test('buildSiteLink strips a trailing slash from the site URL', () => {
 
 test('buildWhatsAppLink strips formatting characters from the phone number', () => {
   const link = buildWhatsAppLink('+94 71 234 5678', 'Hello');
-  assert.equal(link, 'https://wa.me/94712345678?text=Hello');
+  assert.equal(link, 'https://api.whatsapp.com/send?phone=94712345678&text=Hello');
 });
 
 test('buildWhatsAppLink URL-encodes the message', () => {
   const link = buildWhatsAppLink('+94712345678', 'Hi Ruwan, RSVP at https://example.com?a=1&b=2');
   assert.equal(
     link,
-    'https://wa.me/94712345678?text=Hi%20Ruwan%2C%20RSVP%20at%20https%3A%2F%2Fexample.com%3Fa%3D1%26b%3D2'
+    'https://api.whatsapp.com/send?phone=94712345678&text=Hi%20Ruwan%2C%20RSVP%20at%20https%3A%2F%2Fexample.com%3Fa%3D1%26b%3D2'
   );
 });
 
@@ -74,7 +74,14 @@ test('buildWhatsAppLink rejects a phone number that is too short to be real', ()
 
 test('buildWhatsAppLink turns a Sri Lankan local number into an international one', () => {
   for (const input of ['071 484 9297', '0714849297', '714849297', '+94 71 484 9297', '0094714849297', '94714849297']) {
-    assert.ok(buildWhatsAppLink(input, 'Hi').startsWith('https://wa.me/94714849297?text='), input);
+    assert.ok(buildWhatsAppLink(input, 'Hi').startsWith('https://api.whatsapp.com/send?phone=94714849297&text='), input);
   }
-  assert.ok(buildWhatsAppLink('+44 7700 900123', 'Hi').startsWith('https://wa.me/447700900123?'));
+  assert.ok(buildWhatsAppLink('+44 7700 900123', 'Hi').startsWith('https://api.whatsapp.com/send?phone=447700900123&'));
+});
+
+test('buildWhatsAppLink keeps emoji as proper UTF-8 and avoids the wa.me redirect', () => {
+  const link = buildWhatsAppLink('0714849297', 'Save the date 📅 💍');
+  assert.ok(link.startsWith('https://api.whatsapp.com/send?phone=94714849297&text='));
+  assert.ok(!link.includes('wa.me'));
+  assert.equal(decodeURIComponent(link.split('&text=')[1]), 'Save the date 📅 💍');
 });
