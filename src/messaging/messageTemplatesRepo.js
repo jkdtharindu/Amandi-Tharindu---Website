@@ -12,10 +12,17 @@ import { messageTemplates } from '../data/messageTemplatesStore.js';
 const isDbEnabled = () => Boolean(process.env.DATABASE_URL);
 
 /** PRD ordering — the templates are a sequence, not an alphabetical list. */
-const TEMPLATE_ORDER = ['initial_invite', 'reminder_1', 'table_update', 'reminder_2', 'thank_you'];
+const TEMPLATE_ORDER = [
+  'initial_invite', 'initial_invite_2', 'initial_invite_3', 'initial_invite_4',
+  'guest_code', 'reminder_1', 'table_update', 'reminder_2', 'thank_you',
+];
 
 const TEMPLATE_LABELS = {
   initial_invite: 'Initial invite',
+  initial_invite_2: 'Initial invite (template 2)',
+  initial_invite_3: 'Initial invite (template 3)',
+  initial_invite_4: 'Initial invite (template 4)',
+  guest_code: 'Guest code',
   reminder_1: 'First reminder',
   reminder_2: 'Final reminder',
   thank_you: 'Thank you',
@@ -36,6 +43,8 @@ function mapRow(row) {
     body: row.body,
     channel: row.channel,
     imageUrl: row.image_url ?? row.imageUrl ?? null,
+    // Guest groups this wording is sent to (migration 035); [] before it runs.
+    groups: row.linked_groups ?? row.groups ?? [],
   };
 }
 
@@ -83,6 +92,61 @@ export async function saveTemplate(name, body) {
     [name, body]
   );
   return mapRow(rows[0]);
+}
+
+const sameGroup = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+
+/**
+ * Links a template to guest groups, creating the row from `fallbackBody` if it does
+ * not exist yet. A group belongs to one wording only, so it is removed from every
+ * other row of the same level (`siblingNames`). Needs migration 035's column.
+ */
+export async function saveTemplateGroups(name, groups, fallbackBody, siblingNames = []) {
+  const unique = [...new Map(groups.map((group) => [String(group).trim().toLowerCase(), String(group).trim()])).values()].filter(Boolean);
+
+  if (!isDbEnabled()) {
+    for (const siblingName of siblingNames) {
+      const sibling = messageTemplates.find((entry) => entry.name === siblingName);
+      if (sibling) sibling.groups = (sibling.groups ?? []).filter((group) => !unique.some((taken) => sameGroup(taken, group)));
+    }
+    const existing = messageTemplates.find((entry) => entry.name === name);
+    if (existing) {
+      existing.groups = unique;
+      return mapRow(existing);
+    }
+    const created = { id: `template-${name}`, name, body: fallbackBody, channel: 'whatsapp', groups: unique };
+    messageTemplates.push(created);
+    return mapRow(created);
+  }
+
+  if (siblingNames.length && unique.length) {
+    await query(
+      `UPDATE message_templates
+          SET linked_groups = ARRAY(
+            SELECT g FROM unnest(linked_groups) AS g WHERE lower(trim(g)) <> ALL ($2::text[])
+          )
+        WHERE name = ANY ($1::text[])`,
+      [siblingNames, unique.map((group) => group.toLowerCase())]
+    );
+  }
+  const { rows } = await query(
+    `INSERT INTO message_templates (name, body, channel, linked_groups)
+     VALUES ($1, $2, 'whatsapp', $3)
+     ON CONFLICT (name) DO UPDATE SET linked_groups = EXCLUDED.linked_groups
+     RETURNING *`,
+    [name, fallbackBody, unique]
+  );
+  return mapRow(rows[0]);
+}
+
+/** Removes an extra wording (variant 2+). Its groups fall back to the first wording. */
+export async function deleteTemplate(name) {
+  if (!isDbEnabled()) {
+    const index = messageTemplates.findIndex((entry) => entry.name === name);
+    if (index !== -1) messageTemplates.splice(index, 1);
+    return;
+  }
+  await query('DELETE FROM message_templates WHERE name = $1', [name]);
 }
 
 /**

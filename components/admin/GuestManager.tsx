@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import GuestMessageModal, { type MessageEvent, type MessageTemplate } from './GuestMessageModal';
-import { levelProgress } from '@/src/messaging/messageLevels.js';
+import { levelProgress, stepLabel } from '@/src/messaging/messageLevels.js';
 import { useToast } from '@/components/Toast';
 
 export type Guest = {
@@ -75,19 +75,19 @@ const NEW_GROUP = '__new_group__';
 
 type ExistingInvitee = { id: string; name: string; rsvpStatus: string };
 
-/** Three ticks (one per message level) and how far through them a guest is, next to their number. */
+/** One tick per message level and how far through them a guest is, next to their number. */
 function MessageTicks({ events }: { events: MessageEvent[] }) {
   const { levels, doneCount, total, percent } = levelProgress(events);
 
   return (
     <span
       className="inline-flex items-center gap-1 text-xs"
-      title={levels.map((level) => `${level.number}. ${level.label}: ${level.done ? 'sent' : 'not yet'}`).join('\n')}
+      title={levels.map((level) => `${stepLabel(level)} · ${level.label}: ${level.done ? 'sent' : 'not yet'}`).join('\n')}
     >
       {levels.map((level) => (
         <span
           key={level.key}
-          aria-label={`${level.label}: ${level.done ? 'sent' : 'not yet'}`}
+          aria-label={`${stepLabel(level)}, ${level.label}: ${level.done ? 'sent' : 'not yet'}`}
           className={
             'inline-flex h-5 w-5 items-center justify-center rounded-full font-semibold ' +
             (level.done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400')

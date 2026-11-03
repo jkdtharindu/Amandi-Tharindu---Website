@@ -13,7 +13,7 @@ export const messageTemplates = (globalThis.__messageTemplates ??= [
   {
     id: 'template-initial-invite',
     name: 'initial_invite',
-    body: 'Dear [Name], you are cordially invited to the wedding of Tharindu & Amandi on [Date]. Please view your personal invitation and RSVP at [Link] using your code: [Code]. We look forward to celebrating with you! 💍',
+    body: 'Dear [Name], you are cordially invited to the wedding of Tharindu & Amandi on [Date]. Please view your personal invitation and RSVP at [Link]. Your personal code will follow in a separate message. We look forward to celebrating with you! 💍',
     channel: 'whatsapp',
   },
   {

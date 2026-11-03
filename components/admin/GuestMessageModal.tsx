@@ -7,13 +7,15 @@ import {
   buildWhatsAppLink,
   greetingForParty,
 } from '@/src/admin/messageTemplates.js';
-import { MESSAGE_LEVELS, templateBodyFor } from '@/src/messaging/messageLevels.js';
+import { MESSAGE_LEVELS, stepLabel, templateBodyFor } from '@/src/messaging/messageLevels.js';
 import { useToast } from '@/components/Toast';
 
 type Guest = {
   id: string;
   name: string;
   code: string;
+  /** The guest's group, which picks their Main invitation template. */
+  relationship?: string;
   whatsappNumber: string | null;
 };
 
@@ -23,6 +25,7 @@ export type MessageTemplate = {
   label: string;
   body: string;
   channel: string;
+  groups?: string[];
 };
 
 export type MessageEvent = { eventName: string; isCompleted: boolean };
@@ -30,8 +33,8 @@ export type MessageEvent = { eventName: string; isCompleted: boolean };
 type Kind = { key: string; label: string; eventName: string; shareTag: string; body: string };
 
 /**
- * The per-guest WhatsApp drop-down (Action 73): one guest, three message levels
- * (main invitation, RSVP reminder, table number), each shown
+ * The per-guest WhatsApp drop-down (Action 73): one guest, four message levels
+ * (main invitation, guest code, RSVP reminder, table number), each shown
  * with the filled-in text and whether it's already been ticked as sent. Picking
  * one and opening WhatsApp does not tick it by itself — the owner's Grill Me
  * answer described ticking as a separate, deliberate step afterward, so it can
@@ -62,12 +65,13 @@ export default function GuestMessageModal({
   const kinds = useMemo<Kind[]>(() => {
     return MESSAGE_LEVELS.map((level) => ({
       key: level.key,
-      label: `${level.number}. ${level.label}`,
+      label: `${stepLabel(level)} · ${level.label}`,
       eventName: level.eventName,
       shareTag: level.shareTag,
-      body: templateBodyFor(level, templates),
+      // The Main invitation uses the template linked to this guest's group.
+      body: templateBodyFor(level, templates, guest.relationship),
     }));
-  }, [templates]);
+  }, [templates, guest.relationship]);
 
   const [kindKey, setKindKey] = useState(kinds[0].key);
   const kind = kinds.find((entry) => entry.key === kindKey) ?? kinds[0];
@@ -227,7 +231,7 @@ export default function GuestMessageModal({
           {guest.code} &middot; {guest.whatsappNumber ?? 'no number on file'}
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4" role="tablist" aria-label="Message kind">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4" role="tablist" aria-label="Message kind">
           {kinds.map((entry) => (
             <button
               key={entry.key}

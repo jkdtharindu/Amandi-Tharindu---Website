@@ -23,6 +23,7 @@ const PLACEHOLDERS: { tag: string; meaning: string }[] = [
 export default function TemplateEditor({
   levelKey,
   levelLabel,
+  variant = 1,
   savedBody,
   defaultBody,
   csrfToken,
@@ -33,6 +34,8 @@ export default function TemplateEditor({
   onSaved,
 }: {
   levelKey: string;
+  /** Which of the level's wordings this edits (1 = the first). */
+  variant?: number;
   shareTag?: string;
   levelLabel: string;
   savedBody: string;
@@ -55,7 +58,7 @@ export default function TemplateEditor({
       const res = await fetch('/api/admin/message-templates', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ levelKey, body }),
+        body: JSON.stringify({ levelKey, variant, body }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -64,7 +67,7 @@ export default function TemplateEditor({
       }
       setDraft(body);
       onSaved(body);
-      showToast({ kind: 'ok', text: `Saved the ${levelLabel} template.` });
+      showToast({ kind: 'ok', text: `Saved the ${levelLabel} template${variant > 1 ? ` ${variant}` : ''}.` });
     } catch {
       showToast({ kind: 'error', text: 'Could not reach the server.' });
     } finally {
@@ -85,7 +88,7 @@ export default function TemplateEditor({
   return (
     <details className="bg-white rounded-xl border border-slate-200 p-4">
       <summary className="cursor-pointer text-sm font-semibold">
-        Edit the saved template for this level
+        Edit the saved template{variant > 1 ? ` ${variant}` : ''} for this level
       </summary>
 
       <p className="mt-3 text-xs text-slate-500">
