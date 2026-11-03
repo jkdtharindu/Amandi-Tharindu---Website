@@ -4,21 +4,16 @@ import { useRef, useState } from 'react';
 import { useToast } from '@/components/Toast';
 
 /**
- * The WhatsApp preview photo for one message level (PRD section 24). The photo is
- * shown as the big picture on the link card the message's link makes. It is
- * cropped to 1200x630 on upload, and the box below shows that same crop. Both
- * admins share it, and a level with no photo sends a plain card.
+ * The one WhatsApp preview photo (PRD section 24), shown as the big picture on the link
+ * card every message's link makes. It is cropped to 1200x630 on upload, and the box below
+ * shows that same crop. Both admins share it, and with no photo the card is plain.
  */
 export default function SharePhoto({
-  levelKey,
-  levelLabel,
   prompt,
   imageUrl,
   csrfToken,
   onChanged,
 }: {
-  levelKey: string;
-  levelLabel: string;
   prompt: string;
   imageUrl: string | null;
   csrfToken: string;
@@ -32,7 +27,6 @@ export default function SharePhoto({
     setBusy(true);
     try {
       const form = new FormData();
-      form.append('levelKey', levelKey);
       form.append('file', file);
       const res = await fetch('/api/admin/message-templates/image', {
         method: 'POST',
@@ -45,7 +39,7 @@ export default function SharePhoto({
         return;
       }
       onChanged(data.imageUrl);
-      showToast({ kind: 'ok', text: `Saved the ${levelLabel} preview photo.` });
+      showToast({ kind: 'ok', text: 'Saved the WhatsApp preview photo.' });
     } catch {
       showToast({ kind: 'error', text: 'Could not reach the server.' });
     } finally {
@@ -68,8 +62,7 @@ export default function SharePhoto({
     try {
       const res = await fetch('/api/admin/message-templates/image', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ levelKey }),
+        headers: { 'x-csrf-token': csrfToken },
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -77,7 +70,7 @@ export default function SharePhoto({
         return;
       }
       onChanged(null);
-      showToast({ kind: 'ok', text: `Removed the ${levelLabel} preview photo.` });
+      showToast({ kind: 'ok', text: 'Removed the WhatsApp preview photo.' });
     } catch {
       showToast({ kind: 'error', text: 'Could not reach the server.' });
     } finally {
@@ -86,20 +79,18 @@ export default function SharePhoto({
   }
 
   return (
-    <details className="bg-white rounded-xl border border-slate-200 p-4">
-      <summary className="cursor-pointer text-sm font-semibold">
-        Preview photo for this level {imageUrl ? '(set)' : '(none)'}
-      </summary>
+    <section className="bg-white rounded-xl border border-slate-200 p-4 mt-6">
+      <h2 className="text-lg font-semibold">WhatsApp link preview photo {imageUrl ? '(set)' : '(none)'}</h2>
 
       <p className="mt-3 text-xs text-slate-500">
-        This photo shows as the big picture on the WhatsApp link card when a guest receives this
-        level&apos;s message. A picture that is not the wide card shape is shown whole on a blurred
+        This one photo shows as the big picture on the WhatsApp link card in every message you send
+        (invitation, guest code, reminder and table). Use a wide picture, 1200 x 630 (1.91 to 1). A picture that is not the wide card shape is shown whole on a blurred
         copy of itself, so nothing is cut off. It is also shrunk to a small file size, because
         WhatsApp shows only a tiny thumbnail for heavy pictures. With no photo, the card is plain. Messages already sent keep their old card, and WhatsApp can take a while to show a
         changed photo.
       </p>
 
-      <p className="mt-3 text-xs font-semibold text-slate-500">Image prompt for this level</p>
+      <p className="mt-3 text-xs font-semibold text-slate-500">Image prompt</p>
       <p className="mt-1 text-xs text-slate-500">
         Copy this into an AI image tool (ChatGPT, Gemini, etc.), then upload the picture it makes
         below. It uses the couple names, date and venue from the site.
@@ -125,7 +116,7 @@ export default function SharePhoto({
       >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt={`${levelLabel} preview`} className="h-full w-full object-cover" />
+          <img src={imageUrl} alt="WhatsApp link preview" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-slate-400">No photo yet</div>
         )}
@@ -161,6 +152,6 @@ export default function SharePhoto({
           </button>
         )}
       </div>
-    </details>
+    </section>
   );
 }

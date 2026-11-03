@@ -107,3 +107,16 @@ test('the image prompt uses the site colours when set and falls back when not', 
   const without = buildSharePhotoPrompt('main_invitation', { coupleNames: 'A & B' });
   assert.ok(!without.includes('#') && without.includes('ivory'));
 });
+
+test('every link shows the one picture: the main invitation row, else the first level picture found', async () => {
+  const { shareImageUrl } = await import('../src/messaging/shareImage.js');
+  assert.equal(shareImageUrl([]), null);
+  assert.equal(shareImageUrl([{ name: 'reminder_1', imageUrl: 'r.jpg' }]), 'r.jpg');
+  assert.equal(
+    shareImageUrl([
+      { name: 'reminder_1', imageUrl: 'r.jpg' },
+      { name: 'initial_invite', imageUrl: 'main.jpg' },
+    ]),
+    'main.jpg',
+  );
+});

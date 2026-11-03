@@ -2,16 +2,16 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { validateImageFile, uploadImage, isStorageConfigured } from '@/src/storage/blobStorage.js';
 import { cropShareImage } from '@/src/messaging/cropShareImage.js';
-import { saveTemplateImage } from '@/src/messaging/messageTemplatesRepo.js';
-import { MESSAGE_LEVELS } from '@/src/messaging/messageLevels.js';
+import { saveTemplateImage, listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
+import { SHARE_IMAGE_LEVEL } from '@/src/messaging/shareImage.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 
 /**
- * The WhatsApp preview photo for one message level (PRD section 24). POST takes a
- * multipart form with `levelKey` and `file`, crops the photo to 1200x630 and
- * stores it; DELETE (JSON `{ levelKey }`) removes it. Shared by both sides, like
- * the level's wording.
+ * The one WhatsApp preview photo every message link shows (PRD section 24). POST takes a
+ * multipart form with `file`, crops the photo to 1200x630 and stores it; DELETE removes
+ * it. Shared by both sides. It lives on the Main invitation's row; any picture an older
+ * per-level upload left on another row is cleared so there is only ever one.
  */
 function csrfFailure() {
   return NextResponse.json(
@@ -20,8 +20,14 @@ function csrfFailure() {
   );
 }
 
-function findLevel(key: unknown) {
-  return MESSAGE_LEVELS.find((entry) => entry.key === key);
+/** Clears every stored picture except `keepName`'s (older per-level uploads). */
+async function clearOtherPictures(keepName: string | null) {
+  const templates = (await listTemplates()) as { name: string; imageUrl?: string | null }[];
+  for (const entry of templates) {
+    if (entry.imageUrl && entry.name !== keepName) {
+      await saveTemplateImage(entry.name, null, '');
+    }
+  }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -42,11 +48,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: false, message: 'Invalid upload request.' }, { status: 400 });
   }
 
-  const level = findLevel(formData.get('levelKey'));
-  if (!level) {
-    return NextResponse.json({ success: false, message: 'Unknown message level.' }, { status: 400 });
-  }
-
   const file = formData.get('file');
   if (!(file instanceof File)) {
     return NextResponse.json({ success: false, message: 'No file was uploaded.' }, { status: 400 });
@@ -64,7 +65,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const cropped = await cropShareImage(buffer);
     const { url } = await uploadImage({ buffer: cropped, mimeType: 'image/jpeg', filename: `share-${randomUUID()}` });
-    const template = await saveTemplateImage(level.templateName, url, level.defaultBody);
+    const template = await saveTemplateImage(SHARE_IMAGE_LEVEL.templateName, url, SHARE_IMAGE_LEVEL.defaultBody);
+    await clearOtherPictures(SHARE_IMAGE_LEVEL.templateName);
     return NextResponse.json({ success: true, imageUrl: template?.imageUrl ?? url });
   } catch (error) {
     console.error('Failed to save message preview photo:', error);
@@ -76,20 +78,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   if (!(await getAdminSession())) return unauthorizedResponse();
   if (!verifyCsrfToken(request)) return csrfFailure();
 
-  let body: Record<string, unknown> = {};
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ success: false, message: 'Invalid request body.' }, { status: 400 });
-  }
-
-  const level = findLevel(body.levelKey);
-  if (!level) {
-    return NextResponse.json({ success: false, message: 'Unknown message level.' }, { status: 400 });
-  }
-
-  try {
-    await saveTemplateImage(level.templateName, null, level.defaultBody);
+    await clearOtherPictures(null);
     return NextResponse.json({ success: true, imageUrl: null });
   } catch (error) {
     console.error('Failed to remove message preview photo:', error);

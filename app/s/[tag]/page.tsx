@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
 import { levelForShareTag } from '@/src/messaging/messageLevels.js';
+import { shareImageUrl } from '@/src/messaging/shareImage.js';
 import ShareForward from './ShareForward';
 
 /**
@@ -28,7 +29,7 @@ async function loadCard(tag: string) {
   }
   try {
     const templates = await listTemplates();
-    imageUrl = templates.find((entry: { name: string }) => entry.name === level.templateName)?.imageUrl ?? null;
+    imageUrl = shareImageUrl(templates);
   } catch (error) {
     console.error('share page: listTemplates failed:', error);
   }
