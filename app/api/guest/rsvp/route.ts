@@ -30,6 +30,8 @@ function publicInvitee(invitee: Record<string, unknown>) {
     displayOrder: invitee.displayOrder,
     // { number, name } once confirmed and seated, else null (see withInviteeTables).
     table: invitee.table ?? null,
+    // True once the guest asked the couple to free this person's seat so they can decline.
+    declineRequested: Boolean(invitee.declineRequested),
   };
 }
 
@@ -136,6 +138,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         status: result.status,
         conflicts: result.conflicts,
         needsConfirm,
+        // Accepted, seated people the guest tried to decline: they must ask the couple first.
+        seatLocked: result.seatLocked,
         invitees: invitees.map(publicInvitee),
       });
     }

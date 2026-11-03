@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Countdown from "@/components/public/Countdown";
+import AddToCalendar from "@/components/public/AddToCalendar";
+import { buildCalendarEvent } from "@/src/calendar/calendarEvent.js";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
@@ -135,6 +137,14 @@ export default async function HomePage() {
   const hasCoupleProfiles =
     visibility["family-details"] && Boolean(settings.brideName || settings.groomName);
 
+  const calendarEvent = buildCalendarEvent({
+    title: t("calendar.eventTitle", { coupleNames: settings.coupleNames }),
+    date: settings.weddingDate,
+    time: settings.weddingTime,
+    venueName: settings.venueName,
+    venueAddress: settings.venueAddress,
+  });
+
   const heroClassName = settings.heroImageUrl
     ? "hero-panel hero-panel--photo"
     : "hero-panel";
@@ -180,6 +190,7 @@ export default async function HomePage() {
           </div>
         </div>
         <Countdown targetDate={`${settings.weddingDate}T${settings.weddingTime}:00+05:30`} />
+        {calendarEvent && <AddToCalendar googleUrl={calendarEvent.googleUrl} />}
       </section>
       {visibility["our-story"] && (
         <>

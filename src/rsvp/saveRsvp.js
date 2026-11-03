@@ -1,6 +1,13 @@
 import { withTransaction } from '../db.js';
 import { deleteRsvpResponse, updateGuestRsvpStatus, upsertRsvpResponse } from '../guest-auth/guestRepo.js';
-import { deriveGuestRsvpStatus, listApprovedInvitees, updateInviteeRsvpStatuses } from '../invitees/inviteesRepo.js';
+import {
+  deriveGuestRsvpStatus,
+  getInviteeById,
+  listApprovedInvitees,
+  setDeclineRequested,
+  updateInviteeRsvpStatuses,
+} from '../invitees/inviteesRepo.js';
+import { isInviteeSeated } from '../table-arrangement/tableArrangementRepo.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -93,6 +100,10 @@ export function saveWholePartyRsvp(
  * (see answeredByLabel). When someone changes a saved answer that a DIFFERENT
  * device gave, the change is held back and its id is returned in `needsConfirm`;
  * the page asks "are you sure?" and sends the entry again with `confirmed: true`.
+ * Seated people: a person who is accepted AND already has a seat cannot be declined from
+ * here. The entry is skipped and its id returned in `seatLocked`; the page tells the guest
+ * to ask the couple, who free the seat (see applyDeclineAfterUnseat).
+ *
  * Nothing is held back when either label is unknown (answers saved before this
  * existed, or no usable address), when the answer is not actually changing, or
  * when the person was still pending.
@@ -100,7 +111,7 @@ export function saveWholePartyRsvp(
  * @param {string} guestId
  * @param {{ id: string, attending: boolean, expectedStatus?: string, confirmed?: boolean }[]} inviteeResponses
  * @param {{ transaction?: typeof runInRsvpTransaction, answeredBy?: string | null }} [options]
- * @returns {Promise<{ status: string, response: object | null, invitees: object[], conflicts: string[], needsConfirm: string[] }>}
+ * @returns {Promise<{ status: string, response: object | null, invitees: object[], conflicts: string[], needsConfirm: string[], seatLocked: string[] }>}
  */
 export function saveInviteeRsvp(
   guestId,
@@ -116,10 +127,15 @@ export function saveInviteeRsvp(
     const toApply = [];
     const conflicts = [];
     const needsConfirm = [];
+    const seatLocked = [];
     for (const entry of inviteeResponses) {
       const saved = current.get(entry.id);
       if (!saved) continue;
       const desired = entry.attending ? 'accepted' : 'declined';
+      if (desired === 'declined' && saved.rsvpStatus === 'accepted' && (await isInviteeSeated(entry.id, exec))) {
+        seatLocked.push(entry.id);
+        continue;
+      }
       const changedUnderUser =
         entry.expectedStatus !== undefined && saved.rsvpStatus !== entry.expectedStatus && saved.rsvpStatus !== desired;
       const changesOtherDevicesAnswer =
@@ -132,16 +148,51 @@ export function saveInviteeRsvp(
     }
 
     const updated = await updateInviteeRsvpStatuses(guestId, toApply, exec);
-    const status = deriveGuestRsvpStatus(updated);
-    const acceptedNames = updated.filter((invitee) => invitee.rsvpStatus === 'accepted').map((invitee) => invitee.name);
+    const { status, response } = await mirrorPartyStatus(guestId, updated, exec);
+    return { status, response, invitees: updated, conflicts, needsConfirm, seatLocked };
+  });
+}
 
-    let response = null;
-    if (status === 'pending') {
-      await deleteRsvpResponse(guestId, exec);
-    } else {
-      response = await upsertRsvpResponse(guestId, status === 'accepted', acceptedNames, exec);
-    }
-    await updateGuestRsvpStatus(guestId, status, exec);
-    return { status, response, invitees: updated, conflicts, needsConfirm };
+/**
+ * Derives the party's status from everyone's answers and mirrors it, with the accepted
+ * names, into rsvp_responses and guests.rsvp_status (see saveInviteeRsvp).
+ */
+async function mirrorPartyStatus(guestId, updated, exec) {
+  const status = deriveGuestRsvpStatus(updated);
+  const acceptedNames = updated.filter((invitee) => invitee.rsvpStatus === 'accepted').map((invitee) => invitee.name);
+
+  let response = null;
+  if (status === 'pending') {
+    await deleteRsvpResponse(guestId, exec);
+  } else {
+    response = await upsertRsvpResponse(guestId, status === 'accepted', acceptedNames, exec);
+  }
+  await updateGuestRsvpStatus(guestId, status, exec);
+  return { status, response };
+}
+
+/**
+ * Called after an admin frees a person's seat. If that person's party had asked the
+ * couple to release the seat so they could decline, the answer now becomes "declined"
+ * and the request is cleared. Anyone else's seat being freed changes nothing.
+ *
+ * @param {string} inviteeId
+ * @param {{ transaction?: typeof runInRsvpTransaction }} [options]
+ * @returns {Promise<{ declined: boolean }>}
+ */
+export async function applyDeclineAfterUnseat(inviteeId, { transaction = runInRsvpTransaction } = {}) {
+  const invitee = await getInviteeById(inviteeId);
+  if (!invitee || !invitee.declineRequested) return { declined: false };
+
+  return transaction(async (exec) => {
+    await lockGuest(exec, invitee.guestId);
+    const current = (await listApprovedInvitees(invitee.guestId, exec)).find((entry) => entry.id === inviteeId);
+    if (!current || !current.declineRequested) return { declined: false };
+
+    await updateInviteeRsvpStatuses(invitee.guestId, [{ id: inviteeId, attending: false }], exec);
+    await setDeclineRequested(inviteeId, false, exec);
+    const updated = await listApprovedInvitees(invitee.guestId, exec);
+    await mirrorPartyStatus(invitee.guestId, updated, exec);
+    return { declined: true };
   });
 }

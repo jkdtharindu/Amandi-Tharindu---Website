@@ -23,6 +23,8 @@ type Seat = {
   occupantSide: Party | null;
   /** The RSVP answer of the guest or invitee on the seat; null for a placeholder or an empty seat. */
   occupantRsvpStatus?: string | null;
+  /** The person's guest asked to decline: freeing this seat declines them. */
+  inviteeDeclineRequested?: boolean;
 };
 
 export type SeatingTable = {
@@ -338,6 +340,12 @@ export default function TableArrangement({
     0
   );
 
+  // Empty seats at your side's tables (placeholders count as taken).
+  const availableSeats = ownTables.reduce((total, table) => {
+    const taken = table.seats.filter((seat) => seat.guestId || seat.inviteeId || seat.probableAttendeeId).length;
+    return total + Math.max(0, table.capacity - taken);
+  }, 0);
+
   const guestStatusRows = [
     { label: 'No. of tables', hint: "Your side's tables", value: ownTables.length },
     { label: 'RSVP accepted', hint: '', value: dashboardStats.accepted },
@@ -349,6 +357,7 @@ export default function TableArrangement({
     { label: 'No. of my side tables', hint: '', value: ownTables.length },
     { label: 'Seated count', hint: "People seated at your side's tables", value: seatedAtOwnTables },
     { label: 'Pending to seat', hint: 'RSVP-confirmed guests without a seat', value: dashboardStats.balanceToArrange },
+    { label: 'Available seats', hint: "Empty seats at your side's tables", value: availableSeats },
   ];
 
   return (
@@ -820,6 +829,11 @@ function SeatCard({
           {seatOccupantLabel(seat)}
           {!removable && seat.occupantSide && (
             <span className="block text-xs font-normal text-slate-500">{sideLabel(seat.occupantSide)}&apos;s side</span>
+          )}
+          {seat.inviteeDeclineRequested && seat.occupantRsvpStatus !== 'declined' && (
+            <span className="block text-xs font-semibold text-amber-700">
+              Asked to decline{removable ? ' — remove them from this seat to confirm' : ''}
+            </span>
           )}
           {seat.occupantRsvpStatus === 'declined' && (
             <span className="block text-xs font-semibold text-red-700">

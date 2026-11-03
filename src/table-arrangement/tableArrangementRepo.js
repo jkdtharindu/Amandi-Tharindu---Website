@@ -119,6 +119,7 @@ const SEAT_JSON = `
         'inviteeName', i.name,
         'inviteeGuestName', ig.name,
         'inviteeGuestId', i.guest_id,
+        'inviteeDeclineRequested', (i.decline_requested_at IS NOT NULL),
         'occupantSide', COALESCE(g.assigned_to_party, ig.assigned_to_party),
         'occupantRsvpStatus', COALESCE(i.rsvp_status, g.rsvp_status),
         'occupantRemoved', COALESCE(g.is_deleted, ig.is_deleted, false),
@@ -235,6 +236,7 @@ function hydrateMemoryTable(table) {
       inviteeName: inviteeNameFor(seat.inviteeId),
       inviteeGuestName: inviteeGuestNameFor(seat.inviteeId),
       inviteeGuestId: invitees.find((entry) => entry.id === seat.inviteeId)?.guestId ?? null,
+      inviteeDeclineRequested: Boolean(invitees.find((entry) => entry.id === seat.inviteeId)?.declineRequested),
       occupantSide: occupantSideFor(seat),
       occupantRsvpStatus: occupantRsvpStatusFor(seat),
       occupantRemoved: occupantRemovedFor(seat),
@@ -820,6 +822,20 @@ export async function assignInviteeToSeat(seatId, inviteeId, { dietaryRequiremen
     }
     throw error;
   }
+}
+
+/**
+ * True when this named person currently holds a seat. A guest may not decline a seated
+ * person on their own: they must ask the couple to free the seat first.
+ * `exec` (optional) is the open transaction's query function.
+ */
+export async function isInviteeSeated(inviteeId, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
+    return seatingTables.some((table) => table.seats.some((seat) => seat.inviteeId === inviteeId));
+  }
+  const { rows } = await run('SELECT 1 FROM table_seats WHERE invitee_id = $1 LIMIT 1', [inviteeId]);
+  return rows.length > 0;
 }
 
 /**

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import { useSiteText } from '@/components/SiteTextProvider';
+import { buildWhatsAppLink } from '@/src/admin/messageTemplates.js';
 import {
   approvedInvitees,
   buildResponses,
@@ -51,10 +52,13 @@ export interface Invitee {
   displayOrder: number;
   /** Set once the person has confirmed and the admin has seated them. */
   table?: { number: number; name: string | null } | null;
+  /** The guest asked the couple to free this person's seat so they can decline. */
+  declineRequested?: boolean;
 }
 
 interface InvitationClientProps {
   guestCode: string;
+  guestName?: string;
   slotCount: number;
   hasResponded: boolean;
   currentRsvpStatus: string;
@@ -65,6 +69,7 @@ interface InvitationClientProps {
 
 export default function InvitationClient({
   guestCode,
+  guestName = '',
   slotCount,
   hasResponded,
   currentRsvpStatus,
@@ -73,7 +78,7 @@ export default function InvitationClient({
   weddingDate = "",
 }: InvitationClientProps) {
   if (invitees.length > 0) {
-    return <InviteeChecklist guestCode={guestCode} coupleNames={coupleNames} invitees={invitees} weddingDate={weddingDate} />;
+    return <InviteeChecklist guestCode={guestCode} guestName={guestName} coupleNames={coupleNames} invitees={invitees} weddingDate={weddingDate} />;
   }
 
   return (
@@ -304,11 +309,13 @@ function LegacyRsvpForm({
  */
 function InviteeChecklist({
   guestCode,
+  guestName,
   coupleNames,
   invitees,
   weddingDate,
 }: {
   guestCode: string;
+  guestName: string;
   coupleNames: string;
   invitees: Invitee[];
   weddingDate: string;
@@ -331,6 +338,9 @@ function InviteeChecklist({
   // The "please check your answers" pop-up shown before anything is saved: who is
   // about to be saved as attending and who as not attending.
   const [review, setReview] = useState<{ attending: string[]; declined: string[] } | null>(null);
+  // A confirmed, seated person the guest tapped "Not attending" for: they must ask the couple first.
+  const [seatAsk, setSeatAsk] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
   const submittingRef = useRef(false);
   const partyRef = useRef(party);
   useEffect(() => {
@@ -349,13 +359,16 @@ function InviteeChecklist({
   }, []);
 
   useEffect(() => {
-    if (!review) return;
+    if (!review && !seatAsk) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setReview(null);
+      if (event.key === 'Escape') {
+        setReview(null);
+        setSeatAsk(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [review]);
+  }, [review, seatAsk]);
 
   // Load the saved answers on arrival and whenever this tab comes back into
   // view, so answers another person saved from their own phone show up.
@@ -398,7 +411,60 @@ function InviteeChecklist({
   const saveHint =
     entries.length > 0 ? '' : answeredAfterSave === 0 ? t('rsvp.saveHintNone') : t('rsvp.saveHintNoChange');
 
+  const seatPerson = seatAsk ? party.saved.find((invitee) => invitee.id === seatAsk) ?? null : null;
+  const seatPersonTable = seatPerson?.table
+    ? `Table ${seatPerson.table.number}${seatPerson.table.name ? ` (${seatPerson.table.name})` : ''}`
+    : '';
+
+  // The couple's WhatsApp contacts, set in Admin > Site wording. A blank number hides that button.
+  const contacts = [
+    { who: t('contact.brideName'), phone: t('contact.bridePhone').trim() },
+    { who: t('contact.groomName'), phone: t('contact.groomPhone').trim() },
+  ].flatMap((contact) => {
+    if (!contact.phone || !seatPerson) return [];
+    try {
+      const message = t('rsvp.seatedMessage', { guestName, name: seatPerson.name, table: seatPersonTable });
+      return [{ ...contact, href: buildWhatsAppLink(contact.phone, message) }];
+    } catch {
+      return [];
+    }
+  });
+
+  /** "Ask the couple": remembers the request; the button then turns into WhatsApp buttons. */
+  async function requestRelease() {
+    if (!seatPerson || asking) return;
+    setAsking(true);
+    try {
+      const res = await fetch('/api/guest/invitees/decline-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ code: guestCode, inviteeId: seatPerson.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setParty((prev) => ({
+          ...prev,
+          saved: prev.saved.map((invitee) => (invitee.id === seatPerson.id ? { ...invitee, declineRequested: true } : invitee)),
+        }));
+      } else {
+        showToast({ kind: 'error', text: data.message || t('rsvp.errorSave') });
+      }
+    } catch {
+      showToast({ kind: 'error', text: t('rsvp.errorSave') });
+    } finally {
+      setAsking(false);
+    }
+  }
+
   function pick(id: string, choice: 'accepted' | 'declined') {
+    if (choice === 'declined') {
+      const person = approved.find((invitee) => invitee.id === id);
+      if (person && person.rsvpStatus === 'accepted' && person.table) {
+        // Already confirmed and seated: only the couple can free the seat first.
+        setSeatAsk(id);
+        return;
+      }
+    }
     setThanks('');
     setParty((prev) => ({ ...prev, drafts: { ...prev.drafts, [id]: { ...prev.drafts[id], choice } } }));
   }
@@ -462,14 +528,18 @@ function InviteeChecklist({
         const conflicts: string[] = data.conflicts ?? [];
         const heldBack: { id: string; name: string }[] = data.needsConfirm ?? [];
         const current = partyRef.current;
-        const merged = mergeFreshInvitees(current.saved, current.drafts, data.invitees, { resetIds: conflicts });
+        const seatLocked: string[] = data.seatLocked ?? [];
+        const merged = mergeFreshInvitees(current.saved, current.drafts, data.invitees, { resetIds: [...conflicts, ...seatLocked] });
         setParty({ saved: data.invitees, drafts: merged.drafts });
 
         const fresh = approvedInvitees(data.invitees);
         const stillPending = fresh.filter((invitee) => invitee.rsvpStatus === 'pending').length;
         if (conflicts.length > 0) setNotice(t('rsvp.conflict'));
 
-        if (heldBack.length > 0) {
+        if (seatLocked.length > 0) {
+          // Seated people cannot be declined here: show the "ask the couple" pop-up.
+          setSeatAsk(seatLocked[0]);
+        } else if (heldBack.length > 0) {
           // Not saved yet: ask first, and say nothing else until they answer.
           setConfirmAsk(heldBack);
         } else if (stillPending > 0) {
@@ -592,6 +662,61 @@ function InviteeChecklist({
         </div>
       )}
 
+      {seatPerson && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setSeatAsk(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rsvp-seated-title"
+            data-testid="rsvp-seated"
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="rsvp-seated-title" className="mb-3 text-xl font-bold text-gray-900">
+              {t('rsvp.seatedTitle')}
+            </h3>
+            <p className="mb-5 text-sm text-gray-700">
+              {seatPerson.declineRequested
+                ? t('rsvp.seatedAsked', { name: seatPerson.name })
+                : t('rsvp.seatedBody', { name: seatPerson.name, table: seatPersonTable })}
+            </p>
+            <div className="flex flex-col gap-2">
+              {!seatPerson.declineRequested ? (
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={requestRelease}
+                  disabled={asking || !csrfToken}
+                  className="button button-primary min-h-12 disabled:opacity-60"
+                >
+                  {asking ? t('rsvp.seatedAsking') : t('rsvp.seatedAsk')}
+                </button>
+              ) : contacts.length > 0 ? (
+                contacts.map((contact) => (
+                  <a
+                    key={contact.who}
+                    href={contact.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="button button-primary min-h-12 text-center"
+                  >
+                    {t('rsvp.seatedWhatsApp', { who: contact.who, phone: contact.phone })}
+                  </a>
+                ))
+              ) : (
+                <p className="text-sm text-gray-600">{t('rsvp.seatedNoContact')}</p>
+              )}
+              <button type="button" onClick={() => setSeatAsk(null)} className="button button-secondary min-h-12">
+                {t('rsvp.seatedClose')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {review && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -673,6 +798,9 @@ function InviteeChecklist({
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.cls}`}>{badge.text}</span>
                 {savedChoice && <span className="text-xs text-gray-600">{t('rsvp.confirmed')}</span>}
                 {unsaved && <span className="text-xs font-semibold text-amber-700">{t('rsvp.unsaved')}</span>}
+                {invitee.declineRequested && savedChoice === 'accepted' && (
+                  <span className="text-xs font-semibold text-amber-700">{t('rsvp.badgeAskedRelease')}</span>
+                )}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {options.map((option) => (

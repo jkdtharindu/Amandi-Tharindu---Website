@@ -21,6 +21,8 @@ export function mapInviteeRow(row) {
     approvalStatus: row.approval_status,
     displayOrder: row.display_order,
     answeredBy: row.answered_by ?? null,
+    // The guest asked the couple to free this person's seat so they can decline (migration 036).
+    declineRequested: Boolean(row.decline_requested_at),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -223,6 +225,30 @@ export async function updateInviteeRsvpStatuses(guestId, updates = [], exec) {
     );
   }
   return listApprovedInvitees(guestId, exec);
+}
+
+/**
+ * Marks (or clears) "this guest asked the couple to free this person's seat so they can
+ * decline". `exec` (optional) is the open transaction's query function.
+ */
+export async function setDeclineRequested(id, requested, exec) {
+  const run = exec ?? (useDb ? query : null);
+  if (!run) {
+    const invitee = invitees.find((entry) => entry.id === id);
+    if (!invitee) return null;
+    invitee.declineRequested = Boolean(requested);
+    invitee.updatedAt = new Date().toISOString();
+    return { ...invitee };
+  }
+
+  const { rows } = await run(
+    `UPDATE invitees
+        SET decline_requested_at = ${requested ? 'now()' : 'NULL'}, updated_at = now()
+      WHERE id = $1
+      RETURNING *`,
+    [id]
+  );
+  return mapInviteeRow(rows[0]);
 }
 
 /** A guest requests to add someone not on the original list — needs admin approval. */

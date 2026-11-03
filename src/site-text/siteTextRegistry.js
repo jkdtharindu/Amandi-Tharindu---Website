@@ -28,6 +28,7 @@ export const SITE_TEXT_GROUPS = [
   'RSVP — who is coming',
   'RSVP — messages',
   'RSVP — single answer (older invitations)',
+  'RSVP — the couple’s WhatsApp numbers',
 ];
 
 const ACCEPTED_TAGS = {
@@ -83,6 +84,10 @@ const ROWS = [
   ['countdown.hours', 'Home — countdown', 'Countdown: Hours', 'Hours'],
   ['countdown.minutes', 'Home — countdown', 'Countdown: Minutes', 'Minutes'],
   ['countdown.seconds', 'Home — countdown', 'Countdown: Seconds', 'Seconds'],
+  ['calendar.heading', 'Home — countdown', 'Add to calendar: heading', 'Add the wedding to your calendar'],
+  ['calendar.google', 'Home — countdown', 'Add to calendar: Google button', 'Google Calendar'],
+  ['calendar.ics', 'Home — countdown', 'Add to calendar: other calendars button', 'Apple / Outlook'],
+  ['calendar.eventTitle', 'Home — countdown', 'Add to calendar: event name', '{coupleNames} — Wedding', { tags: [ACCEPTED_TAGS.couple] }],
 
   // Home — Our Story
   ['story.flag', 'Home — Our Story', 'Small label', 'Our story'],
@@ -315,6 +320,20 @@ const ROWS = [
   ['rsvp.reviewNote', 'RSVP — messages', 'Pop-up note under the names', 'Only the people listed here are changed. Everyone else stays as they were.', { multiline: true }],
   ['rsvp.reviewConfirm', 'RSVP — messages', 'Pop-up button: save the answers', 'Yes, save these answers'],
   ['rsvp.reviewBack', 'RSVP — messages', 'Pop-up button: go back and change', 'Go back'],
+  ['rsvp.seatedTitle', 'RSVP — messages', 'Pop-up title: declining a seated person', 'This seat is already arranged'],
+  ['rsvp.seatedBody', 'RSVP — messages', 'Pop-up text: declining a seated person', '{name} is already seated at {table}. To change this to “not attending”, the couple must free the seat first. Tap the button to let them know.', { multiline: true }],
+  ['rsvp.seatedAsk', 'RSVP — messages', 'Pop-up button: ask the couple', 'Ask the couple (admin)'],
+  ['rsvp.seatedAsking', 'RSVP — messages', 'Pop-up button while sending', 'Sending…'],
+  ['rsvp.seatedAsked', 'RSVP — messages', 'Pop-up text after asking', 'Your request is noted. Please also tell the couple on WhatsApp. Once they free the seat, {name} will show as not attending by itself.', { multiline: true }],
+  ['rsvp.seatedWhatsApp', 'RSVP — messages', 'Pop-up button: message a person on WhatsApp', 'WhatsApp {who}: {phone}'],
+  ['rsvp.seatedNoContact', 'RSVP — messages', 'Pop-up text when no WhatsApp number is set', 'The couple will see your request. Please let them know directly as well.', { multiline: true }],
+  ['rsvp.seatedMessage', 'RSVP — messages', 'WhatsApp message to the couple', 'Hello, this is {guestName}. {name} can no longer come. Please free their seat ({table}) so our RSVP can be updated. Thank you!', { multiline: true }],
+  ['rsvp.seatedClose', 'RSVP — messages', 'Pop-up button: close', 'Close'],
+  ['rsvp.badgeAskedRelease', 'RSVP — messages', 'Tag: waiting for the couple to free the seat', 'Waiting for the couple to free the seat'],
+  ['contact.brideName', 'RSVP — the couple’s WhatsApp numbers', 'Bride: name shown on the button', 'Bride'],
+  ['contact.bridePhone', 'RSVP — the couple’s WhatsApp numbers', 'Bride: WhatsApp number (not set = hidden)', 'Not set yet'],
+  ['contact.groomName', 'RSVP — the couple’s WhatsApp numbers', 'Groom: name shown on the button', 'Groom'],
+  ['contact.groomPhone', 'RSVP — the couple’s WhatsApp numbers', 'Groom: WhatsApp number (not set = hidden)', 'Not set yet'],
   ['rsvp.errorSave', 'RSVP — messages', 'Message: save failed', 'We could not save your answers. Nothing you entered was lost — please try again.', { multiline: true }],
 
   // RSVP — single answer (older invitations)

@@ -201,6 +201,7 @@ export default async function InvitationPage({
           {/* RSVP Form - Client Component */}
           <InvitationClient
             guestCode={guest.code}
+            guestName={guest.name}
             slotCount={guest.slotCount}
             hasResponded={hasResponded}
             currentRsvpStatus={rsvpStatus}

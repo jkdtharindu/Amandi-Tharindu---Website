@@ -693,6 +693,23 @@ button {
     line-height: 1;
   }
 
+  .add-to-calendar {
+    margin-top: 1.25rem;
+    text-align: center;
+  }
+
+  .add-to-calendar-title {
+    margin: 0 0 0.6rem;
+    font-weight: 600;
+  }
+
+  .add-to-calendar-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+  }
+
   .section-title {
     font-size: 1.75rem;
     margin: 0 0 1rem;

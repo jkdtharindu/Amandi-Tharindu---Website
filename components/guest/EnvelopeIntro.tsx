@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useSiteText } from '@/components/SiteTextProvider';
+import { createAutoScroller } from '@/src/guest/autoScroll.js';
 
 interface EnvelopeIntroProps {
   guestName: string;
@@ -33,13 +34,18 @@ const CONFETTI_MS = 3200;
 const CONFETTI_DELAY_MS = 1500;
 // The card finishes sliding out at ~1.9s; wait a beat, then drift down the page.
 const SCROLL_START_MS = 3000;
+// The first stretch (to the invitation details) takes this long; its speed is kept to the bottom.
 const SCROLL_DURATION_MS = 3200;
+// After the guest lets go of the screen, the drift carries on this long after.
+const SCROLL_RESUME_MS = 3000;
+// Pixels per millisecond, used only when the details are already above the fold.
+const DEFAULT_SCROLL_SPEED = 0.12;
 
 /**
  * Envelope animation for the guest invitation page (Action 66, PRD §19).
  * 2D flip of the flap (CSS 3D transform), the card sliding out, then a canvas
  * confetti burst. Colours come from the admin theme variables, so editing the
- * palette recolours the envelope. Plays on every load, then scrolls slowly down to the details.
+ * palette recolours the envelope. Plays on every load, then scrolls slowly down the whole page.
  * With "reduce motion" on, it shows the opened card and skips the confetti.
  */
 export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: EnvelopeIntroProps) {
@@ -143,44 +149,58 @@ export default function EnvelopeIntro({ guestName, coupleNames, weddingDate }: E
     return stopConfetti;
   }, [reducedMotion, burst, stopConfetti]);
 
-  // After the animation ends, drift slowly down to the invitation details so
-  // the guest does not have to scroll. Any touch, wheel or key press by the
-  // guest cancels it straight away.
+  // After the animation ends, drift slowly down the page - first past the details, then
+  // on to the very bottom - at one steady speed. See src/guest/autoScroll.js for the
+  // touch-to-pause and carry-on-after-3-seconds behaviour.
   useEffect(() => {
     if (reducedMotion) return;
-    let frame: number | null = null;
-    let cancelled = false;
+    const scroller = createAutoScroller({
+      env: {
+        scrollY: () => window.scrollY,
+        viewportHeight: () => window.innerHeight,
+        pageHeight: () => document.documentElement.scrollHeight,
+        // 'instant': the page's smooth-scroll setting would otherwise lag behind every step.
+        scrollTo: (y) => window.scrollTo({ top: y, behavior: 'instant' }),
+        isBusy: () => {
+          const field = document.activeElement;
+          const typing = field instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(field.tagName);
+          return typing || Boolean(document.querySelector('[role="dialog"], [role="alertdialog"]'));
+        },
+      },
+      timers: {
+        raf: (cb) => window.requestAnimationFrame(cb),
+        caf: (id) => window.cancelAnimationFrame(id),
+        setTimeout: (cb, ms) => window.setTimeout(cb, ms),
+        clearTimeout: (id) => window.clearTimeout(id),
+        now: () => performance.now(),
+      },
+      resumeMs: SCROLL_RESUME_MS,
+      speed: DEFAULT_SCROLL_SPEED,
+    });
 
-    const cancel = () => {
-      cancelled = true;
-      if (frame !== null) window.cancelAnimationFrame(frame);
-    };
-    const events = ['wheel', 'touchstart', 'keydown', 'mousedown'] as const;
-    events.forEach((name) => window.addEventListener(name, cancel, { passive: true }));
+    const handlers: [string, EventListener][] = [
+      ['touchstart', () => scroller.touchStart()],
+      ['touchend', (event) => scroller.touchEnd((event as TouchEvent).touches.length)],
+      ['touchcancel', (event) => scroller.touchEnd((event as TouchEvent).touches.length)],
+      ['wheel', () => scroller.nudge()],
+      ['keydown', () => scroller.nudge()],
+      ['mousedown', () => scroller.mouseDown()],
+      ['mouseup', () => scroller.mouseUp()],
+    ];
+    handlers.forEach(([name, handler]) => window.addEventListener(name, handler, { passive: true }));
 
     const startTimer = window.setTimeout(() => {
-      if (cancelled) return;
+      // Same pace the first stretch has always had: the distance to the details over
+      // SCROLL_DURATION_MS, kept up all the way to the bottom.
       const next = stageRef.current?.closest('section')?.nextElementSibling;
-      if (!next) return;
-      const startY = window.scrollY;
-      const targetY = Math.max(0, next.getBoundingClientRect().top + window.scrollY - 24);
-      const distance = targetY - startY;
-      if (distance <= 0) return;
-      const startedAt = performance.now();
-      const step = (now: number) => {
-        if (cancelled) return;
-        const t = Math.min(1, (now - startedAt) / SCROLL_DURATION_MS);
-        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        window.scrollTo(0, startY + distance * eased);
-        if (t < 1) frame = window.requestAnimationFrame(step);
-      };
-      frame = window.requestAnimationFrame(step);
+      const distance = next ? next.getBoundingClientRect().top - 24 : 0;
+      scroller.start(distance > 0 ? distance / SCROLL_DURATION_MS : DEFAULT_SCROLL_SPEED);
     }, SCROLL_START_MS);
 
     return () => {
       window.clearTimeout(startTimer);
-      cancel();
-      events.forEach((name) => window.removeEventListener(name, cancel));
+      scroller.stop();
+      handlers.forEach(([name, handler]) => window.removeEventListener(name, handler));
     };
   }, [reducedMotion]);
 
