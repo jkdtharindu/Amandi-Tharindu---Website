@@ -328,6 +328,9 @@ function InviteeChecklist({
   const [thanks, setThanks] = useState('');
   // People whose saved answer came from another device: waiting for "are you sure?".
   const [confirmAsk, setConfirmAsk] = useState<{ id: string; name: string }[] | null>(null);
+  // The "please check your answers" pop-up shown before anything is saved: who is
+  // about to be saved as attending and who as not attending.
+  const [review, setReview] = useState<{ attending: string[]; declined: string[] } | null>(null);
   const submittingRef = useRef(false);
   const partyRef = useRef(party);
   useEffect(() => {
@@ -344,6 +347,15 @@ function InviteeChecklist({
       .then((data) => setCsrfToken(data.token))
       .catch((err) => console.error('Failed to fetch CSRF token:', err));
   }, []);
+
+  useEffect(() => {
+    if (!review) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setReview(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [review]);
 
   // Load the saved answers on arrival and whenever this tab comes back into
   // view, so answers another person saved from their own phone show up.
@@ -393,6 +405,18 @@ function InviteeChecklist({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (entries.length === 0 || submittingRef.current) return;
+    // Ask first, with the names, so a stray tap on someone else's button is caught.
+    const nameOf = (id: string) => approved.find((invitee) => invitee.id === id)?.name ?? '';
+    setReview({
+      attending: entries.filter((entry) => entry.attending).map((entry) => nameOf(entry.id)),
+      declined: entries.filter((entry) => !entry.attending).map((entry) => nameOf(entry.id)),
+    });
+  }
+
+  /** "Yes, save these answers": the guest has seen the names, so now it is sent. */
+  function confirmReview() {
+    setReview(null);
     return send(entries);
   }
 
@@ -568,7 +592,57 @@ function InviteeChecklist({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      {review && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setReview(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rsvp-review-title"
+            data-testid="rsvp-review"
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="rsvp-review-title" className="mb-4 text-xl font-bold text-gray-900">
+              {t('rsvp.reviewTitle')}
+            </h3>
+            {review.attending.length > 0 && (
+              <div className="mb-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
+                <p className="text-sm font-semibold text-green-800">{t('rsvp.reviewAttending')}</p>
+                <p className="mt-1 font-semibold text-green-900">{review.attending.join(', ')}</p>
+              </div>
+            )}
+            {review.declined.length > 0 && (
+              <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <p className="text-sm font-semibold text-rose-800">{t('rsvp.reviewDeclined')}</p>
+                <p className="mt-1 font-semibold text-rose-900">{review.declined.join(', ')}</p>
+              </div>
+            )}
+            <p className="mb-5 text-sm text-gray-600">{t('rsvp.reviewNote')}</p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setReview(null)}
+                className="button button-secondary min-h-12"
+              >
+                {t('rsvp.reviewBack')}
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={confirmReview}
+                className="button button-primary min-h-12"
+              >
+                {t('rsvp.reviewConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
         {approved.map((invitee) => {
           const draft = party.drafts[invitee.id] ?? draftFromInvitee(invitee);
           const savedChoice = choiceOf(invitee.rsvpStatus);
@@ -592,15 +666,15 @@ function InviteeChecklist({
           ];
 
           return (
-            <fieldset key={invitee.id} className="border border-gray-200 rounded-2xl px-4 py-3">
+            <fieldset key={invitee.id} className="border border-gray-300 rounded-2xl px-4 py-4">
               <legend className="sr-only">{invitee.name}</legend>
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="font-semibold text-gray-900">{invitee.name}</span>
+                <span className="text-lg font-bold text-gray-900">{invitee.name}</span>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.cls}`}>{badge.text}</span>
                 {savedChoice && <span className="text-xs text-gray-600">{t('rsvp.confirmed')}</span>}
                 {unsaved && <span className="text-xs font-semibold text-amber-700">{t('rsvp.unsaved')}</span>}
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {options.map((option) => (
                   <label
                     key={option.value}
@@ -620,6 +694,7 @@ function InviteeChecklist({
                       value={option.value}
                       checked={draft.choice === option.value}
                       onChange={() => pick(invitee.id, option.value)}
+                      aria-label={`${invitee.name}: ${option.label}`}
                       disabled={saving}
                       className={`h-5 w-5 shrink-0 cursor-pointer ${option.value === 'accepted' ? 'accent-green-600' : 'accent-rose-600'}`}
                     />

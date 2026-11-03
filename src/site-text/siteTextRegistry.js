@@ -309,6 +309,12 @@ const ROWS = [
   ],
   ['rsvp.confirmYes', 'RSVP — messages', 'Button: yes, change the answer', 'Yes, change it'],
   ['rsvp.confirmNo', 'RSVP — messages', 'Button: no, keep the saved answer', 'No, keep it'],
+  ['rsvp.reviewTitle', 'RSVP — messages', 'Pop-up title: check answers before saving', 'Please check your answers'],
+  ['rsvp.reviewAttending', 'RSVP — messages', 'Pop-up heading: people attending', 'Attending'],
+  ['rsvp.reviewDeclined', 'RSVP — messages', 'Pop-up heading: people not attending', 'Not attending'],
+  ['rsvp.reviewNote', 'RSVP — messages', 'Pop-up note under the names', 'Only the people listed here are changed. Everyone else stays as they were.', { multiline: true }],
+  ['rsvp.reviewConfirm', 'RSVP — messages', 'Pop-up button: save the answers', 'Yes, save these answers'],
+  ['rsvp.reviewBack', 'RSVP — messages', 'Pop-up button: go back and change', 'Go back'],
   ['rsvp.errorSave', 'RSVP — messages', 'Message: save failed', 'We could not save your answers. Nothing you entered was lost — please try again.', { multiline: true }],
 
   // RSVP — single answer (older invitations)
