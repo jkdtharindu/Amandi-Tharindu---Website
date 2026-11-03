@@ -169,9 +169,11 @@ export default async function HomePage() {
           <h1>{t("hero.heading")}</h1>
           <p>{t("hero.intro", { coupleNames: settings.coupleNames })}</p>
           <div className="button-group">
-            <Link className="button button-primary" href="/invitation">
+            {/* A plain link (full page load), not <Link>: if the saved sign-in is stale the gate must show at once */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a className="button button-primary" href="/invitation">
               {t("hero.buttonInvitation")}
-            </Link>
+            </a>
             <Link className="button button-secondary" href={t("hero.buttonStoryLink")}>
               {t("hero.buttonStory")}
             </Link>
@@ -354,9 +356,10 @@ export default async function HomePage() {
         <h2>{t("wishes.heading")}</h2>
         <p>{t("wishes.intro")}</p>
         <div className="button-group">
-          <Link className="button button-primary" href="/invitation">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full page load, see the hero button */}
+          <a className="button button-primary" href="/invitation">
             {t("wishes.button")}
-          </Link>
+          </a>
         </div>
         <CustomSections sections={wishesSections} inPanel />
       </section>

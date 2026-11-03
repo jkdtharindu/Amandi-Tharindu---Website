@@ -124,6 +124,19 @@ export default function SiteHeader({
             ? activeSection === link.sectionId
             : // "Invitation" resolves to /invitation/[code] once signed in.
               pathname.startsWith(link.href);
+          // Full page load for Invitation: a stale saved sign-in must bring the gate back at once.
+          if (link.href === "/invitation") {
+            return (
+              <a
+                key={link.href}
+                href={link.href}
+                className={isActive ? "active" : undefined}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {t(link.label)}
+              </a>
+            );
+          }
           return (
             <Link
               key={link.href}

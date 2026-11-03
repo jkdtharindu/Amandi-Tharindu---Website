@@ -33,7 +33,8 @@ export default async function InvitationPage({
   // someone else's link (or a mistyped one) is sent to their own instead of
   // seeing another guest's name and party size.
   const guest = sessionId ? await findGuestById(sessionId) : null;
-  if (!guest) redirect('/');
+  // A signed cookie for a guest who no longer exists: /invitation clears it and shows the gate.
+  if (!guest) redirect('/invitation');
   if (guest.code !== code) redirect(`/invitation/${encodeURIComponent(guest.code)}`);
 
   const rsvp = await findRsvpResponseByGuestId(guest.id);
