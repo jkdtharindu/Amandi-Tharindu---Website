@@ -8,6 +8,10 @@ const LEVEL_STYLE = {
     headline: 'You are invited to our wedding',
     mood: 'A joyful, celebratory feel, like the front of a wedding invitation card.',
   },
+  guest_code: {
+    headline: 'Your personal RSVP code',
+    mood: 'A simple, private feel, like a small key card. Plain and uncluttered.',
+  },
   rsvp_reminder: {
     headline: 'Please let us know if you can join us',
     mood: 'A friendly, gentle feel, like a warm personal note. Slightly lighter and simpler than an invitation.',

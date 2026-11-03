@@ -7,7 +7,15 @@ import {
   buildWhatsAppLink,
   greetingForParty,
 } from '@/src/admin/messageTemplates.js';
-import { MESSAGE_LEVELS, levelProgress, templateBodyFor } from '@/src/messaging/messageLevels.js';
+import {
+  MESSAGE_LEVELS,
+  levelProgress,
+  stepLabel,
+  templateVariants,
+  variantForGroup,
+  variantTemplateName,
+} from '@/src/messaging/messageLevels.js';
+import TemplateVariants from './TemplateVariants';
 import TemplateEditor from './TemplateEditor';
 import SharePhoto from './SharePhoto';
 import { buildSharePhotoPrompt } from '@/src/messaging/sharePhotoPrompt.js';
@@ -20,6 +28,8 @@ export type MessageTemplate = {
   body: string;
   channel: string;
   imageUrl?: string | null;
+  /** Guest groups this wording is sent to (Main invitation only). */
+  groups?: string[];
 };
 
 type Recipient = {
@@ -46,6 +56,7 @@ type LevelProgress = {
 /** Who each level is normally for, so picking a level also picks the right audience. */
 const DEFAULT_AUDIENCE: Record<string, string> = {
   main_invitation: 'all',
+  guest_code: 'all',
   rsvp_reminder: 'pending',
   table_update: 'accepted',
 };
@@ -75,7 +86,7 @@ const STATUSES = [
 
 const EMPTY_AUDIENCE: Audience = { recipients: [], noNumberCount: 0, noTableCount: 0, alreadySentCount: 0 };
 
-/** The guest's three level ticks and percent, shown under their number while working through a run. */
+/** The guest's level ticks and percent, shown under their number while working through a run. */
 function GuestTicks({ events }: { events: Recipient['messageEvents'] }) {
   const { levels, doneCount, total, percent } = levelProgress(events);
 
@@ -83,7 +94,7 @@ function GuestTicks({ events }: { events: Recipient['messageEvents'] }) {
     <p className="-mt-3 mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
       {levels.map((entry) => (
         <span key={entry.key} className={entry.done ? 'text-emerald-700' : 'text-slate-400'}>
-          {entry.done ? '✓' : '○'} {entry.number}. {entry.label}
+          {entry.done ? '✓' : '○'} {stepLabel(entry)} · {entry.label}
         </span>
       ))}
       <span className="font-stat">
@@ -128,6 +139,8 @@ export default function MessagingCenter({
 }) {
   const [templateList, setTemplateList] = useState(initialTemplates);
   const [levelKey, setLevelKey] = useState(MESSAGE_LEVELS[0].key);
+  // Which of the level's wordings is open in the editor (1 = the first).
+  const [variantNo, setVariantNo] = useState(1);
   const [status, setStatus] = useState(DEFAULT_AUDIENCE[MESSAGE_LEVELS[0].key]);
   const [progress, setProgress] = useState<LevelProgress[]>([]);
   const [relationship, setRelationship] = useState('all');
@@ -150,10 +163,11 @@ export default function MessagingCenter({
   const requestId = useRef(0);
 
   const level = MESSAGE_LEVELS.find((entry) => entry.key === levelKey) ?? MESSAGE_LEVELS[0];
+  const variants = templateVariants(level, templateList);
+  const openVariant = variants.find((entry) => entry.variant === variantNo) ?? variants[0];
   const levelTemplate = templateList.find((entry) => entry.name === level.templateName);
-  // The admin's saved wording for this level, or its default until one is saved.
-  const templateBody = templateBodyFor(level, templateList);
-  const templateId = levelTemplate?.id ?? '';
+  // The wording being edited, or its default until one is saved.
+  const templateBody = openVariant.body;
 
   const loadLogs = useCallback(async () => {
     try {
@@ -225,8 +239,39 @@ export default function MessagingCenter({
   const current = queueIndex === null ? null : recipients[queueIndex] ?? null;
   const finished = queueIndex !== null && queueIndex >= recipients.length;
 
+  // The wording a guest gets: the one linked to their group, else the first.
+  function variantFor(recipient: Recipient) {
+    return variantForGroup(level, templateList, recipient.relationship);
+  }
+
+  function templateIdFor(recipient: Recipient): string {
+    const name = variantFor(recipient).name;
+    return templateList.find((entry) => entry.name === name)?.id ?? levelTemplate?.id ?? '';
+  }
+
+  /** Adds or replaces one saved row, keeping what it already holds (photo, groups). */
+  function upsertTemplate(name: string, patch: Partial<MessageTemplate>) {
+    setTemplateList((list) => {
+      const existing = list.find((entry) => entry.name === name);
+      const rest = list.filter((entry) => entry.name !== name);
+      return [
+        ...rest,
+        {
+          id: existing?.id ?? `template-${name}`,
+          name,
+          label: level.label,
+          body: existing?.body ?? level.defaultBody,
+          channel: 'whatsapp',
+          imageUrl: existing?.imageUrl ?? null,
+          groups: existing?.groups ?? [],
+          ...patch,
+        },
+      ];
+    });
+  }
+
   function renderFor(recipient: Recipient): string {
-    return renderTemplate(templateBody, {
+    return renderTemplate(variantFor(recipient).body, {
       name: recipient.name,
       code: recipient.code,
       link: buildSiteLink(siteUrl, level.shareTag),
@@ -290,7 +335,7 @@ export default function MessagingCenter({
       const res = await fetch('/api/admin/messages/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ guestId: current.id, templateId }),
+        body: JSON.stringify({ guestId: current.id, templateId: templateIdFor(current) }),
       });
       const data = await res.json();
 
@@ -326,12 +371,11 @@ export default function MessagingCenter({
       <div className="lg:col-span-2 space-y-4">
         {/* How far each level has got across this side's guests */}
         {progress.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {progress.map((entry) => (
               <div key={entry.key} className="bg-white rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold text-slate-500">
-                  {entry.number}. {entry.label}
-                </p>
+                <p className="text-xs font-semibold text-slate-500">{stepLabel(entry)}</p>
+                <p className="text-sm font-semibold text-slate-900">{entry.label}</p>
                 <p className="mt-1 text-2xl font-bold font-stat">{entry.percent}%</p>
                 <div className="mt-2 h-1.5 rounded-full bg-slate-100" aria-hidden="true">
                   <div
@@ -362,6 +406,7 @@ export default function MessagingCenter({
                 value={levelKey}
                 onChange={(e) => {
                   resetRun();
+                  setVariantNo(1);
                   setLevelKey(e.target.value);
                   setStatus(DEFAULT_AUDIENCE[e.target.value] ?? 'all');
                 }}
@@ -369,7 +414,7 @@ export default function MessagingCenter({
               >
                 {MESSAGE_LEVELS.map((entry) => (
                   <option key={entry.key} value={entry.key}>
-                    {entry.number}. {entry.label}
+                    {stepLabel(entry)} · {entry.label}
                   </option>
                 ))}
               </select>
@@ -459,7 +504,7 @@ export default function MessagingCenter({
             <button
               type="button"
               onClick={() => setQueueIndex(0)}
-              disabled={loading || recipients.length === 0 || !templateBody}
+              disabled={loading || recipients.length === 0}
               className="mt-3 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
             >
               Start sending
@@ -474,29 +519,39 @@ export default function MessagingCenter({
           prompt={buildSharePhotoPrompt(level.key, { coupleNames, weddingDate, venueName, colors })}
           imageUrl={levelTemplate?.imageUrl ?? null}
           csrfToken={csrfToken}
-          onChanged={(imageUrl) =>
-            setTemplateList((current) => {
-              const existing = current.find((entry) => entry.name === level.templateName);
-              const rest = current.filter((entry) => entry.name !== level.templateName);
-              return [
-                ...rest,
-                {
-                  id: existing?.id ?? `template-${level.templateName}`,
-                  name: level.templateName,
-                  label: level.label,
-                  body: existing?.body ?? level.defaultBody,
-                  channel: 'whatsapp',
-                  imageUrl,
-                },
-              ];
-            })
-          }
+          onChanged={(imageUrl) => upsertTemplate(level.templateName, { imageUrl })}
         />
 
+        {level.maxTemplates > 1 && (
+          <TemplateVariants
+            key={level.key}
+            levelKey={level.key}
+            levelLabel={level.label}
+            variants={variants}
+            openVariant={openVariant.variant}
+            maxTemplates={level.maxTemplates}
+            categories={categories}
+            csrfToken={csrfToken}
+            onOpen={setVariantNo}
+            onAdded={(variant, body) => {
+              upsertTemplate(variantTemplateName(level, variant), { body, groups: [] });
+              setVariantNo(variant);
+            }}
+            onRemoved={(variant) => {
+              setTemplateList((list) =>
+                list.filter((entry) => entry.name !== variantTemplateName(level, variant))
+              );
+              setVariantNo(1);
+            }}
+            onTemplates={setTemplateList}
+          />
+        )}
+
         <TemplateEditor
-          key={level.key + templateBody}
+          key={level.key + openVariant.variant + templateBody}
           levelKey={level.key}
           levelLabel={level.label}
+          variant={openVariant.variant}
           savedBody={templateBody}
           defaultBody={level.defaultBody}
           csrfToken={csrfToken}
@@ -504,23 +559,7 @@ export default function MessagingCenter({
           shareTag={level.shareTag}
           weddingDate={weddingDate}
           venueName={venueName}
-          onSaved={(body) =>
-            setTemplateList((current) => {
-              const existing = current.find((entry) => entry.name === level.templateName);
-              const rest = current.filter((entry) => entry.name !== level.templateName);
-              return [
-                ...rest,
-                {
-                  id: existing?.id ?? `template-${level.templateName}`,
-                  name: level.templateName,
-                  label: level.label,
-                  body,
-                  channel: 'whatsapp',
-                  imageUrl: existing?.imageUrl ?? null,
-                },
-              ];
-            })
-          }
+          onSaved={(body) => upsertTemplate(openVariant.name, { body })}
         />
 
         {/* Worklist */}
@@ -539,6 +578,11 @@ export default function MessagingCenter({
               {current.whatsappNumber} · {current.relationship} · {current.rsvpStatus}
             </p>
             <GuestTicks events={current.messageEvents} />
+            {variants.length > 1 && (
+              <p className="-mt-2 mb-3 text-xs text-slate-500">
+                Using invitation template {variantFor(current).variant} for the {current.relationship} group.
+              </p>
+            )}
 
             <label
               htmlFor="bulk-message"
