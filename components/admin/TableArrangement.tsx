@@ -35,17 +35,6 @@ export type SeatingTable = {
   seats: Seat[];
 };
 
-type LeftoverSideRow = { unseated: number; freeSeats: number; leftover: number };
-
-export type LeftoverSummary = {
-  bride: LeftoverSideRow;
-  groom: LeftoverSideRow;
-  combinedLeftover: number;
-  commonFreeSeats: number;
-  seatsPerCommonTable: number;
-  commonTablesNeeded: number;
-};
-
 export type UnassignedGuest = { id: string; name: string };
 
 export type UnassignedInvitee = { id: string; name: string; guestId: string; guestName: string | null };
@@ -88,37 +77,26 @@ const SIDE_BAND: Record<string, string> = {
 
 export default function TableArrangement({
   party,
-  brideName = '',
-  groomName = '',
   initialTables,
   initialUnassignedGuests,
   initialUnassignedInvitees,
   initialUnassignedProbableAttendees,
   initialProbableAttendanceSummary,
   initialDashboardStats,
-  initialOverallDashboardStats,
-  initialLeftoverSummary,
 }: {
   party: Party;
-  brideName?: string;
-  groomName?: string;
   initialTables: SeatingTable[];
   initialUnassignedGuests: UnassignedGuest[];
   initialUnassignedInvitees: UnassignedInvitee[];
   initialUnassignedProbableAttendees: UnassignedProbableAttendee[];
   initialProbableAttendanceSummary: ProbableAttendanceSummaryRow[];
   initialDashboardStats: TableArrangementDashboardStats;
-  initialOverallDashboardStats?: TableArrangementDashboardStats;
-  initialLeftoverSummary: LeftoverSummary;
 }) {
   // State, not a prop, so load() can refresh it after every action. It was a
   // one-time server prop until Next Action 29, so the stat cards stayed at
   // their page-load values however many guests the admin seated.
   const [dashboardStats, setDashboardStats] =
     useState<TableArrangementDashboardStats>(initialDashboardStats);
-  const [overallDashboardStats, setOverallDashboardStats] =
-    useState<TableArrangementDashboardStats | undefined>(initialOverallDashboardStats);
-  const [leftoverSummary, setLeftoverSummary] = useState<LeftoverSummary>(initialLeftoverSummary);
   const [tables, setTables] = useState<SeatingTable[]>(initialTables);
   const [unassignedGuests, setUnassignedGuests] = useState<UnassignedGuest[]>(initialUnassignedGuests);
   const [unassignedInvitees, setUnassignedInvitees] = useState<UnassignedInvitee[]>(initialUnassignedInvitees);
@@ -152,8 +130,6 @@ export default function TableArrangement({
         setUnassignedProbableAttendees(data.unassignedProbableAttendees);
         setProbableAttendanceSummary(data.probableAttendanceSummary);
         setDashboardStats(data.dashboardStats);
-        setOverallDashboardStats(data.overallDashboardStats);
-        setLeftoverSummary(data.leftoverSummary);
       }
     } catch {
       showToast({ kind: 'error', text: 'Could not load the seating plan.' });
@@ -355,22 +331,24 @@ export default function TableArrangement({
     }
   }
 
-  // Short display name for a side: the first word of the name set in the theme
-  // editor, or "Bride" / "Groom" when none is set.
-  const nameOf = (side: Party) =>
-    ((side === 'bride' ? brideName : groomName).trim().split(/s+/)[0] || sideLabel(side));
-  const otherParty: Party = party === 'bride' ? 'groom' : 'bride';
+  // Own side only (the other side's numbers are never shown here, to keep the summary simple).
+  const ownTables = tables.filter((t) => t.side !== 'common');
+  const seatedAtOwnTables = ownTables.reduce(
+    (total, table) => total + table.seats.filter((seat) => seat.guestId || seat.inviteeId).length,
+    0
+  );
 
-  const statRows = [
-    { label: 'RSVP Accepted', hint: '', yours: dashboardStats.accepted, overall: overallDashboardStats?.accepted },
-    { label: 'Table Arranged', hint: '', yours: dashboardStats.tableArranged, overall: overallDashboardStats?.tableArranged },
-    { label: 'Balance to Arrange', hint: 'Accepted, not yet seated', yours: dashboardStats.balanceToArrange, overall: overallDashboardStats?.balanceToArrange },
-    {
-      label: 'RSVP Not Accepted',
-      hint: `${dashboardStats.declined} declined, ${dashboardStats.pending} pending`,
-      yours: dashboardStats.declined + dashboardStats.pending,
-      overall: overallDashboardStats ? overallDashboardStats.declined + overallDashboardStats.pending : undefined,
-    },
+  const guestStatusRows = [
+    { label: 'No. of tables', hint: "Your side's tables", value: ownTables.length },
+    { label: 'RSVP accepted', hint: '', value: dashboardStats.accepted },
+    { label: 'Seating arranged', hint: '', value: dashboardStats.tableArranged },
+    { label: 'Pending seating arrangement', hint: 'Accepted, not yet seated', value: dashboardStats.balanceToArrange },
+  ];
+
+  const tableStatusRows = [
+    { label: 'No. of my side tables', hint: '', value: ownTables.length },
+    { label: 'Seated count', hint: "People seated at your side's tables", value: seatedAtOwnTables },
+    { label: 'Pending to seat', hint: 'RSVP-confirmed guests without a seat', value: dashboardStats.balanceToArrange },
   ];
 
   return (
@@ -390,43 +368,11 @@ export default function TableArrangement({
           <span aria-hidden="true">{summaryOpen ? '−' : '+'}</span>
         </button>
         <div id="summary-panels" className={`${summaryOpen ? 'mt-4 block' : 'hidden'} lg:mt-0 lg:block`}>
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4" data-testid="stats-table">
-        <h2 className="font-semibold mb-3 flex flex-wrap items-center justify-between gap-2" data-testid="side-assigned">
-          <span>Guest stats</span>
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-            Side assigned: {sideLabel(party)}
-          </span>
-        </h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-slate-500">
-              <th scope="col" className="pb-2 font-semibold">&nbsp;</th>
-              <th scope="col" className="pb-2 text-right font-semibold">{nameOf(party)}</th>
-              {overallDashboardStats && <th scope="col" className="pb-2 pl-2 text-right font-semibold">
-                  Overall - including {nameOf(otherParty)}&apos;s party
-                </th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {statRows.map((row) => (
-              <tr key={row.label}>
-                <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
-                  {row.label}
-                  {row.hint && <span className="block text-xs text-slate-400">{row.hint}</span>}
-                </th>
-                <td className="py-2 text-right text-lg font-bold font-stat">{row.yours}</td>
-                {overallDashboardStats && (
-                  <td className="py-2 text-right text-lg font-bold font-stat">{row.overall}</td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SummaryPanel title="Guest status" testId="stats-table" rows={guestStatusRows} badge={`Side assigned: ${sideLabel(party)}`} />
 
       <ProbableAttendancePanel summary={probableAttendanceSummary} busy={busy} onSetBuffer={handleSetBuffer} />
 
-      <LeftoverPanel summary={leftoverSummary} party={party} nameOf={nameOf} />
+      <SummaryPanel title="Table status" testId="table-status" rows={tableStatusRows} />
 
       <div className="mb-4">
         <form onSubmit={handleAddTable} className="bg-white rounded-xl border border-slate-200 p-4">
@@ -548,72 +494,37 @@ export default function TableArrangement({
   );
 }
 
-/**
- * Counts only — never the other side's names (PRD §20). Each side's accepted
- * people still without a seat, the empty seats on that side's own tables, and
- * the people who will not fit there; then what the Common tables still need.
- */
-function LeftoverPanel({
-  summary,
-  party,
-  nameOf,
+/** A small panel of labelled counts for the signed-in admin's own side. */
+function SummaryPanel({
+  title,
+  testId,
+  rows,
+  badge,
 }: {
-  summary: LeftoverSummary;
-  party: Party;
-  nameOf: (side: Party) => string;
+  title: string;
+  testId: string;
+  rows: { label: string; hint: string; value: number }[];
+  badge?: string;
 }) {
-  const sides: Party[] = party === 'bride' ? ['bride', 'groom'] : ['groom', 'bride'];
-
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4" data-testid="leftover-summary">
-      <h2 className="font-semibold mb-1">Leftover seating</h2>
-      <p className="text-xs text-slate-500 mb-3">
-        People each side still has to seat, against the empty seats at that side&apos;s own tables.
-        Whoever does not fit goes to a Common table.
-      </p>
-      <table className="w-full text-sm mb-4">
-        <thead>
-          <tr className="text-left text-xs text-slate-500">
-            <th scope="col" className="pb-2 font-semibold">&nbsp;</th>
-            <th scope="col" className="pb-2 text-right font-semibold">Not seated</th>
-            <th scope="col" className="pb-2 pl-2 text-right font-semibold">Free seats</th>
-            <th scope="col" className="pb-2 pl-2 text-right font-semibold">Left over</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {sides.map((side) => (
-            <tr key={side}>
-              <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
-                {nameOf(side)}
-                {side === party && <span className="block text-xs text-slate-400">you</span>}
-              </th>
-              <td className="py-2 text-right text-lg font-bold font-stat">{summary[side].unseated}</td>
-              <td className="py-2 pl-2 text-right text-lg font-bold font-stat">{summary[side].freeSeats}</td>
-              <td className="py-2 pl-2 text-right text-lg font-bold font-stat">{summary[side].leftover}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4" data-testid={testId}>
+      <h2 className="font-semibold mb-3 flex flex-wrap items-center justify-between gap-2">
+        <span>{title}</span>
+        {badge && (
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">{badge}</span>
+        )}
+      </h2>
       <table className="w-full text-sm">
         <tbody className="divide-y divide-slate-100">
-          <tr>
-            <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
-              Combined leftover
-              <span className="block text-xs text-slate-400">Both sides, after their own tables</span>
-            </th>
-            <td className="py-2 text-right text-lg font-bold font-stat">{summary.combinedLeftover}</td>
-          </tr>
-          <tr>
-            <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">Free seats at Common tables</th>
-            <td className="py-2 text-right text-lg font-bold font-stat">{summary.commonFreeSeats}</td>
-          </tr>
-          <tr>
-            <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
-              Common tables still needed
-              <span className="block text-xs text-slate-400">Roughly, at {summary.seatsPerCommonTable} seats each</span>
-            </th>
-            <td className="py-2 text-right text-lg font-bold font-stat">{summary.commonTablesNeeded}</td>
-          </tr>
+          {rows.map((row) => (
+            <tr key={row.label}>
+              <th scope="row" className="py-2 pr-2 text-left font-normal text-slate-700">
+                {row.label}
+                {row.hint && <span className="block text-xs text-slate-400">{row.hint}</span>}
+              </th>
+              <td className="py-2 text-right text-lg font-bold font-stat">{row.value}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

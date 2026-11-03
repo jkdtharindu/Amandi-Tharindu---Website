@@ -81,7 +81,7 @@ This page shows the same two-row pattern: **"Your Party"** (just your own guests
 - **Balance to Arrange** — accepted people who aren't seated yet
 - **RSVP Not Accepted** — declined + still-pending, added together
 
-Above the tables is a **Leftover seating** panel — see [Table Assignment & Seating](#table-assignment--seating) for what it shows.
+Above the tables is a **Table status** panel — see [Table Assignment & Seating](#table-assignment--seating) for what it shows.
 
 There is no message-tracking checklist on the Dashboard — that idea was replaced by the per-guest tick-box on the Guests page's Messages drop-down (see below).
 
@@ -186,9 +186,9 @@ A seated person is shown as just their name if they're a whole party, or "Name (
 
 The system won't let you seat someone who has **declined** their invitation, assign a seat that doesn't exist, or seat your own guest at the other side's table (Common tables are the only shared option).
 
-### The Leftover Seating Panel
+### The Summary Panels
 
-Above the tables, a **Leftover seating** panel shows, for each side: how many accepted people still need a seat, how many empty seats that side's own tables have, and how many would be left over once those run out. Below that: the combined leftover across both sides, how many free seats exist on Common tables right now, and roughly how many more Common tables would be needed for the rest.
+The Table Arrangement page shows only your own side, never the other side's numbers. **Guest status** lists the number of tables, RSVP accepted, seating arranged and pending seating arrangement. **Table status** lists the number of your side's tables, how many people are seated at them, and how many RSVP-confirmed guests are still waiting for a seat.
 
 ### Probable Attendance (buffer seats)
 
@@ -225,7 +225,7 @@ Agree between yourselves before either of you:
 
 ### If You Both Need to Seat Leftover Guests Together
 
-Once your own tables are full, mark a table **Common** (yours or a new one) so both of you can seat your remaining people there. Check the **Leftover seating** panel first to see roughly how many Common tables you'll need between you.
+Once your own tables are full, mark a table **Common** (yours or a new one) so both of you can seat your remaining people there. Check the **Table status** panel first to see how many confirmed guests still need a seat.
 
 ---
 
