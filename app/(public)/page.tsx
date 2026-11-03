@@ -268,7 +268,7 @@ export default async function HomePage() {
                 className="event-image"
                 width={800}
                 height={320}
-                sizes="100vw"
+                sizes={events.length >= 2 ? "(max-width: 560px) 100vw, (max-width: 1100px) 50vw, 520px" : "100vw"}
               />
             )}
             <h3>{event.name}</h3>
@@ -343,7 +343,7 @@ export default async function HomePage() {
                   alt={photo.caption || "Gallery photo"}
                   width={600}
                   height={220}
-                  sizes="100vw"
+                  sizes={galleryPhotos.length >= 4 ? "(max-width: 480px) 100vw, (max-width: 700px) 50vw, (max-width: 1100px) 34vw, 270px" : "100vw"}
                 />
                 {photo.caption && <p className="gallery-caption">{photo.caption}</p>}
               </div>
