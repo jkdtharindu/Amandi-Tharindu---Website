@@ -8,6 +8,7 @@ import { buildCalendarEvent } from "@/src/calendar/calendarEvent.js";
 import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
+import { resizedHeroUrl } from "@/src/theme/resizedHeroUrl.js";
 import { listSections } from "@/src/sections/sectionsRepo.js";
 import CustomSections from "@/components/public/CustomSections";
 import FaqAccordion from "@/components/public/FaqAccordion";
@@ -152,7 +153,8 @@ export default async function HomePage() {
   const heroBoxAlpha = (0.3 + 0.6 * (Number(settings.heroOverlayStrength ?? 100) / 100)).toFixed(2);
   const heroStyle = settings.heroImageUrl
     ? ({
-        "--hero-image-url": `url(${JSON.stringify(settings.heroImageUrl)})`,
+        "--hero-image-url": `url(${JSON.stringify(resizedHeroUrl(settings.heroImageUrl, 1920))})`,
+        "--hero-image-url-small": `url(${JSON.stringify(resizedHeroUrl(settings.heroImageUrl, 1080))})`,
         "--hero-box-alpha": heroBoxAlpha,
       } as CSSProperties)
     : undefined;

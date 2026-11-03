@@ -337,6 +337,12 @@ button {
   .hero-panel--photo .button-primary {
     text-shadow: none;
   }
+  /* Phones get a smaller copy of the photo (--hero-image-url-small). */
+  @media (max-width: 700px) {
+    .hero-panel--photo {
+      background-image: var(--hero-image-url-small, var(--hero-image-url));
+    }
+  }
   /*
    * Readability on any photo: a soft fade that darkens only the lower part
    * of the picture (the top stays bright), and the words sit in a frosted
@@ -1077,6 +1083,12 @@ button {
     font-style: normal;
     text-align: center;
     letter-spacing: 0.06em;
+  }
+
+  /* Hint text was about 3.2:1 contrast; this is about 5.6:1 (AA needs 4.5:1). */
+  .gate-input::placeholder {
+    color: color-mix(in srgb, var(--color-ink) 68%, transparent);
+    opacity: 1;
   }
 
   .gate-input:not(:placeholder-shown) {
