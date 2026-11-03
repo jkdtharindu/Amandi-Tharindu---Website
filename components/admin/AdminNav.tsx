@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/components/Toast';
 
 const LINKS = [
@@ -21,7 +21,24 @@ export default function AdminNav({ email }: { email: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  // Seated guests whose family asked to decline: shown as a count on Table Arrangement.
+  const [declineRequests, setDeclineRequests] = useState(0);
   const showToast = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/admin/table-arrangement/decline-requests', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success) setDeclineRequests(data.count);
+      })
+      .catch(() => {
+        // A missing badge is not worth an error message.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   // Fails loudly rather than silently (Next Action 31): without the res.ok
   // check a server error redirected as though the sign-out had worked, and
@@ -76,6 +93,14 @@ export default function AdminNav({ email }: { email: string }) {
                 }`}
               >
                 {link.label}
+                {link.href === '/admin/table-arrangement' && declineRequests > 0 && (
+                  <span
+                    className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white"
+                    aria-label={`${declineRequests} decline ${declineRequests === 1 ? 'request' : 'requests'}`}
+                  >
+                    {declineRequests}
+                  </span>
+                )}
               </Link>
             );
           })}

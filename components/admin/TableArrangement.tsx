@@ -5,6 +5,7 @@ import { useToast } from '@/components/Toast';
 import { seatOccupantLabel } from '@/src/table-arrangement/seatLabel.js';
 import { sideLabel, tableLabel } from '@/src/table-arrangement/tableSides.js';
 import { deleteTableWarning } from '@/src/table-arrangement/deleteTableWarning.js';
+import { declineRequestSeats } from '@/src/table-arrangement/declineRequests.js';
 
 export type Party = 'bride' | 'groom';
 export type TableSide = Party | 'common';
@@ -346,6 +347,8 @@ export default function TableArrangement({
     return total + Math.max(0, table.capacity - taken);
   }, 0);
 
+  const declineRequests = declineRequestSeats(tables, party);
+
   const guestStatusRows = [
     { label: 'No. of tables', hint: "Your side's tables", value: ownTables.length },
     { label: 'RSVP accepted', hint: '', value: dashboardStats.accepted },
@@ -460,6 +463,46 @@ export default function TableArrangement({
       </aside>
 
       <div className="min-w-0">
+      {declineRequests.length > 0 && (
+        <div
+          className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4"
+          data-testid="decline-requests"
+          role="status"
+        >
+          <h2 className="font-semibold text-amber-900">
+            Decline requests ({declineRequests.length})
+          </h2>
+          <p className="mt-1 mb-3 text-xs text-amber-800">
+            These guests are already seated, and their family asked to decline them. Removing the person from
+            the seat confirms it: their RSVP changes to declined by itself.
+          </p>
+          <ul className="space-y-2">
+            {declineRequests.map((request) => (
+              <li
+                key={request.seatId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+              >
+                <span>
+                  <span className="font-semibold text-slate-900">{request.name}</span>
+                  <span className="text-slate-500">
+                    {' '}
+                    — Table {request.tableNumber}
+                    {request.tableName ? ` (${request.tableName})` : ''}, seat {request.seatNumber}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleUnassign(request.tableId, request.seatId)}
+                  className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800 disabled:opacity-50"
+                >
+                  Remove from seat
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {tables.length === 0 ? (
         <p className="text-sm text-slate-500">No tables created yet.</p>
       ) : (
