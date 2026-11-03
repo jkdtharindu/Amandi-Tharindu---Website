@@ -339,15 +339,8 @@ export default function MessagingCenter({
           text: data.message || 'WhatsApp opened, but the send could not be logged.',
         });
       }
-      // Opening WhatsApp ticks this level for the guest, so the next run skips them.
-      const tickRes = await fetch('/api/admin/messages/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ guestId: current.id, eventName: level.eventName, isCompleted: true }),
-      });
-      if (!tickRes.ok) {
-        showToast({ kind: 'error', text: 'WhatsApp opened, but the tick could not be saved.' });
-      }
+      // Opening WhatsApp does not tick: the admin ticks with "Mark as sent" once they
+      // have pressed Send inside WhatsApp.
       await loadLogs();
     } catch {
       showToast({
@@ -356,7 +349,29 @@ export default function MessagingCenter({
       });
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** The manual tick: records this level as sent for the guest, then moves on. */
+  async function handleMarkSent() {
+    if (!current) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/messages/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ guestId: current.id, eventName: level.eventName, isCompleted: true }),
+      });
+      if (!res.ok) {
+        showToast({ kind: 'error', text: `Could not tick ${current.name}. Try again.` });
+        return;
+      }
+      showToast({ kind: 'ok', text: `${current.name} ticked as sent.` });
       advance();
+    } catch {
+      showToast({ kind: 'error', text: `Could not tick ${current.name}. Try again.` });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -595,7 +610,8 @@ export default function MessagingCenter({
             <p className="mt-4 text-xs text-slate-500">
               This opens WhatsApp with the message filled in and records it in the log below.
               Nothing is sent until you press Send inside WhatsApp yourself — delivery is not
-              tracked.
+              tracked. Opening WhatsApp does not tick the guest: press Mark as sent yourself
+              once you have sent it.
             </p>
 
             <div className="mt-4 flex gap-2">
@@ -613,6 +629,14 @@ export default function MessagingCenter({
                 className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-100"
               >
                 Copy message
+              </button>
+              <button
+                type="button"
+                onClick={handleMarkSent}
+                disabled={busy || !csrfToken}
+                className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 disabled:opacity-50"
+              >
+                ✓ Mark as sent
               </button>
               <button
                 type="button"
