@@ -1,8 +1,10 @@
 import AdminNav from '@/components/admin/AdminNav';
+import RsvpActivity from '@/components/admin/RsvpActivity';
 import RsvpChart from '@/components/admin/RsvpChart';
 import StatCard from '@/components/admin/StatCard';
 import { requireAdminPage } from '@/lib/adminGuard';
 import { loadDashboardStats } from '@/src/admin/loadDashboardStats.js';
+import { listRsvpActivity } from '@/src/rsvp/rsvpActivityRepo.js';
 
 // Always read live numbers; the dashboard must not be cached (PRD P0-08).
 export const dynamic = 'force-dynamic';
@@ -39,7 +41,10 @@ function StatRow({ totals }: { totals: Totals }) {
 
 export default async function AdminDashboardPage() {
   const session = await requireAdminPage();
-  const { sideBreakdown, otherBreakdown, overallStats } = await loadDashboardStats(session.party);
+  const [{ sideBreakdown, otherBreakdown, overallStats }, activity] = await Promise.all([
+    loadDashboardStats(session.party),
+    listRsvpActivity(session.party),
+  ]);
   const otherPartyLabel = session.party === 'bride' ? 'Groom' : 'Bride';
 
   return (
@@ -56,6 +61,8 @@ export default async function AdminDashboardPage() {
             Export CSV
           </a>
         </div>
+
+        <RsvpActivity items={activity} />
 
         <div className="mb-5">
           <h2 className="text-sm font-semibold text-slate-500 mb-2">Your Party</h2>

@@ -8,6 +8,7 @@ import {
   updateInviteeRsvpStatuses,
 } from '../invitees/inviteesRepo.js';
 import { isInviteeSeated } from '../table-arrangement/tableArrangementRepo.js';
+import { recordRsvpActivity } from './rsvpActivityRepo.js';
 
 const useDb = Boolean(process.env.DATABASE_URL);
 
@@ -73,6 +74,9 @@ export function saveWholePartyRsvp(
     await lockGuest(exec, guestId);
     const result = await upsertRsvpResponse(guestId, attending, attending ? participantNames : [], exec);
     await updateGuestRsvpStatus(guestId, attending ? 'accepted' : 'declined', exec);
+    return result;
+  }).then(async (result) => {
+    await recordRsvpActivity(guestId, [{ status: attending ? 'accepted' : 'declined' }]);
     return result;
   });
 }
@@ -147,9 +151,18 @@ export function saveInviteeRsvp(
       else toApply.push({ ...entry, answeredBy });
     }
 
+    // The dashboard's history: only people whose answer actually changed.
+    const activity = toApply
+      .map((entry) => ({ saved: current.get(entry.id), status: entry.attending ? 'accepted' : 'declined' }))
+      .filter(({ saved, status }) => saved && saved.rsvpStatus !== status)
+      .map(({ saved, status }) => ({ personName: saved.name, status }));
+
     const updated = await updateInviteeRsvpStatuses(guestId, toApply, exec);
     const { status, response } = await mirrorPartyStatus(guestId, updated, exec);
-    return { status, response, invitees: updated, conflicts, needsConfirm, seatLocked };
+    return { status, response, invitees: updated, conflicts, needsConfirm, seatLocked, activity };
+  }).then(async ({ activity = [], ...result }) => {
+    await recordRsvpActivity(guestId, activity);
+    return result;
   });
 }
 
@@ -193,6 +206,9 @@ export async function applyDeclineAfterUnseat(inviteeId, { transaction = runInRs
     await setDeclineRequested(inviteeId, false, exec);
     const updated = await listApprovedInvitees(invitee.guestId, exec);
     await mirrorPartyStatus(invitee.guestId, updated, exec);
-    return { declined: true };
+    return { declined: true, personName: current.name };
+  }).then(async ({ personName, ...result }) => {
+    if (result.declined) await recordRsvpActivity(invitee.guestId, [{ personName, status: 'declined' }]);
+    return result;
   });
 }
