@@ -7,6 +7,7 @@ import { verifySession } from '@/src/session.js';
 import { getThemeSettings } from '@/src/theme/themeRepo.js';
 import { themeSettings as defaultThemeSettings } from '@/src/data/themeStore.js';
 import { listEvents } from '@/src/celebration-events/celebrationEventsRepo.js';
+import { formatEventTimeRange } from '@/src/celebration-events/formatEventTime.js';
 import { formatWeddingDate } from '@/src/theme/formatWeddingDate.js';
 import type { CelebrationEvent } from '@/components/admin/EventManager';
 import InvitationClient from './InvitationClient';
@@ -160,7 +161,7 @@ export default async function InvitationPage({
                 <div key={event.id}>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.name}</h3>
                   <p className="text-gray-700 mb-1"><strong>{t('events.labelDate')}:</strong> {formatWeddingDate(event.eventDate)}</p>
-                  <p className="text-gray-700 mb-1"><strong>{t('events.labelTime')}:</strong> {event.eventTime}</p>
+                  <p className="text-gray-700 mb-1"><strong>{t('events.labelTime')}:</strong> {formatEventTimeRange(event.eventTime, event.endTime)}</p>
                   <p className="text-gray-700 mb-1">
                     <strong>{t('events.labelVenue')}:</strong>{' '}
                     <a

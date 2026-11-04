@@ -13,6 +13,8 @@ function mapRow(row) {
     name: row.name,
     eventDate: toIsoDateString(row.event_date),
     eventTime: row.event_time,
+    // undefined before migration 039 has been run, so read it as "no end time".
+    endTime: row.end_time || '',
     venueName: row.venue_name,
     venueAddress: row.venue_address || '',
     imageUrl: row.image_url || '',
@@ -20,6 +22,16 @@ function mapRow(row) {
     dressCode: row.dress_code || '',
     displayOrder: row.display_order,
   };
+}
+
+/**
+ * Saves an event's end time in its own statement, only when it is set or is
+ * changing. That way saving any other event detail never touches the end_time
+ * column, so the admin keeps working even if migration 039 has not been run.
+ */
+async function saveEndTime(id, endTime, currentEndTime) {
+  if (endTime === currentEndTime) return;
+  await query('UPDATE celebration_events SET end_time = $1 WHERE id = $2', [endTime, id]);
 }
 
 export async function listEvents() {
@@ -57,7 +69,8 @@ export async function createEvent(input) {
       event.displayOrder,
     ]
   );
-  return { success: true, event: mapRow(rows[0]) };
+  await saveEndTime(rows[0].id, event.endTime, '');
+  return { success: true, event: { ...mapRow(rows[0]), endTime: event.endTime } };
 }
 
 export async function updateEvent(id, patch) {
@@ -68,6 +81,7 @@ export async function updateEvent(id, patch) {
     if (patch.name !== undefined) existing.name = String(patch.name).trim();
     if (patch.eventDate !== undefined) existing.eventDate = String(patch.eventDate).trim();
     if (patch.eventTime !== undefined) existing.eventTime = String(patch.eventTime).trim();
+    if (patch.endTime !== undefined) existing.endTime = String(patch.endTime).trim();
     if (patch.venueName !== undefined) existing.venueName = String(patch.venueName).trim();
     if (patch.venueAddress !== undefined) existing.venueAddress = String(patch.venueAddress).trim();
     if (patch.imageUrl !== undefined) existing.imageUrl = String(patch.imageUrl).trim();
@@ -86,6 +100,7 @@ export async function updateEvent(id, patch) {
     name: patch.name !== undefined ? String(patch.name).trim() : current.name,
     eventDate: patch.eventDate !== undefined ? String(patch.eventDate).trim() : current.eventDate,
     eventTime: patch.eventTime !== undefined ? String(patch.eventTime).trim() : current.eventTime,
+    endTime: patch.endTime !== undefined ? String(patch.endTime).trim() : current.endTime,
     venueName: patch.venueName !== undefined ? String(patch.venueName).trim() : current.venueName,
     venueAddress: patch.venueAddress !== undefined ? String(patch.venueAddress).trim() : current.venueAddress,
     imageUrl: patch.imageUrl !== undefined ? String(patch.imageUrl).trim() : current.imageUrl,
@@ -110,7 +125,8 @@ export async function updateEvent(id, patch) {
       id,
     ]
   );
-  return { success: true, event: mapRow(rows[0]) };
+  await saveEndTime(id, next.endTime, current.endTime);
+  return { success: true, event: { ...mapRow(rows[0]), endTime: next.endTime } };
 }
 
 export async function deleteEvent(id) {

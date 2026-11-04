@@ -10,6 +10,7 @@ export type CelebrationEvent = {
   name: string;
   eventDate: string;
   eventTime: string;
+  endTime: string;
   venueName: string;
   venueAddress: string;
   imageUrl: string;
@@ -22,6 +23,7 @@ type FormState = {
   name: string;
   eventDate: string;
   eventTime: string;
+  endTime: string;
   venueName: string;
   venueAddress: string;
   imageUrl: string;
@@ -34,6 +36,7 @@ const EMPTY_FORM: FormState = {
   name: '',
   eventDate: '',
   eventTime: '',
+  endTime: '',
   venueName: '',
   venueAddress: '',
   imageUrl: '',
@@ -206,6 +209,15 @@ export default function EventManager({ initialEvents }: { initialEvents: Celebra
             />
           </div>
           <div>
+            <span className="block text-xs font-semibold text-slate-500 mb-1">End time (optional)</span>
+            <div role="group" aria-label="End time (optional)">
+              <EventTimeInput
+                value={form.endTime}
+                onChange={(endTime) => setForm({ ...form, endTime })}
+              />
+            </div>
+          </div>
+          <div>
             <label htmlFor="new-venue-name" className="block text-xs font-semibold text-slate-500 mb-1">
               Venue name
             </label>
@@ -321,6 +333,7 @@ function EventRow({
   const [name, setName] = useState(event.name);
   const [eventDate, setEventDate] = useState(event.eventDate);
   const [eventTime, setEventTime] = useState(event.eventTime);
+  const [endTime, setEndTime] = useState(event.endTime);
   const [venueName, setVenueName] = useState(event.venueName);
   const [venueAddress, setVenueAddress] = useState(event.venueAddress);
   const [imageUrl, setImageUrl] = useState(event.imageUrl);
@@ -331,6 +344,7 @@ function EventRow({
     name !== event.name ||
     eventDate !== event.eventDate ||
     eventTime !== event.eventTime ||
+    endTime !== event.endTime ||
     venueName !== event.venueName ||
     venueAddress !== event.venueAddress ||
     imageUrl !== event.imageUrl ||
@@ -352,7 +366,13 @@ function EventRow({
           onChange={(e) => setEventDate(e.target.value)}
           className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
         />
-        <EventTimeInput value={eventTime} onChange={setEventTime} />
+        <div className="flex flex-col gap-1.5">
+          <EventTimeInput value={eventTime} onChange={setEventTime} />
+          <div role="group" aria-label="End time (optional)" className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">to</span>
+            <EventTimeInput value={endTime} onChange={setEndTime} />
+          </div>
+        </div>
         <input
           value={venueName}
           onChange={(e) => setVenueName(e.target.value)}
@@ -391,7 +411,7 @@ function EventRow({
           <button
             type="button"
             disabled={busy}
-            onClick={() => onSave({ name, eventDate, eventTime, venueName, venueAddress, imageUrl, parkingNote, dressCode })}
+            onClick={() => onSave({ name, eventDate, eventTime, endTime, venueName, venueAddress, imageUrl, parkingNote, dressCode })}
             className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
           >
             Save

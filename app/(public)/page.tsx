@@ -9,6 +9,7 @@ import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 import { resizedHeroUrl } from "@/src/theme/resizedHeroUrl.js";
+import { formatEventTimeRange } from "@/src/celebration-events/formatEventTime.js";
 import { listSections } from "@/src/sections/sectionsRepo.js";
 import CustomSections from "@/components/public/CustomSections";
 import FaqAccordion from "@/components/public/FaqAccordion";
@@ -263,7 +264,7 @@ export default async function HomePage() {
               <strong>{t("events.labelDate")}:</strong> {formatWeddingDate(event.eventDate)}
             </p>
             <p>
-              <strong>{t("events.labelTime")}:</strong> {event.eventTime}
+              <strong>{t("events.labelTime")}:</strong> {formatEventTimeRange(event.eventTime, event.endTime)}
             </p>
             <p>
               <strong>{t("events.labelVenue")}:</strong>{" "}
