@@ -731,6 +731,12 @@ button {
     font-size: 0.95rem;
   }
 
+  .page-footer-credit {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+  }
+
   .grid-panel {
     display: grid;
     gap: 1.25rem;

@@ -17,6 +17,7 @@ export default function PageFooter({
   return (
     <footer className="page-footer">
       <p>{t("footer.text", { weddingDate: formatWeddingDate(weddingDate), coupleNames })}</p>
+      <p className="page-footer-credit">{t("footer.poweredBy")}</p>
     </footer>
   );
 }

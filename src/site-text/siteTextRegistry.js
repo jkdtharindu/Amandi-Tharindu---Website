@@ -182,6 +182,7 @@ const ROWS = [
     'Wedding day: {weddingDate} · {coupleNames}’s celebration website',
     { multiline: true, tags: [ACCEPTED_TAGS.date, ACCEPTED_TAGS.couple] },
   ],
+  ['footer.poweredBy', 'Footer', 'Powered-by line', 'Powered by ECHO WEDS'],
 
   // Sign-in page
   ['gate.codeLabel', 'Sign-in page', 'Code box label (read by screen readers)', 'Invitation code'],
