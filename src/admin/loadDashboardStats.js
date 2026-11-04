@@ -33,9 +33,6 @@ export async function loadDashboardStats(party) {
     sideBreakdown: computeCodeBreakdown(sideGuests, responses, invitees),
     otherBreakdown: computeCodeBreakdown(otherGuests, responses, invitees),
     overallBreakdown: computeCodeBreakdown(allGuests, responses, invitees),
-    // Person-by-person answers per code (who is still to reply), same data as the rows above.
-    sideAnswers: summarizeAnswers(sideGuests, responses, invitees),
-    otherAnswers: summarizeAnswers(otherGuests, responses, invitees),
   };
 }
 

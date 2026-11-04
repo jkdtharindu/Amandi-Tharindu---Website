@@ -1,20 +1,12 @@
 import { MESSAGE_LEVELS } from '../messaging/messageLevels.js';
 
 /**
- * The Guest list's extra filters (Member answers, Seating, Messaging). Pure and
+ * The Guest list's extra filters (Seating, Messaging). Pure and
  * browser-safe: the list already holds every number these need, so they filter
  * in place without another trip to the server.
  */
 
 /** Option lists, in the order the dropdowns show them. */
-export const ANSWER_FILTERS = [
-  { value: 'all', label: 'All codes' },
-  { value: 'complete', label: 'Everyone has answered' },
-  { value: 'partial', label: 'Some answered, some still to reply' },
-  { value: 'none', label: 'Nobody has answered yet' },
-  { value: 'mixed', label: 'Mixed (some accepted, some declined)' },
-];
-
 export const SEATING_FILTERS = [
   { value: 'all', label: 'All seating' },
   { value: 'complete', label: 'All seated' },
@@ -34,14 +26,6 @@ export const MESSAGING_FILTERS = [
     { value: `${level.key}:sent`, label: `Step ${level.number} (${level.label}) sent`, group: 'By step' },
   ]),
 ];
-
-/** @param {{ state: string, mixed: boolean } | undefined} answer */
-export function matchesAnswers(filter, answer) {
-  if (!filter || filter === 'all') return true;
-  if (!answer) return false;
-  if (filter === 'mixed') return answer.mixed;
-  return answer.state === filter;
-}
 
 /** @param {{ status: string } | undefined} info  from computeSeatingCompletion */
 export function matchesSeating(filter, info) {

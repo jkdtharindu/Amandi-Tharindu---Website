@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { summarizeAnswers, answerState } from '../src/admin/answerSummary.js';
 import { computeMessagingStats } from '../src/messaging/messagingStats.js';
 import {
-  matchesAnswers,
   matchesSeating,
   matchesMessaging,
   MESSAGING_FILTERS,
@@ -92,13 +91,7 @@ test('messaging stats: sent and to-send per step, no-number guests counted apart
   assert.deepEqual(stats.totals, { codes: 5, withNumber: 4, noNumber: 1, fullyMessaged: 1 });
 });
 
-test('the list filters match codes by answers and by seating', () => {
-  assert.equal(matchesAnswers('all', undefined), true);
-  assert.equal(matchesAnswers('partial', { state: 'partial', mixed: false }), true);
-  assert.equal(matchesAnswers('partial', { state: 'complete', mixed: false }), false);
-  assert.equal(matchesAnswers('mixed', { state: 'complete', mixed: true }), true);
-  assert.equal(matchesAnswers('mixed', undefined), false);
-
+test('the list filter matches codes by seating', () => {
   assert.equal(matchesSeating('partial', { status: 'partial' }), true);
   assert.equal(matchesSeating('none', { status: 'complete' }), false);
   assert.equal(matchesSeating('skip', { status: 'skip' }), true);
