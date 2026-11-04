@@ -31,16 +31,33 @@ const DEFAULT_COUPLE_NAMES = "Amandi & Tharindu";
 export default function SiteHeader({
   coupleNames = DEFAULT_COUPLE_NAMES,
   hiddenSections = [],
+  sectionOrder = [],
 }: {
   coupleNames?: string;
   /** Section ids the admin has hidden; their nav links are left out. */
   hiddenSections?: string[];
+  /** Section ids in the order the admin chose; the menu follows it. */
+  sectionOrder?: string[];
 }) {
   const hiddenKey = hiddenSections.join(",");
-  const navLinks = useMemo(
-    () => NAV_LINKS.filter((link) => !link.sectionId || !hiddenKey.split(",").includes(link.sectionId)),
-    [hiddenKey],
-  );
+  const orderKey = sectionOrder.join(",");
+  const navLinks = useMemo(() => {
+    const visible = NAV_LINKS.filter(
+      (link) => !link.sectionId || !hiddenKey.split(",").includes(link.sectionId),
+    );
+    // Home first, Invitation last, the homepage sections in the admin's order.
+    const order = orderKey.split(",");
+    const position = (id?: string) => {
+      const at = id ? order.indexOf(id) : -1;
+      return at < 0 ? order.length : at;
+    };
+    const home = visible.filter((link) => link.sectionId === "home");
+    const middle = visible
+      .filter((link) => link.sectionId && link.sectionId !== "home")
+      .sort((a, b) => position(a.sectionId) - position(b.sectionId));
+    const rest = visible.filter((link) => !link.sectionId);
+    return [...home, ...middle, ...rest];
+  }, [hiddenKey, orderKey]);
   const pathname = usePathname();
   const t = useSiteText();
   const [isMenuOpen, setIsMenuOpen] = useState(false);

@@ -5,7 +5,11 @@ import { getThemeSettings } from "@/src/theme/themeRepo.js";
 import { SiteTextProvider } from "@/components/SiteTextProvider";
 import { getSiteTextSafe } from "@/src/site-text/siteTextRepo.js";
 import { createT } from "@/src/site-text/siteTextRegistry.js";
-import { getHomeSectionVisibilitySafe, HOME_SECTION_KEYS } from "@/src/home-sections/homeSectionsRepo.js";
+import {
+  getHomeSectionVisibilitySafe,
+  getHomeSectionOrderSafe,
+  HOME_SECTION_KEYS,
+} from "@/src/home-sections/homeSectionsRepo.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 
 /**
@@ -26,11 +30,12 @@ export default async function PublicLayout({ children }: { children: ReactNode }
   const visibility = await getHomeSectionVisibilitySafe();
   const texts = await getSiteTextSafe();
   const hiddenSections = HOME_SECTION_KEYS.filter((key) => !visibility[key]);
+  const sectionOrder = await getHomeSectionOrderSafe();
 
   return (
     <div className="page-shell">
       <SiteTextProvider texts={texts}>
-        <SiteHeader coupleNames={settings.coupleNames} hiddenSections={hiddenSections} />
+        <SiteHeader coupleNames={settings.coupleNames} hiddenSections={hiddenSections} sectionOrder={sectionOrder} />
         {children}
         <PageFooter coupleNames={settings.coupleNames} weddingDate={settings.weddingDate} t={createT(texts)} />
       </SiteTextProvider>
