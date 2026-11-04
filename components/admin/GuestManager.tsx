@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import GuestMessageModal, { type MessageEvent, type MessageTemplate } from './GuestMessageModal';
 import { levelProgress, stepLabel } from '@/src/messaging/messageLevels.js';
+import {
+  ANSWER_FILTERS,
+  SEATING_FILTERS,
+  MESSAGING_FILTERS,
+  matchesAnswers,
+  matchesSeating,
+  matchesMessaging,
+} from '@/src/admin/guestListFilters.js';
 import { useToast } from '@/components/Toast';
 
 export type Guest = {
@@ -21,6 +29,40 @@ export type SeatingStatus = {
   seated: number;
   total: number;
 };
+
+/** How far each person in a code has answered (src/admin/answerSummary.js). */
+export type AnswerStatus = {
+  invited: number;
+  accepted: number;
+  declined: number;
+  pending: number;
+  state: 'complete' | 'partial' | 'none';
+  mixed: boolean;
+};
+
+/** "2 accepted · 1 declined · 1 to reply" under the RSVP badge, for codes with more than one person. */
+function AnswerDetail({ info }: { info?: AnswerStatus }) {
+  if (!info || info.invited < 2) return null;
+  const parts = [
+    info.accepted > 0 && { text: `${info.accepted} accepted`, tone: 'text-emerald-700' },
+    info.declined > 0 && { text: `${info.declined} declined`, tone: 'text-rose-700' },
+    info.pending > 0 && { text: `${info.pending} to reply`, tone: 'text-amber-700' },
+  ].filter(Boolean) as { text: string; tone: string }[];
+
+  return (
+    <p
+      className="mt-1 text-xs text-slate-500"
+      title={`${info.invited} people: ${info.accepted} accepted, ${info.declined} declined, ${info.pending} not answered yet`}
+    >
+      {parts.map((part, index) => (
+        <span key={part.text}>
+          {index > 0 && ' · '}
+          <span className={part.tone}>{part.text}</span>
+        </span>
+      ))}
+    </p>
+  );
+}
 
 const SEATING_STYLES: Record<string, { dot: string; label: string }> = {
   complete: { dot: 'bg-emerald-500', label: 'All seated' },
@@ -112,10 +154,12 @@ export default function GuestManager({
   templates,
   initialMessageEvents = {},
   seatingStatus = {},
+  answerStatus = {},
   weddingDate,
   venueName,
 }: {
   seatingStatus?: Record<string, SeatingStatus>;
+  answerStatus?: Record<string, AnswerStatus>;
   initialMessageEvents?: Record<string, MessageEvent[]>;
   initialGuests: Guest[];
   categories?: string[];
@@ -143,6 +187,9 @@ export default function GuestManager({
   const [reminderGuest, setReminderGuest] = useState<Guest | null>(null);
   const [status, setStatus] = useState('all');
   const [relationship, setRelationship] = useState('all');
+  const [answersFilter, setAnswersFilter] = useState('all');
+  const [seatingFilter, setSeatingFilter] = useState('all');
+  const [messagingFilter, setMessagingFilter] = useState('all');
   const [search, setSearch] = useState('');
 
   const [editing, setEditing] = useState<Guest | null>(null);
@@ -524,13 +571,31 @@ export default function GuestManager({
     });
   }
 
-  const allSelected = guests.length > 0 && guests.every((g) => selectedIds.has(g.id));
+  // The server filters by status, group and search; the rest filter here, from the numbers the page already holds.
+  const visibleGuests = guests.filter(
+    (guest) =>
+      matchesAnswers(answersFilter, answerStatus[guest.id]) &&
+      matchesSeating(seatingFilter, seatingStatus[guest.id]) &&
+      matchesMessaging(
+        messagingFilter,
+        messageEvents[guest.id] ?? [],
+        Boolean(guest.whatsappNumber && guest.whatsappNumber.trim()),
+      ),
+  );
+
+  const allSelected = visibleGuests.length > 0 && visibleGuests.every((g) => selectedIds.has(g.id));
 
   function toggleSelectAll() {
-    setSelectedIds(allSelected ? new Set() : new Set(guests.map((g) => g.id)));
+    setSelectedIds(allSelected ? new Set() : new Set(visibleGuests.map((g) => g.id)));
   }
 
-  const filtersActive = status !== 'all' || relationship !== 'all' || search !== '';
+  const filtersActive =
+    status !== 'all' ||
+    relationship !== 'all' ||
+    search !== '' ||
+    answersFilter !== 'all' ||
+    seatingFilter !== 'all' ||
+    messagingFilter !== 'all';
 
   return (
     <div>
@@ -595,6 +660,82 @@ export default function GuestManager({
                 <option key={value} value={value}>
                   {value}
                 </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="answers-filter"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Member answers
+            </label>
+            <select
+              id="answers-filter"
+              value={answersFilter}
+              onChange={(e) => setAnswersFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+            >
+              {ANSWER_FILTERS.map((option: { value: string; label: string }) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="seating-filter"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Seating
+            </label>
+            <select
+              id="seating-filter"
+              value={seatingFilter}
+              onChange={(e) => setSeatingFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+            >
+              {SEATING_FILTERS.map((option: { value: string; label: string }) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="messaging-filter"
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
+              Messaging
+            </label>
+            <select
+              id="messaging-filter"
+              value={messagingFilter}
+              onChange={(e) => setMessagingFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+            >
+              {MESSAGING_FILTERS.filter((option: { group: string }) => option.group === '').map(
+                (option: { value: string; label: string }) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ),
+              )}
+              {['By progress', 'By step'].map((group) => (
+                <optgroup key={group} label={group}>
+                  {MESSAGING_FILTERS.filter((option: { group: string }) => option.group === group).map(
+                    (option: { value: string; label: string }) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ),
+                  )}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -1049,7 +1190,7 @@ export default function GuestManager({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {guests.map((guest) => (
+              {visibleGuests.map((guest) => (
                 <tr key={guest.id} className="hover:bg-slate-50">
                   <td className="pl-4 pr-0 py-3 w-8">
                     <input
@@ -1073,6 +1214,7 @@ export default function GuestManager({
                     >
                       {guest.rsvpStatus}
                     </span>
+                    <AnswerDetail info={answerStatus[guest.id]} />
                   </td>
                   <td className="px-4 py-3">
                     <SeatingBadge info={seatingStatus[guest.id]} />
@@ -1117,7 +1259,7 @@ export default function GuestManager({
           </table>
         </div>
 
-        {guests.length === 0 && (
+        {visibleGuests.length === 0 && (
           <p className="px-4 py-10 text-center text-sm text-slate-500">
             {filtersActive
               ? 'No guests match these filters.'
@@ -1127,7 +1269,7 @@ export default function GuestManager({
       </div>
 
       <p className="mt-3 text-xs text-slate-500">
-        Showing {guests.length} guest{guests.length === 1 ? '' : 's'}.
+        Showing {visibleGuests.length} guest{visibleGuests.length === 1 ? '' : 's'}.
       </p>
 
       {confirmDialog && (

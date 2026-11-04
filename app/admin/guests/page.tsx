@@ -1,8 +1,9 @@
 import AdminNav from '@/components/admin/AdminNav';
-import GuestManager, { type Guest, type SeatingStatus } from '@/components/admin/GuestManager';
+import GuestManager, { type AnswerStatus, type Guest, type SeatingStatus } from '@/components/admin/GuestManager';
 import InviteeRequests from '@/components/admin/InviteeRequests';
 import { requireAdminPage } from '@/lib/adminGuard';
-import { listAllInvitees, listGuestsByParty } from '@/src/admin/adminRepo.js';
+import { listAllInvitees, listAllRsvpResponses, listGuestsByParty } from '@/src/admin/adminRepo.js';
+import { summarizeAnswers } from '@/src/admin/answerSummary.js';
 import { listSeatingTablesByParty } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { computeSeatingCompletion } from '@/src/table-arrangement/seatingCompletion.js';
 import { filterGuests } from '@/src/admin/guestQueries.js';
@@ -23,10 +24,13 @@ export default async function AdminGuestsPage() {
   ]);
   const categories = mergeGroups(guests.map((g) => g.relationship));
   // Seating completion per party: seated people over accepted people, from the side's own and Common tables.
-  const [tables, allInvitees] = await Promise.all([
+  const [tables, allInvitees, responses] = await Promise.all([
     listSeatingTablesByParty(session.party),
     listAllInvitees(),
+    listAllRsvpResponses(),
   ]);
+  // Person-by-person answers per code (accepted / declined / still to reply).
+  const answerStatus = summarizeAnswers(guests, responses, allInvitees).byGuestId as Record<string, AnswerStatus>;
   const seatingStatus = Object.fromEntries(
     computeSeatingCompletion({ guests, invitees: allInvitees, tables })
   ) as Record<string, SeatingStatus>;
@@ -47,6 +51,7 @@ export default async function AdminGuestsPage() {
           templates={templates}
           initialMessageEvents={messageEvents}
           seatingStatus={seatingStatus}
+          answerStatus={answerStatus}
           weddingDate={weddingDate}
           venueName={venueName}
         />
