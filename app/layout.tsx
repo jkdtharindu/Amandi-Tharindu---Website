@@ -7,6 +7,7 @@ import { formatWeddingDate } from "@/src/theme/formatWeddingDate.js";
 import { buildSectionGlassVars } from "@/src/theme/sectionTint.js";
 import { themeSettings as defaultThemeSettings } from "@/src/data/themeStore.js";
 import { ToastProvider } from "@/components/Toast";
+import ScreenshotGuard from "@/components/ScreenshotGuard";
 
 // getThemeSettings() hits the DB on every request; this must never throw, or
 // a transient DB hiccup takes down every page on the site.
@@ -90,6 +91,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss() }} />
       </head>
       <body>
+        <ScreenshotGuard />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
