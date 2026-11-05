@@ -8,7 +8,7 @@ import { useEffect } from 'react';
  * A website can never fully stop screenshots (a phone camera or OS tool
  * always works). This makes it hard for casual users: it blocks right-click,
  * drag, copy, save/print shortcuts and the PrintScreen key, and hides the
- * page whenever the tab loses focus (which is when most screenshot tools run).
+ * page when the tab is switched away or on a screenshot key press.
  */
 const HIDDEN_CLASS = 'screenshot-guard-hidden';
 
@@ -79,8 +79,6 @@ export default function ScreenshotGuard() {
     document.addEventListener('keydown', onKeyDown, true);
     document.addEventListener('keyup', onKeyUp, true);
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('blur', hide);
-    window.addEventListener('focus', show);
     window.addEventListener('beforeprint', hide);
     window.addEventListener('afterprint', show);
 
@@ -92,8 +90,6 @@ export default function ScreenshotGuard() {
       document.removeEventListener('keydown', onKeyDown, true);
       document.removeEventListener('keyup', onKeyUp, true);
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('blur', hide);
-      window.removeEventListener('focus', show);
       window.removeEventListener('beforeprint', hide);
       window.removeEventListener('afterprint', show);
       show();
