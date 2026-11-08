@@ -178,6 +178,9 @@ export default function GuestManager({
 
   // Guards against an older in-flight request overwriting a newer result.
   const requestId = useRef(0);
+  // The add/edit form sits above the guest table, so on a long list it opens out of
+  // sight. Scroll it into view whenever it opens (or switches to another guest).
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     fetch('/api/csrf')
@@ -206,6 +209,10 @@ export default function GuestManager({
     const timer = setTimeout(load, search ? 250 : 0);
     return () => clearTimeout(timer);
   }, [load, search]);
+
+  useEffect(() => {
+    if (showForm) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [showForm, editing]);
 
   function openAdd() {
     setEditing(null);
@@ -691,8 +698,9 @@ export default function GuestManager({
       {/* Add / edit form */}
       {showForm && (
         <form
+          ref={formRef}
           onSubmit={handleSubmit}
-          className="bg-white rounded-xl border border-slate-200 p-5 mb-4"
+          className="bg-white rounded-xl border border-slate-200 p-5 mb-4 scroll-mt-4"
         >
           <h2 className="font-semibold mb-4">
             {editing ? 'Edit ' + editing.code : 'Add a guest'}
