@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sending Guest Messages — Message Center Guide</title>
+<style>
+  @page { size: A4; margin: 15mm 14mm 16mm; }
+  @page :first { margin: 0; }
+  :root{
+    --ink:#1f2937; --muted:#64748b; --green:#0f5d4a; --green2:#10805f; --mint:#e7f6ef;
+    --rose:#e11d48; --roseSoft:#fff1f3; --gold:#b7791f; --goldSoft:#fff8e6; --line:#e2e8f0; --paper:#fbfaf7;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{margin:0;font-family:"Inter","Carlito",Arial,"Noto Color Emoji",sans-serif;color:var(--ink);font-size:10pt;line-height:1.5}
+  h1,h2,h3{font-family:"Bitstream Charter","DejaVu Serif",Georgia,serif;margin:0;color:var(--green);line-height:1.2}
+  .page{break-after:page;page-break-after:always}
+  .page:last-child{break-after:auto;page-break-after:auto}
+
+  /* cover */
+  .cover{height:297mm;width:210mm;background:linear-gradient(160deg,#0b3f33 0%,#0f5d4a 55%,#16805f 100%);color:#fff;padding:34mm 24mm;position:relative;overflow:hidden}
+  .cover:before{content:"";position:absolute;right:-60mm;top:-40mm;width:150mm;height:150mm;border-radius:50%;background:rgba(255,255,255,.06)}
+  .cover:after{content:"";position:absolute;left:-40mm;bottom:-50mm;width:130mm;height:130mm;border-radius:50%;background:rgba(255,255,255,.05)}
+  .cover .kicker{letter-spacing:.28em;text-transform:uppercase;font-size:9.5pt;color:#bfe8d6}
+  .cover h1{color:#fff;font-size:40pt;margin:12mm 0 6mm;line-height:1.1}
+  .cover .sub{font-size:14pt;color:#d6f2e5;max-width:130mm}
+  .cover .ring{font-size:54pt;margin-top:14mm}
+  .cover .meta{position:absolute;left:24mm;bottom:26mm;right:24mm;border-top:1px solid rgba(255,255,255,.3);padding-top:6mm;font-size:10pt;color:#cfeee0;z-index:2}
+  .cover .meta b{color:#fff}
+
+  .top{display:flex;align-items:baseline;gap:10px;border-bottom:3px solid var(--green2);padding-bottom:6px;margin-bottom:12px}
+  .top .num{font-family:"DejaVu Serif",serif;font-size:11pt;color:var(--green2);letter-spacing:.05em}
+  h2{font-size:21pt}
+  h3{font-size:13pt;margin:14px 0 6px}
+  p{margin:6px 0}
+  .lead{font-size:11.5pt;color:#374151}
+
+  .cards{display:grid;gap:10px}
+  .c3{grid-template-columns:repeat(3,1fr)} .c2{grid-template-columns:repeat(2,1fr)} .c4{grid-template-columns:repeat(4,1fr)}
+  .card{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:#fff;break-inside:avoid}
+  .card h4{margin:0 0 4px;font-size:11.5pt;color:var(--green)}
+  .big{font-size:22pt;line-height:1}
+  .note{border-left:5px solid var(--gold);background:var(--goldSoft);border-radius:0 10px 10px 0;padding:9px 13px;margin:10px 0;break-inside:avoid}
+  .warn{border-left:5px solid var(--rose);background:var(--roseSoft);border-radius:0 10px 10px 0;padding:9px 13px;margin:10px 0;break-inside:avoid}
+  .good{border-left:5px solid var(--green2);background:var(--mint);border-radius:0 10px 10px 0;padding:9px 13px;margin:10px 0;break-inside:avoid}
+  .note>b:first-child,.warn>b:first-child,.good>b:first-child{display:block;margin-bottom:2px}
+
+  .check{list-style:none;padding:0;margin:6px 0}
+  .check li{padding:4px 0 4px 28px;position:relative}
+  .check li:before{content:"✓";position:absolute;left:0;top:3px;width:19px;height:19px;border-radius:50%;background:var(--green2);color:#fff;font-size:10pt;text-align:center;line-height:19px;font-weight:700}
+
+  /* levels */
+  .level{border-radius:14px;padding:12px 12px 10px;color:#fff;break-inside:avoid;min-height:44mm}
+  .level .st{font-size:8.5pt;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+  .level h4{margin:3px 0 6px;font-size:13pt;color:#fff;font-family:"DejaVu Serif",serif}
+  .level p{font-size:9.3pt;margin:3px 0;opacity:.95}
+  .L1{background:#0f5d4a}.L2{background:#7c4a9e}.L3{background:#b7791f}.L4{background:#c2410c}
+
+  /* screenshots */
+  figure{margin:10px 0;break-inside:avoid}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 14px rgba(15,23,42,.10)}
+  figure.s img{width:76%;margin:0 auto}
+  figure.m img{width:70%;margin:0 auto}
+  figcaption{font-size:8.8pt;color:var(--muted);margin-top:4px;text-align:center}
+  .legend{list-style:none;padding:0;margin:8px 0}
+  .legend li{display:flex;gap:9px;align-items:flex-start;padding:3px 0}
+  .legend.two{columns:2;column-gap:18px}
+  .legend.two li{break-inside:avoid}
+  .n{flex:0 0 22px;height:22px;border-radius:50%;background:var(--rose);color:#fff;font:700 9.5pt/22px Arial;text-align:center;margin-top:1px}
+
+  /* loop */
+  .loop{display:flex;align-items:stretch;gap:6px;margin:10px 0}
+  .loop .st{flex:1;border-radius:12px;padding:10px;background:#fff;border:2px solid var(--green2);text-align:center;break-inside:avoid}
+  .loop .st .ic{font-size:20pt}
+  .loop .st b{display:block;color:var(--green)}
+  .loop .ar{align-self:center;font-size:18pt;color:var(--green2)}
+
+  /* forward diagram */
+  .fwd{display:flex;gap:8px;align-items:stretch;margin:10px 0}
+  .bubble{flex:1;border-radius:14px;padding:9px 11px;font-size:9.3pt;background:#e9f9d9;border:1px solid #cfe9b5;break-inside:avoid}
+  .bubble.code{background:#efe3fb;border-color:#d9c2f0}
+  .bubble small{display:block;color:var(--muted);margin-bottom:2px}
+  .x{color:var(--rose);font-weight:700}
+
+  table{border-collapse:collapse;width:100%;font-size:9.5pt}
+  th{background:var(--green);color:#fff;text-align:left;padding:6px 9px;font-weight:600}
+  td{padding:6px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:#f8fafc}
+  code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:9.5pt}
+  .tag{display:inline-block;background:var(--mint);color:var(--green);border-radius:999px;padding:1px 9px;font-size:9pt;font-weight:600}
+  .rules{counter-reset:r;list-style:none;padding:0;margin:8px 0}
+  .rules li{counter-increment:r;position:relative;padding:8px 10px 8px 46px;margin:6px 0;background:#fff;border:1px solid var(--line);border-radius:10px;break-inside:avoid}
+  .rules li:before{content:counter(r);position:absolute;left:10px;top:6px;width:26px;height:26px;border-radius:50%;background:var(--green2);color:#fff;text-align:center;line-height:26px;font-weight:700}
+  .sample{font-size:8.6pt;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="page cover">
+  <div class="kicker">Amandi &amp; Tharindu · Wedding website</div>
+  <h1>Sending Guest<br>Messages</h1>
+  <div class="sub">A simple, step-by-step guide to the Message Center — what to press, in what order, and why.</div>
+  <div class="ring">💍</div>
+  <div class="meta">
+    <b>For the admin who sends the WhatsApp messages.</b><br>
+    No technical skill needed. Every screenshot in this guide is from the real website
+    (shown with sample guests, so your own list will have your own names).
+  </div>
+</section>
+
+<!-- ============ READ THIS FIRST ============ -->
+<section class="page">
+  <div class="top"><span class="num">START HERE</span><h2>Three things to know first</h2></div>
+
+  <div class="cards c3">
+    <div class="card"><div class="big">🙋</div><h4>You press Send</h4>
+      <p>The website never sends anything by itself. It opens WhatsApp with the message already typed. <b>You</b> press Send, from <b>your own</b> WhatsApp.</p></div>
+    <div class="card"><div class="big">📱</div><h4>Use your phone</h4>
+      <p>On a computer or WhatsApp Web, emoji like 💍 can turn into “�”. The phone app shows them correctly.</p></div>
+    <div class="card"><div class="big">👨‍👩‍👧</div><h4>One per invitation</h4>
+      <p>A family has <b>one code and one number</b>. Send each message once per family, not once per person.</p></div>
+  </div>
+
+  <h3>What you need on your phone</h3>
+  <ul class="check">
+    <li>An <b>Android phone or iPhone</b> with the <b>WhatsApp app</b>, signed in with <b>your own number</b>, and kept up to date.</li>
+    <li>A phone browser (<b>Chrome</b> on Android, <b>Safari</b> on iPhone) and an internet connection.</li>
+    <li>Sign in to the admin site on the phone: your website address followed by <code>/admin</code>. Then open <b>Messages</b>.</li>
+    <li><b>Pop-ups allowed</b> for the site in the browser settings. If they are blocked, the Open in WhatsApp button does nothing.</li>
+    <li>Do your sending on the <b>Messages</b> page. It fits a phone screen. The Guests page is a wide table and needs sideways scrolling.</li>
+  </ul>
+
+  <div class="good"><b>How it works on the phone</b>
+    Press <b>Open in WhatsApp</b> → the WhatsApp app opens with that guest’s chat and the message ready → press <b>Send</b> → go back to the browser → press <b>✓ Mark as sent</b>.
+    If the phone asks which app to use, choose <b>WhatsApp</b>.</div>
+
+  <div class="warn"><b>Check before you send</b>
+    Look at the message in WhatsApp. If you see “�” where an emoji should be, do <b>not</b> send. Go back, press <b>Copy message</b>, and paste the text into the chat instead. Pasting keeps every emoji.</div>
+
+</section>
+
+<!-- ============ THE 4 LEVELS ============ -->
+<section class="page">
+  <div class="top"><span class="num">THE PLAN</span><h2>The 4 messages every guest gets</h2></div>
+  <p class="lead">Send them in this order. The website calls each one a <b>level</b>, and tracks them with ticks.</p>
+
+  <div class="cards c4">
+    <div class="level L1"><div class="st">Step 1 of 4</div><h4>Main invitation</h4><p>The invitation and the website link. <b>No code</b> inside.</p><p class="tag" style="background:#fff;color:#0f5d4a">Goes to everyone</p></div>
+    <div class="level L2"><div class="st">Step 2 of 4</div><h4>Guest code</h4><p>Only the guest’s personal RSVP code, in its own message.</p><p class="tag" style="background:#fff;color:#7c4a9e">Goes to everyone</p></div>
+    <div class="level L3"><div class="st">Step 3 of 4</div><h4>RSVP reminder</h4><p>A gentle nudge to reply.</p><p class="tag" style="background:#fff;color:#b7791f">Only “Pending”</p></div>
+    <div class="level L4"><div class="st">Step 4 of 4</div><h4>Table number</h4><p>Where they will sit.</p><p class="tag" style="background:#fff;color:#c2410c">Accepted + seated</p></div>
+  </div>
+  <p class="sample">The website picks the right audience for each step automatically. You can change it if you need to.</p>
+
+  <h3>Why the code goes in a separate message</h3>
+  <p>The code is the guest’s private key to the RSVP page. If the invitation and the code were in one message, a guest could forward it to a friend, and the friend could use the code too.</p>
+  <div class="fwd">
+    <div class="bubble"><small>Step 1 · Main invitation</small>“…view your invitation at the link. <b>Your code will follow in a separate message.</b>”</div>
+    <div style="align-self:center;font-size:16pt">➜</div>
+    <div class="bubble"><small>A guest forwards it to a friend</small>The friend gets the link but <span class="x">✗ no code</span>, so cannot RSVP as your guest.</div>
+    <div class="bubble code"><small>Step 2 · Guest code</small>“Your personal RSVP code is: <b>FRI-NA-731</b>. Please keep it private.”</div>
+  </div>
+  <div class="warn"><b>Always send Step 1 first, then Step 2 straight after.</b>Do not send the code before the invitation. And never post a guest’s code in a group chat.</div>
+
+  <h3>Suggested order for the whole wedding</h3>
+  <table>
+    <tr><th style="width:26%">When</th><th>What to do</th></tr>
+    <tr><td><b>First</b></td><td>Step 1 · Main invitation → to everyone. Mark each as sent.</td></tr>
+    <tr><td><b>Straight after</b></td><td>Step 2 · Guest code → to everyone. Before sending, check the guest’s ticks show <code>✓ Step 1</code> (see “Step 2 · Guest code” below).</td></tr>
+    <tr><td><b>1–2 weeks later</b></td><td>Step 3 · RSVP reminder → the audience is already “Pending RSVP”, so people who replied are left out.</td></tr>
+    <tr><td><b>When seating is finished</b></td><td>Step 4 · Table number → only to guests who accepted and are seated.</td></tr>
+  </table>
+</section>
+
+<!-- ============ MESSAGES PAGE TOUR ============ -->
+<section class="page">
+  <div class="top"><span class="num">THE SCREEN</span><h2>The Messages page, step by step</h2></div>
+  <figure><img src="images/01-messages-overview.png" alt="Messages page"><figcaption>The Messages page (real screenshot, sample guests)</figcaption></figure>
+  <ol class="legend two">
+    <li><span class="n">1</span><span>Open <b>Messages</b> in the top menu.</span></li>
+    <li><span class="n">2</span><span><b>Message level:</b> pick Step 1, 2, 3 or 4.</span></li>
+    <li><span class="n">3</span><span><b>Audience:</b> fills in by itself (Everyone, Pending, Accepted…).</span></li>
+    <li><span class="n">4</span><span><b>Group:</b> optional. Send to one group at a time, like Friends.</span></li>
+    <li><span class="n">5</span><span>Keep <b>“Skip guests already ticked”</b> switched on, so nobody gets the same message twice.</span></li>
+    <li><span class="n">6</span><span>The <b>count line</b> tells you who is on the list (see below).</span></li>
+    <li><span class="n">7</span><span>Press <b>Start sending</b> when it looks right.</span></li>
+  </ol>
+
+  <h3>Reading the count line</h3>
+  <table>
+    <tr><td style="width:36%"><b>2 recipients</b></td><td>People you are about to message.</td></tr>
+    <tr><td><b>4 already sent</b></td><td>Already ticked for this level, so they are hidden from the list.</td></tr>
+    <tr><td><b>1 skipped (no WhatsApp number)</b></td><td>No number saved. Go to <b>Guests → Edit</b> and add one, then they appear.</td></tr>
+    <tr><td><b>1 waiting for a table</b></td><td>Step 4 only. This guest is not seated yet, so they are left out for now.</td></tr>
+  </table>
+
+  <h3>The progress cards</h3>
+  <figure><img src="images/02-progress-cards.png" alt="Progress cards"><figcaption>One card per step shows how far you have got. Use them to see what is left.</figcaption></figure>
+</section>
+
+<!-- ============ SENDING ============ -->
+<section class="page">
+  <div class="top"><span class="num">SENDING</span><h2>Sending to each guest</h2></div>
+  <p class="lead">After you press <b>Start sending</b>, the first guest appears. Do the same three things for every guest:</p>
+
+  <div class="loop">
+    <div class="st"><div class="ic">📲</div><b>1. Open in WhatsApp</b>WhatsApp opens with the message ready</div>
+    <div class="ar">➜</div>
+    <div class="st"><div class="ic">➤</div><b>2. Press Send</b>Inside WhatsApp, yourself</div>
+    <div class="ar">➜</div>
+    <div class="st"><div class="ic">✅</div><b>3. ✓ Mark as sent</b>Back on the website. It ticks the guest and moves to the next one</div>
+  </div>
+
+  <figure class="s"><img src="images/03-worklist-step1.png" alt="Guest card"><figcaption>A guest’s card during a run. Here: the Step 1 invitation for a family.</figcaption></figure>
+  <ol class="legend two">
+    <li><span class="n">1</span><span>The <b>message</b>, already filled in with the guest’s name. You can edit it for this one guest.</span></li>
+    <li><span class="n">2</span><span><b>Open in WhatsApp</b> opens the chat with their number.</span></li>
+    <li><span class="n">3</span><span><b>Copy message</b> copies the text so you can paste it yourself (use if emoji look broken).</span></li>
+    <li><span class="n">4</span><span><b>✓ Mark as sent</b> ticks the guest and goes to the next.</span></li>
+    <li><span class="n">5</span><span><b>Skip</b> moves on <i>without</i> ticking (not ready for this guest).</span></li>
+    <li><span class="n">6</span><span><b>Stop</b> ends the run. Your ticks are saved.</span></li>
+  </ol>
+
+  <div class="warn"><b>Opening WhatsApp does not tick the guest.</b>Only <b>✓ Mark as sent</b> does. If you forget, the guest shows up again next time. A tick means “I sent it”. It does not prove the guest received it.</div>
+  <p class="sample">When you reach the end you will see “That is everyone in this group.” Pop-up blocked? Allow pop-ups for the site and try again.</p>
+</section>
+
+<!-- ============ STEP 2 + STEP 4 ============ -->
+<section class="page">
+  <div class="top"><span class="num">STEP 2</span><h2>The guest code message</h2></div>
+
+    <figure class="s"><img src="images/04-worklist-step2-code.png" alt="Step 2 guest code"><figcaption>Step 2 for one guest. The message carries only their code.</figcaption></figure>
+  <ol class="legend">
+    <li><span class="n">1</span><span><b>Check the ticks line first.</b> It shows what this guest already has. Before sending the code, you want <b>✓ Step 1</b> here. If it is empty, send them Step 1 first.</span></li>
+    <li><span class="n">2</span><span>The message holds the guest’s own code.</span></li>
+  </ol>
+  <div class="note"><b>Why this check matters</b>Step 2 lists everyone not yet ticked for <i>Step 2</i>, even if they have not had Step 1. The ticks line is how you catch that.</div>
+
+  </section>
+<section class="page">
+  <div class="top"><span class="num">STEP 3 &amp; 4</span><h2>Reminder and table number</h2></div>
+  <h3>Step 3 · RSVP reminder</h3>
+  <p>Send this a week or two after the invitation. The audience is already set to <b>Pending RSVP</b>, so guests who have replied are left out. It works exactly like Step 1: Start sending → Open in WhatsApp → Send → ✓ Mark as sent.</p>
+  <div class="note"><b>This one repeats the code</b>The reminder includes the guest’s code again, so they do not have to scroll back to find it. That is fine for a reminder to the guest themselves, but remember that it should not be forwarded either.</div>
+  <h3 style="margin-top:12px">Step 4 · Table number</h3>
+  <figure class="s"><img src="images/05-step4-table.png" alt="Step 4 table message"><figcaption>Step 4 for a couple. Each person is listed with their own table, filled in automatically.</figcaption></figure>
+  <p class="sample">Only guests who accepted <i>and</i> are seated appear here. Everyone else shows as “waiting for a table”.</p>
+</section>
+
+<!-- ============ FAMILIES ============ -->
+<section class="page">
+  <div class="top"><span class="num">FAMILIES &amp; COUPLES</span><h2>When one invitation has many people</h2></div>
+  <p class="lead">An invitation like <b>Perera Family</b> is <b>one</b> invitation, not three:</p>
+  <div class="cards c4" style="margin-bottom:6px">
+    <div class="card"><h4>One name</h4>Perera Family</div>
+    <div class="card"><h4>One code</h4>REL-PE-123</div>
+    <div class="card"><h4>One number</h4>+94 77 123 4567</div>
+    <div class="card"><h4>Many people</h4>Nimal, Kamala, Sunil</div>
+  </div>
+
+  <div class="good"><b>The right way</b>
+    Send each step <b>once</b>, to the number saved on that invitation. Ask that person to tell the rest of the family. The message says “Dear Perera Family”, which is correct. Do not message each member separately.</div>
+
+  <h3>Wait for “All seated” before Step 4</h3>
+  <figure><img src="images/08-guests.png" alt="Guests page"><figcaption>The Guests page. Real screenshot, sample guests.</figcaption></figure>
+  <ol class="legend two">
+    <li><span class="n">1</span><span><b>Click the guest’s number</b> to open their message pop-up.</span></li>
+    <li><span class="n">2</span><span>The small circles 1–4 show the four steps. A green ✓ means sent.</span></li>
+    <li><span class="n">3</span><span><b>Seating column:</b> wait for <b>“All seated”</b> before sending Step 4.</span></li>
+    <li><span class="n">4</span><span>Use the <b>Seating filter</b> to see who is still partly or not seated.</span></li>
+  </ol>
+  <div class="warn"><b>Why wait?</b>A family gets the Step 4 message as soon as <i>one</i> person is seated, and the message would list only the people seated so far. Waiting for “All seated” means you send it once.</div>
+  <p class="sample">To change which number a family receives messages on: Guests → Edit → WhatsApp number. To see who is in the family: Edit → “People in this party”.</p>
+</section>
+
+<!-- ============ ONE GUEST POPUP ============ -->
+<section class="page">
+  <div class="top"><span class="num">ONE GUEST</span><h2>Sending to just one guest</h2></div>
+  <p class="lead">Good for a quick message, a late guest, or fixing a mistake. Go to <b>Guests</b> and click the guest’s WhatsApp number.</p>
+  <figure style="max-width:150mm;margin-left:auto;margin-right:auto"><img src="images/09-guest-popup.png" alt="Guest pop-up"><figcaption>The pop-up for one guest</figcaption></figure>
+  <ol class="legend two">
+    <li><span class="n">1</span><span>Four tabs, one per step. A <b>✓</b> on a tab means it is already ticked.</span></li>
+    <li><span class="n">2</span><span>The message, ready to send. You can edit it.</span></li>
+    <li><span class="n">3</span><span>Tick <b>“Mark … as sent”</b> after you press Send in WhatsApp. <b>Untick</b> it if you ticked by mistake or need to send again.</span></li>
+    <li><span class="n">4</span><span><b>Open in WhatsApp</b> opens their chat.</span></li>
+  </ol>
+  <div class="note"><b>Remember</b>Here the tick is a checkbox you control. Opening WhatsApp does not tick it.</div>
+</section>
+
+<!-- ============ EDIT WORDING ============ -->
+<section class="page">
+  <div class="top"><span class="num">WORDING</span><h2>Changing what the messages say</h2></div>
+  <p class="lead">On the Messages page, pick the level, then open <b>“Edit the saved template for this level”</b>.</p>
+  <figure class="m"><img src="images/06-edit-template.png" alt="Edit template"><figcaption>The template editor</figcaption></figure>
+  <ol class="legend two">
+    <li><span class="n">1</span><span>Change the words in the box. The <b>Preview</b> below shows a sample.</span></li>
+    <li><span class="n">2</span><span><b>Save template</b> keeps your changes.</span></li>
+    <li><span class="n">3</span><span><b>Reset to default</b> brings back the original words.</span></li>
+  </ol>
+
+  <h3>Tags: they fill in by themselves for each guest</h3>
+  <table>
+    <tr><th style="width:24%">Tag</th><th>Becomes</th><th style="width:24%">Tag</th><th>Becomes</th></tr>
+    <tr><td><code>[Name]</code></td><td>the guest’s name</td><td><code>[Date]</code></td><td>the wedding date</td></tr>
+    <tr><td><code>[Code]</code></td><td>their code</td><td><code>[Venue]</code></td><td>the venue</td></tr>
+    <tr><td><code>[Link]</code></td><td>the website address</td><td><code>[TableNumber]</code></td><td>their table(s)</td></tr>
+    <tr><td><code>[Greeting]</code></td><td>who it is from</td><td></td><td></td></tr>
+  </table>
+  <div class="warn"><b>Keep <code>[Code]</code> out of Step 1.</b>That is the whole reason the code has its own message.</div>
+
+  <h3 style="break-before:page;margin-top:0">Different invitation wording for different groups</h3>
+  <p>Step 1 can keep up to <b>4 templates</b>, for example a formal one for relatives and a casual one for friends.</p>
+  <figure><img src="images/07-template-groups.png" alt="Template groups"><figcaption>Template buttons and the group tick-boxes</figcaption></figure>
+  <ol class="legend two">
+    <li><span class="n">1</span><span><b>+ Add template</b> makes a copy of Template 1 to edit.</span></li>
+    <li><span class="n">2</span><span>Tick the groups that should get the open template. A group gets <b>one</b> template only. Unticked groups get Template 1.</span></li>
+  </ol>
+  <p class="sample">Wording is shared with your partner’s admin account, so tell each other before you edit.</p>
+</section>
+
+<!-- ============ HELP ============ -->
+<section class="page">
+  <div class="top"><span class="num">HELP</span><h2>If something goes wrong</h2></div>
+  <table>
+    <tr><th style="width:32%">Problem</th><th>What to do</th></tr>
+    <tr><td>A guest is missing from the list</td><td>They may have no WhatsApp number (see the “skipped” count), may already be ticked, or a filter is hiding them. Try Audience = <b>Everyone</b> and Group = <b>All groups</b>.</td></tr>
+    <tr><td>I sent it but forgot Mark as sent</td><td>Open the guest on the <b>Guests</b> page (click their number) and tick the step. Do <b>not</b> send twice.</td></tr>
+    <tr><td>I ticked someone by mistake</td><td><b>Guests</b> page → click their number → untick that step.</td></tr>
+    <tr><td>WhatsApp does not open</td><td>Allow pop-ups for the site in your browser. Nothing was saved. Try again.</td></tr>
+    <tr><td>Emoji look like “�”</td><td>You are probably on a computer or WhatsApp Web. Use your phone, or press <b>Copy message</b> and paste into WhatsApp.</td></tr>
+    <tr><td>“No usable WhatsApp number”</td><td>The number is wrong or too short. Fix it in <b>Guests → Edit</b>. Sri Lankan numbers like 071 234 5678 are fine.</td></tr>
+    <tr><td>I sent the code before the invitation</td><td>It is okay. Send Step 1 afterwards and tick it. The order matters for safety, not for the website working.</td></tr>
+    <tr><td>The page says “Unauthorized”</td><td>Sign in again at your website address followed by <code>/admin</code>.</td></tr>
+  </table>
+
+  <h3>The five golden rules</h3>
+  <ol class="rules">
+    <li><b>Step 1 first, then Step 2 right after.</b> The invitation never carries the code.</li>
+    <li><b>Send once per invitation</b>, not once per person in the family.</li>
+    <li><b>Send in WhatsApp, then press ✓ Mark as sent.</b> Opening WhatsApp alone does not tick.</li>
+    <li><b>Do not send Step 4 until the family is “All seated”.</b></li>
+    <li><b>Never post a guest’s code in a group chat.</b></li>
+  </ol>
+  <p style="text-align:center;font-size:18pt;margin-top:14px">💍</p>
+</section>
+
+</body>
+</html>

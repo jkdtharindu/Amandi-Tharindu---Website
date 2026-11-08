@@ -143,8 +143,8 @@ So, the right way:
 ### Step 4 (table) for a family
 
 - The message lists **each person and their own table** automatically, one per line, for example:
-  `Nimal – Rose`
-  `Kamala – Lotus`
+  `Nimal – Table 1 (Rose)`
+  `Kamala – Table 2 (Lotus)`
   If they all sit together, the lines show the same table.
 - A family only gets the Step 4 message once **at least one** person is seated. If you send it while only some are seated, the message will be missing the others and you will have to send again.
 - **So wait until the family shows "All seated"** in the **Seating** column on the Guests page. You can use the **Seating** filter on that page to see who is still partly seated or not seated.
