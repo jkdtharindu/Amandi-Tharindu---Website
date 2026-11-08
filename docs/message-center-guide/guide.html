@@ -92,6 +92,19 @@
   .rules li{counter-increment:r;position:relative;padding:8px 10px 8px 46px;margin:6px 0;background:#fff;border:1px solid var(--line);border-radius:10px;break-inside:avoid}
   .rules li:before{content:counter(r);position:absolute;left:10px;top:6px;width:26px;height:26px;border-radius:50%;background:var(--green2);color:#fff;text-align:center;line-height:26px;font-weight:700}
   .sample{font-size:8.6pt;color:var(--muted)}
+
+  .dev{border:2px dashed var(--gold);background:var(--goldSoft);border-radius:12px;padding:8px 13px;margin:8px 0;font-size:9.6pt;break-inside:avoid}
+  .dev .badge{display:inline-block;background:var(--gold);color:#fff;border-radius:999px;padding:1px 10px;font-size:8.5pt;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+  .steps{list-style:none;counter-reset:s;padding:0;margin:8px 0}
+  .steps li{counter-increment:s;position:relative;padding:4px 8px 4px 40px;margin:4px 0;font-size:9.6pt;line-height:1.42;background:#fff;border:1px solid var(--line);border-radius:10px;break-inside:avoid}
+  .steps li:before{content:counter(s);position:absolute;left:8px;top:6px;width:24px;height:24px;border-radius:50%;background:var(--green2);color:#fff;text-align:center;line-height:24px;font-weight:700}
+  .ba{display:flex;gap:8px;align-items:center;margin:8px 0}
+  .ba .bubble{font-size:9pt}
+  .ba .arrow{font-size:16pt;color:var(--green2)}
+  .bubble.bad{background:#fde8ea;border-color:#f6c0c7}
+  .track td,.track th{text-align:center;height:6.5mm;padding:3px 6px}
+  .track td:first-child,.track th:first-child{text-align:left}
+  .box{font-size:14pt;line-height:1}
 </style>
 </head>
 <body>
@@ -263,7 +276,7 @@
     Send each step <b>once</b>, to the number saved on that invitation. Ask that person to tell the rest of the family. The message says “Dear Perera Family”, which is correct. Do not message each member separately.</div>
 
   <h3>Wait for “All seated” before Step 4</h3>
-  <figure><img src="images/08-guests.png" alt="Guests page"><figcaption>The Guests page. Real screenshot, sample guests.</figcaption></figure>
+  <figure class="s"><img src="images/08-guests.png" alt="Guests page"><figcaption>The Guests page. Real screenshot, sample guests.</figcaption></figure>
   <ol class="legend two">
     <li><span class="n">1</span><span><b>Click the guest’s number</b> to open their message pop-up.</span></li>
     <li><span class="n">2</span><span>The small circles 1–4 show the four steps. A green ✓ means sent.</span></li>
@@ -271,7 +284,76 @@
     <li><span class="n">4</span><span>Use the <b>Seating filter</b> to see who is still partly or not seated.</span></li>
   </ol>
   <div class="warn"><b>Why wait?</b>A family gets the Step 4 message as soon as <i>one</i> person is seated, and the message would list only the people seated so far. Waiting for “All seated” means you send it once.</div>
-  <p class="sample">To change which number a family receives messages on: Guests → Edit → WhatsApp number. To see who is in the family: Edit → “People in this party”.</p>
+  <p class="sample">To change which number a family receives messages on: Guests → Edit → WhatsApp number. To see who is in the family: Edit → “People in this party”. <b>Friends who share one code but each have their own phone? See the next two pages.</b></p>
+</section>
+
+
+<!-- ============ SEPARATE PHONES (1) ============ -->
+<section class="page">
+  <div class="top"><span class="num">SHARED CODE · SEPARATE PHONES</span><h2>One code, many people: the manual method</h2></div>
+  <p class="lead">Example: <b>Hydromony Friends</b> are 5 or 6 office friends. They share <b>one code</b>, so they can all see each other on the RSVP page. But each has <b>their own WhatsApp number</b>, and each should get a message with <b>their own name</b>.</p>
+
+  <div class="dev"><span class="badge">Not built yet · developer work needed</span><br>
+    The website saves <b>one WhatsApp number per invitation</b>. The people inside it have names only, no numbers. So the Messages page can open WhatsApp for just <b>one</b> person in the group, and the greeting says the group name (“Dear Hydromony Friends”).
+    Until it is improved (see the end of this section), send to the rest <b>by hand</b>, as below.</div>
+
+  <h3>What the message looks like</h3>
+  <div class="ba">
+    <div class="bubble bad"><small>What the website fills in</small>“Dear <b>Hydromony Friends</b>, you are cordially invited…”</div>
+    <div class="arrow">➜</div>
+    <div class="bubble"><small>What you send to each person</small>“Dear <b>Samira</b>, you are cordially invited…”</div>
+  </div>
+
+  <h3>Step by step, for each person in the group</h3>
+  <p class="sample" style="margin:2px 0">Do one message level at a time (all of Step 1, then all of Step 2…), not person by person across all four levels.</p>
+  <ol class="steps">
+    <li><b>Find the people.</b> Guests → <b>Edit</b> on the group → <b>People in this party</b>. Write the names and their phone numbers on the tracker (next page).</li>
+    <li><b>Start the run</b> as usual (Messages → pick the level → Start sending) until the group’s card appears.</li>
+    <li><b>Change the name in the message box.</b> Replace “Hydromony Friends” with the first person’s name, for example “Samira”. The box is editable. Your edit stays while you are on that card.</li>
+    <li><b>Press “Copy message”.</b> Do <b>not</b> press <b>Open in WhatsApp</b> for the other friends: it opens the chat of the <b>one number saved on the group</b>, which is the wrong person for everyone else.</li>
+    <li><b>Open that person’s own chat in WhatsApp</b> (search their name or number) and <b>paste</b>.</li>
+    <li><b>Check the name</b> (see the checks below), then press <b>Send</b>.</li>
+    <li><b>Go back, change the name to the next friend</b>, and repeat steps 4 to 6. Tick the tracker after each one.</li>
+    <li>Only when <b>everyone</b> in the group has the message, press <b>✓ Mark as sent</b>. The website keeps <b>one tick per group</b>, not per person, so do not tick early. If you must stop halfway, press <b>Stop</b> (do not tick) and carry on later from your tracker.</li>
+  </ol>
+
+  <div class="warn"><b>Name check, every single time, before you press Send</b>
+    <b>Two names must match:</b> the name <b>inside the message</b> (“Dear Samira”) and the <b>contact name at the top of the WhatsApp chat</b>. When you copy and paste again and again, it is very easy to send “Dear Samira” to Kasun. If they do not match, stop. Delete the message and fix it.</div>
+</section>
+
+<!-- ============ SEPARATE PHONES (2) ============ -->
+<section class="page">
+  <div class="top"><span class="num">SHARED CODE · SEPARATE PHONES</span><h2>Cautions, tracker and the future fix</h2></div>
+
+  <h3>Mistakes to watch for</h3>
+  <ul class="check">
+    <li><b>Wrong name pasted.</b> The text still says the previous person’s name. Read the first line of every message before sending.</li>
+    <li><b>Similar names or the wrong chat.</b> Samira, Sameera and Samiran look alike. Compare letter by letter with the name at the top of the WhatsApp chat.</li>
+    <li><b>Never use WhatsApp “Forward”.</b> It keeps the old name, and marks the message “Forwarded”. Always copy and paste a fresh message.</li>
+        <li><b>Do not send the code and the invitation together.</b> The same rule applies to each friend: Step 1 first, then Step 2 to the same person.</li>
+    <li><b>Step 4 (table):</b> the message lists everyone’s tables. You can keep it, or cut it down to that person’s own line so they only see their own table.</li>
+  </ul>
+
+  <div class="note"><b>They share one code, so they can see each other</b>
+    Everyone using the same code can see who else is in the group on the RSVP page. If that is not wanted, the group can be split into separate invitations, one per person, each with its own code and number (Guests → Add guest, “Individual”). Then the normal method works with no copy and paste. This is your decision to make with Tharindu.</div>
+
+  <h3>Printable tracker (one per group)</h3>
+  <p class="sample">Group name: ______________________________ &nbsp;&nbsp; Code: _______________</p>
+  <table class="track">
+    <tr><th style="width:34%">Person’s name</th><th>Step 1<br>Invitation</th><th>Step 2<br>Code</th><th>Step 3<br>Reminder</th><th>Step 4<br>Table</th><th style="width:20%">Name checked ✓</th></tr>
+    <tr><td></td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td></tr>
+    <tr><td></td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td></tr>
+    <tr><td></td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td></tr>
+    <tr><td></td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td></tr>
+    <tr><td></td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td></tr>
+    <tr><td></td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td><td class="box">☐</td></tr>
+  </table>
+  <p class="sample">When every box in a column is ticked, press <b>✓ Mark as sent</b> on the website for that level. Then the website’s progress matches yours.</p>
+
+  <div class="dev"><span class="badge">Improvement to build later · for the developer</span><br>
+    <b>What is missing:</b> a WhatsApp number for <b>each person</b> in a group, not just one for the whole group.<br>
+    <b>What it would do:</b> the Messages page would step through <b>each person</b> in the group, open <b>their own</b> chat, and fill in <b>their own first name</b> (“Dear Samira”), so no typing or copy and paste is needed. Ticks would be kept <b>per person</b>, not per group.<br>
+    <b>What it needs:</b> a change to the database (a number for each person) and to the Guests and Messages pages. Until this is built and tested, use the manual method above.</div>
 </section>
 
 <!-- ============ ONE GUEST POPUP ============ -->
@@ -331,16 +413,18 @@
     <tr><td>Emoji look like “�”</td><td>You are probably on a computer or WhatsApp Web. Use your phone, or press <b>Copy message</b> and paste into WhatsApp.</td></tr>
     <tr><td>“No usable WhatsApp number”</td><td>The number is wrong or too short. Fix it in <b>Guests → Edit</b>. Sri Lankan numbers like 071 234 5678 are fine.</td></tr>
     <tr><td>I sent the code before the invitation</td><td>It is okay. Send Step 1 afterwards and tick it. The order matters for safety, not for the website working.</td></tr>
+    <tr><td>One code, but each friend has their own phone</td><td>Use the manual method: change the name in the box, press <b>Copy message</b>, paste into that person’s own chat, check the name, send. Do <b>not</b> press Open in WhatsApp for them. See “One code, many people”.</td></tr>
     <tr><td>The page says “Unauthorized”</td><td>Sign in again at your website address followed by <code>/admin</code>.</td></tr>
   </table>
 
-  <h3>The five golden rules</h3>
+  <h3>The golden rules</h3>
   <ol class="rules">
     <li><b>Step 1 first, then Step 2 right after.</b> The invitation never carries the code.</li>
     <li><b>Send once per invitation</b>, not once per person in the family.</li>
     <li><b>Send in WhatsApp, then press ✓ Mark as sent.</b> Opening WhatsApp alone does not tick.</li>
     <li><b>Do not send Step 4 until the family is “All seated”.</b></li>
     <li><b>Never post a guest’s code in a group chat.</b></li>
+    <li><b>Shared code, separate phones: check the name before every Send.</b> The name in the message must match the WhatsApp chat.</li>
   </ol>
   <p style="text-align:center;font-size:18pt;margin-top:14px">💍</p>
 </section>

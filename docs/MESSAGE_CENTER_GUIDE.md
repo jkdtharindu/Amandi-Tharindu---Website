@@ -152,6 +152,60 @@ So, the right way:
 
 ---
 
+## One code, many people with separate phones (for example "Hydromony Friends")
+
+Five or six friends share **one code**, so they can all see each other on the RSVP page. But each has **their own WhatsApp number** and should get a message with **their own name**.
+
+> **Not built yet (developer work needed).** The website saves **one WhatsApp number per invitation**. The people inside it have names only, no numbers. So the Messages page can open WhatsApp for just **one** person, and the greeting says the group name ("Dear Hydromony Friends"). Until the website is improved, send to the rest **by hand**, as below.
+
+### Manual method, for each person in the group
+
+Do one message level at a time (all of Step 1, then all of Step 2, and so on).
+
+1. **Find the people.** Guests → **Edit** on the group → **People in this party**. Write their names and phone numbers on the tracker below.
+2. **Start the run** as usual until the group's card appears.
+3. **Change the name in the message box.** Replace "Hydromony Friends" with the first person's name, for example "Samira". Your edit stays while you are on that card.
+4. Press **Copy message**. **Do not press Open in WhatsApp** for the other friends. It opens the chat of the one number saved on the group, which is the wrong person.
+5. **Open that person's own chat** in WhatsApp and **paste**.
+6. **Check the name**, then press Send.
+7. Go back, change the name to the next friend, and repeat steps 4 to 6. Tick your tracker after each one.
+8. Only when **everyone** has the message, press **✓ Mark as sent**. The website keeps **one tick per group**, not per person. If you must stop halfway, press **Stop** without ticking, and carry on from your tracker.
+
+### Name check, every single time, before you press Send
+
+**Two names must match:** the name **inside the message** ("Dear Samira") and the **contact name at the top of the WhatsApp chat**. When you copy and paste again and again, it is easy to send "Dear Samira" to Kasun. If they do not match, stop, delete the message and fix it.
+
+### Mistakes to watch for
+
+- **Wrong name pasted.** The text still has the previous person's name. Read the first line of every message.
+- **Similar names or the wrong chat.** Samira, Sameera and Samiran look alike. Compare letter by letter.
+- **Never use WhatsApp "Forward".** It keeps the old name and marks the message "Forwarded". Copy and paste a fresh message.
+- **Step 1 first, then Step 2** to the same person. Never together.
+- **Step 4 (table):** the message lists everyone's tables. Keep it, or cut it down to that person's own line.
+
+### They share one code, so they can see each other
+
+If that is not wanted, the group can be split into separate invitations, one per person, each with its own code and number (Guests → Add guest, "Individual"). Then the normal method works with no copy and paste. This is a decision for you and Tharindu.
+
+### Tracker (one per group)
+
+| Person's name | Step 1 | Step 2 | Step 3 | Step 4 | Name checked |
+|---|---|---|---|---|---|
+|  | ☐ | ☐ | ☐ | ☐ | ☐ |
+|  | ☐ | ☐ | ☐ | ☐ | ☐ |
+|  | ☐ | ☐ | ☐ | ☐ | ☐ |
+|  | ☐ | ☐ | ☐ | ☐ | ☐ |
+
+When every box in a column is ticked, press **✓ Mark as sent** on the website for that level.
+
+### Improvement to build later (for the developer)
+
+- **What is missing:** a WhatsApp number for **each person** in a group, not just one for the whole group.
+- **What it would do:** the Messages page would step through each person, open **their own** chat, and fill in **their own first name** ("Dear Samira"). No typing or copy and paste. Ticks would be kept **per person**.
+- **What it needs:** a database change (a number for each person) and changes to the Guests and Messages pages.
+
+---
+
 ## Sending to just one guest (the Guests page)
 
 Good for a quick message or fixing a mistake.
@@ -222,3 +276,4 @@ A group only gets one template. Groups you have not ticked anywhere get Template
 3. Always press **Send** in WhatsApp, then **✓ Mark as sent**.
 4. Do not send Step 4 until the family is fully seated.
 5. Never post a guest's code in a group chat.
+6. Shared code but separate phones: check the name before every Send. The name in the message must match the WhatsApp chat.
