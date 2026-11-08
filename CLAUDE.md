@@ -24,6 +24,13 @@ and follow it. It uses this chat's own conversation as the source of truth for w
 cross-checked against git state, and writes straight into the relevant docs. Don't wait for
 session end and don't ask which file — the phrase is the trigger.
 
+## User Guide Trigger
+When the user asks for a user guide, user manual, how-to, admin instructions, or a PDF guide for
+any feature — any phrasing — immediately open `docs/USER_GUIDE_PLAYBOOK.md` and follow it. Every
+guide uses the same format: real screenshots of the running website with sample data, numbered
+markers, a step-by-step page per task, caution boxes, and a "Not built yet" box for any gap. Don't
+ask which format; the playbook is the format.
+
 ## Shared State Doc
 Before changing anything that crosses the Admin portal (`app/admin/**`) and the Guest portal
 (`app/(public)/**`) — shared data shapes, RSVP status derivation, cache revalidation, or
