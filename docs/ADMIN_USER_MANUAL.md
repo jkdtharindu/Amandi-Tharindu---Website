@@ -130,6 +130,8 @@ Adding guests one at a time through the form above is the only way right now —
 
 ## WhatsApp Messaging
 
+> **Newer guide available:** the site now has four message levels (Main invitation, Guest code, RSVP reminder, Table number). The step-by-step guide for them is in [MESSAGE_CENTER_GUIDE.md](MESSAGE_CENTER_GUIDE.md). Where this section disagrees with it, follow that guide.
+
 There are two separate ways to send a WhatsApp message, and they work differently. Neither one sends the message for you — both just open WhatsApp with the text ready, and you press Send yourself. Both are now split by side: you only ever message your own guests.
 
 ### Message One Guest (from the Guests page)
