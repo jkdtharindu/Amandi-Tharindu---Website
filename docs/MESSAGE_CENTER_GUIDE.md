@@ -17,6 +17,26 @@ You do not need any technical skill. Just follow the steps in order.
 
 ---
 
+## Before you start: use your phone
+
+Send the messages from **your mobile phone**, not from a computer. WhatsApp Web and the Windows WhatsApp app can turn emoji (💍 🎊) into "�" in a message that is filled in for you. The phone app shows them correctly.
+
+**What you need:**
+
+- An **Android phone or iPhone** with the **WhatsApp app installed** and signed in with **your own number** (the one guests know you by).
+- A **mobile browser** (Chrome on Android, Safari on iPhone) and an internet connection.
+- Sign in to the admin site on the phone at your site address followed by `/admin`, then open **Messages**.
+- **Allow pop-ups** for the site in the browser settings. If they are blocked, the **Open in WhatsApp** button will not do anything.
+- Keep WhatsApp up to date, so the emoji display properly.
+
+**On the phone:** when you press **Open in WhatsApp**, the WhatsApp app opens by itself with the guest's chat and the message ready. If it asks which app to use, choose **WhatsApp**. Press Send, then switch back to the browser to press **✓ Mark as sent**.
+
+**If you must use a computer:** press **Copy message**, open WhatsApp on your phone or computer, and paste the text into the chat. Pasting keeps every emoji exactly.
+
+**Check before you send:** look at the message in WhatsApp. If you see "�" where an emoji should be, do not send. Go back, press **Copy message**, and paste it instead.
+
+---
+
 ## The 4 message levels
 
 Every guest gets up to four messages, one at a time, in this order.
@@ -190,7 +210,7 @@ A group only gets one template. Groups you have not ticked anywhere get Template
 | I sent it but forgot to press Mark as sent | Find the guest on the **Guests** page, click their number, and tick the step. Or leave it: they will show again on the next run, and you can just Skip or Mark. Do not send twice. |
 | I ticked someone by mistake | **Guests** page → click their number → untick that step. |
 | WhatsApp does not open | Allow pop-ups for this site. Nothing was saved. Try again. |
-| Emoji look like "�" | Use **Copy message** and paste into WhatsApp. |
+| Emoji look like "�" | You are probably on a computer or WhatsApp Web. Use your phone, or press **Copy message** and paste into WhatsApp. |
 | "No usable WhatsApp number" | The number is wrong or too short. Fix it in **Guests → Edit**. Sri Lankan numbers like 071 234 5678 are fine. |
 | I sent the code before the invitation | It is okay. Just send Step 1 afterwards and tick it. The order matters for safety, not for the website working. |
 | Page says Unauthorized | Sign in again at `/admin`. |
