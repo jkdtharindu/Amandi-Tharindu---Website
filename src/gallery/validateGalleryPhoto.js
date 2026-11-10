@@ -23,10 +23,18 @@ export function validateGalleryPhoto({ photoUrl, caption = '', displayOrder = 0 
   };
 }
 
-export function sanitizeGalleryPhoto({ photoUrl = '', caption = '', displayOrder = 0 }) {
+function clampPercent(value) {
+  const n = Number(value);
+  if (value === undefined || value === null || value === '' || !Number.isFinite(n)) return undefined;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+export function sanitizeGalleryPhoto({ photoUrl = '', caption = '', displayOrder = 0, focusX, focusY }) {
   return {
     photoUrl: (photoUrl || '').trim(),
     caption: (caption || '').trim(),
     displayOrder: Number.isInteger(displayOrder) ? displayOrder : 0,
+    focusX: clampPercent(focusX),
+    focusY: clampPercent(focusY),
   };
 }

@@ -39,6 +39,17 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if ('caption' in body) updatePayload.caption = sanitized.caption;
     if ('displayOrder' in body) updatePayload.displayOrder = sanitized.displayOrder;
 
+    if ('focusX' in body || 'focusY' in body) {
+      if (sanitized.focusX === undefined || sanitized.focusY === undefined) {
+        return NextResponse.json(
+          { success: false, message: 'Focus point must be two numbers from 0 to 100' },
+          { status: 400 }
+        );
+      }
+      updatePayload.focusX = sanitized.focusX;
+      updatePayload.focusY = sanitized.focusY;
+    }
+
     const photo = await updateGalleryPhoto(id, updatePayload);
 
     if (!photo) {

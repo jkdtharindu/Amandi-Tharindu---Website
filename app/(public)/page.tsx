@@ -23,6 +23,7 @@ import {
 import { listEvents } from "@/src/celebration-events/celebrationEventsRepo.js";
 import { listGalleryPhotos } from "@/src/gallery/galleryPhotosRepo.js";
 import CouplePhoto from "@/components/CouplePhoto";
+import GalleryGrid from "@/components/public/GalleryGrid";
 import type { CelebrationEvent } from "@/components/admin/EventManager";
 import type { Section } from "@/components/admin/SectionManager";
 
@@ -31,6 +32,8 @@ type GalleryPhoto = {
   photoUrl: string;
   caption: string;
   displayOrder: number;
+  focusX?: number;
+  focusY?: number;
 };
 
 // getThemeSettings() hits the DB on every request; this must never throw, or
@@ -327,20 +330,7 @@ export default async function HomePage() {
             {showPart("gallery", "flag") && <span className="hero-flag">{t("gallery.flag")}</span>}
             {showPart("gallery", "heading") && <h2>{t("gallery.heading")}</h2>}
             {showPart("gallery", "intro") && <p>{t("gallery.intro")}</p>}
-          <div className="panel-cards gallery-grid">
-            {galleryPhotos.map((photo) => (
-              <div key={photo.id} className="gallery-card">
-                <Image
-                  src={photo.photoUrl}
-                  alt={photo.caption || "Gallery photo"}
-                  width={600}
-                  height={220}
-                  sizes={galleryPhotos.length >= 4 ? "(max-width: 480px) 100vw, (max-width: 700px) 50vw, (max-width: 1100px) 34vw, 270px" : "100vw"}
-                />
-                {photo.caption && <p className="gallery-caption">{photo.caption}</p>}
-              </div>
-            ))}
-          </div>
+          <GalleryGrid photos={galleryPhotos} />
           <CustomSections sections={gallerySections} inPanel />
           </section>
         </>

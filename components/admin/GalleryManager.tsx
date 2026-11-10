@@ -9,10 +9,13 @@ type GalleryPhoto = {
   photoUrl: string;
   caption: string;
   displayOrder: number;
+  focusX?: number;
+  focusY?: number;
 };
 
 export default function GalleryManager() {
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
+  const [focusOpenId, setFocusOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
   const [newCaption, setNewCaption] = useState('');
@@ -98,6 +101,30 @@ export default function GalleryManager() {
       }
 
       showToast({ kind: 'error', text: data.message || 'Could not update caption.' });
+    } catch {
+      showToast({ kind: 'error', text: 'Something went wrong.' });
+    }
+  }
+
+  async function handleSetFocus(id: string, focusX: number, focusY: number) {
+    // Move the dot straight away; the server answer replaces it.
+    setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, focusX, focusY } : p)));
+    try {
+      const res = await fetch(`/api/admin/gallery/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
+        body: JSON.stringify({ focusX, focusY }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) return;
+      showToast({
+        kind: 'error',
+        text: data.message || 'Could not save the focus point. Has the latest database update been run?',
+      });
+      await loadPhotos();
     } catch {
       showToast({ kind: 'error', text: 'Something went wrong.' });
     }
@@ -190,7 +217,7 @@ export default function GalleryManager() {
           {photos.map((photo, index) => (
             <div
               key={photo.id}
-              className="flex items-center gap-3 p-3 bg-slate-50 rounded border border-slate-200"
+              className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded border border-slate-200"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- remote,
                   admin-supplied URL; see components/public/CustomSections.tsx
@@ -198,9 +225,10 @@ export default function GalleryManager() {
               <img
                 src={photo.photoUrl}
                 alt={photo.caption || 'Gallery photo'}
-                className="h-16 w-16 object-cover rounded"
+                className="h-20 w-24 object-cover rounded"
+                style={{ objectPosition: `${photo.focusX ?? 50}% ${photo.focusY ?? 50}%` }}
               />
-              <div className="flex-1">
+              <div className="flex-1 min-w-[10rem]">
                 <input
                   type="text"
                   value={photo.caption}
@@ -208,7 +236,13 @@ export default function GalleryManager() {
                   placeholder="Caption"
                   className="w-full text-sm px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-slate-400"
                 />
-                <div className="mt-2 flex gap-2 text-xs">
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <button
+                    onClick={() => setFocusOpenId(focusOpenId === photo.id ? null : photo.id)}
+                    className="px-2 py-1 bg-slate-800 text-white hover:bg-slate-700 rounded"
+                  >
+                    {focusOpenId === photo.id ? 'Done' : '◎ Position photo'}
+                  </button>
                   {index > 0 && (
                     <button
                       onClick={() => handleReorder(photo.id, index - 1)}
@@ -236,6 +270,52 @@ export default function GalleryManager() {
               >
                 Delete
               </button>
+
+              {focusOpenId === photo.id && (
+                <div className="w-full mt-1 p-3 bg-white rounded border border-slate-200">
+                  <p className="text-xs text-slate-600 mb-2">
+                    Tap or click on the most important spot (like a face). The small preview on the
+                    right shows how the photo will be cropped on the website.
+                  </p>
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div
+                      className="relative inline-block cursor-crosshair select-none touch-none"
+                      onPointerDown={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+                        const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+                        handleSetFocus(
+                          photo.id,
+                          Math.min(100, Math.max(0, x)),
+                          Math.min(100, Math.max(0, y))
+                        );
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.photoUrl}
+                        alt=""
+                        draggable={false}
+                        className="block max-h-64 max-w-full rounded"
+                      />
+                      <span
+                        className="absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-pink-500/40 shadow-[0_0_0_2px_rgba(0,0,0,0.5)] pointer-events-none"
+                        style={{ left: `${photo.focusX ?? 50}%`, top: `${photo.focusY ?? 50}%` }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 mb-1">Website preview</p>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.photoUrl}
+                        alt=""
+                        className="h-[110px] w-[135px] object-cover rounded"
+                        style={{ objectPosition: `${photo.focusX ?? 50}% ${photo.focusY ?? 50}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
