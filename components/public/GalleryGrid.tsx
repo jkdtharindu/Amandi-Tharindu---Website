@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import { createPortal } from 'react-dom';
 
 export type GalleryGridPhoto = {
   id: string;
@@ -72,7 +73,10 @@ export default function GalleryGrid({ photos }: { photos: GalleryGridPhoto[] }) 
         ))}
       </div>
 
-      {current && (
+      {/* Rendered straight into <body>: the section it sits in uses glass
+          (backdrop-filter) and overflow clipping, which would otherwise trap
+          a position:fixed viewer inside the section and hide its buttons. */}
+      {current && typeof document !== 'undefined' && createPortal(
         <div
           className="lightbox"
           role="dialog"
@@ -158,7 +162,8 @@ export default function GalleryGrid({ photos }: { photos: GalleryGridPhoto[] }) 
               </svg>
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
