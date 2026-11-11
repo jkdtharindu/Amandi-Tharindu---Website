@@ -98,8 +98,8 @@ beforeEach(async () => {
   [sunil] = await acceptedPeople('g1', ['Sunil', 'Rani']);
 
   rose = await createSeatingTable({ tableNumber: 1, tableName: 'Rose', capacity: 2, party: 'bride' });
-  jasmine = await createSeatingTable({ tableNumber: 1, tableName: 'Jasmine', capacity: 2, party: 'groom' });
-  lotus = await createSeatingTable({ tableNumber: 1, tableName: 'Lotus', capacity: 4, party: 'common' });
+  jasmine = await createSeatingTable({ tableNumber: 2, tableName: 'Jasmine', capacity: 2, party: 'groom' });
+  lotus = await createSeatingTable({ tableNumber: 3, tableName: 'Lotus', capacity: 4, party: 'common' });
 });
 
 // --- Creating a table --------------------------------------------------------
@@ -144,15 +144,20 @@ test('a table name is unique across the venue, ignoring capital letters and spac
   await createSeatingTable({ tableNumber: 8, capacity: 2, party: 'bride' });
 });
 
-test('Common tables are numbered on their own line, beside each side', async () => {
+test('a table number is used once across the whole venue, whichever side has it', async () => {
   assert.deepEqual(
     (await listSeatingTables()).map((table) => [table.side, table.table_number]).sort(),
-    [['bride', 1], ['common', 1], ['groom', 1]]
+    [['bride', 1], ['common', 3], ['groom', 2]]
   );
-  await assert.rejects(
-    createSeatingTable({ tableNumber: 1, tableName: 'Tulip', capacity: 2, party: 'common' }),
-    /A table with that number already exists/
-  );
+  for (const party of ['bride', 'groom', 'common']) {
+    for (const number of [1, 2, 3]) {
+      await assert.rejects(
+        createSeatingTable({ tableNumber: number, tableName: 'Tulip' + party + number, capacity: 2, party }),
+        /A table with that number already exists/,
+        `number ${number} is taken, so the ${party} side cannot use it`
+      );
+    }
+  }
 });
 
 test('a side other than bride, groom or common is a programming fault, not an admin message', async () => {
@@ -163,7 +168,8 @@ test('a side other than bride, groom or common is a programming fault, not an ad
 });
 
 test('the SQL path tells a taken name from a taken number by the index that refused it', async () => {
-  const refusedBy = (constraint) => async () => {
+  const refusedBy = (constraint) => async (sql) => {
+    if (/^s*SELECT 1 FROM seating_tables/.test(sql)) return { rows: [] }; // the venue-wide number check finds nothing
     throw Object.assign(new Error('duplicate key value'), { code: '23505', constraint });
   };
 
@@ -178,6 +184,7 @@ test('the SQL path tells a taken name from a taken number by the index that refu
 
   let params;
   await createSeatingTable({ tableNumber: 3, tableName: '  Tulip ', capacity: 2, party: 'common' }, async (sql, values) => {
+    if (/^s*SELECT 1 FROM seating_tables/.test(sql)) return { rows: [] };
     params ??= values;
     return { rows: [{ id: 'new-id' }] };
   });
@@ -293,7 +300,7 @@ test("a side still clears any seat at its own table, and cannot touch the other 
 // --- Changing a table's side, renaming and deleting ----------------------------------
 
 test("a table's side changes only while it is empty (409 otherwise), own side <-> Common", async () => {
-  const orchid = await createSeatingTable({ tableNumber: 2, tableName: 'Orchid', capacity: 2, party: 'bride' });
+  const orchid = await createSeatingTable({ tableNumber: 4, tableName: 'Orchid', capacity: 2, party: 'bride' });
   const toCommon = await updateSeatingTable(orchid.id, { side: 'common' });
   assert.equal(toCommon.side, 'common', 'an empty table moves');
   assert.equal((await updateSeatingTable(orchid.id, { side: 'bride' })).side, 'bride', 'and back');
@@ -312,12 +319,10 @@ test("a table's side changes only while it is empty (409 otherwise), own side <-
   await assert.rejects(updateSeatingTable(lotus.id, { side: 'groom' }), /can change only while nobody is seated/);
 });
 
-test("moving a table onto a side that already uses its number is refused like creating one", async () => {
-  // Rose is bride 1; Common already has a 1 (Lotus).
-  await assert.rejects(updateSeatingTable(rose.id, { side: 'common' }), (error) => {
-    assert.equal(error.message, 'A table with that number already exists');
-    return true;
-  });
+test("moving a table to another side keeps its number, which no other table has", async () => {
+  const moved = await updateSeatingTable(rose.id, { side: 'common' });
+  assert.equal(moved.side, 'common');
+  assert.equal(moved.table_number, 1);
 });
 
 test('a rename is refused for a name another table has, and for a blank name', async () => {
@@ -470,7 +475,7 @@ test('[TableNumber] fills with the table number and name, for whole parties and 
   const labels = tableLabelsByGuest(await listSeatingTablesByParty('bride'));
 
   assert.deepEqual(labels.get('b1'), ['Table 1 (Rose)']);
-  assert.deepEqual(labels.get('b2'), ['Table 1 (Rose)', 'Table 1 (Lotus)'], "one party at two tables gets both, in table order");
+  assert.deepEqual(labels.get('b2'), ['Table 1 (Rose)', 'Table 3 (Lotus)'], "one party at two tables gets both, in table order");
   assert.equal(labels.get('g1'), undefined, "the groom's people are not the bride's to message");
   assert.equal(
     renderTemplate('Dear [Name], you are at [TableNumber].', { name: 'Perera Family', tablenumber: 'Rose' }),
@@ -491,7 +496,7 @@ test("the spreadsheet shows each table's side and name", async () => {
 
   assert.deepEqual(header.split(',').slice(0, 4), ['Table', 'Table Name', 'Side', 'Seat']);
   assert.ok(rows.some((row) => row.startsWith('1,Rose,Bride,1,')));
-  assert.ok(rows.some((row) => row.startsWith('1,Lotus,Common,1,Kamala')));
+  assert.ok(rows.some((row) => row.startsWith('3,Lotus,Common,1,Kamala')));
   assert.ok(!rows.some((row) => row.includes('Jasmine')), "the groom's own tables are not in the bride's export");
 });
 
@@ -530,8 +535,20 @@ test('[TableNumber] can name each seated member and their own table', async () =
   const lines = tableMemberLinesByGuest(await listSeatingTablesByParty('bride'));
   const text = lines.get('b2');
 
-  assert.match(text, /Kamala – Table 1 \(Lotus\)/);
+  assert.match(text, /Kamala – Table 3 \(Lotus\)/);
   assert.match(text, /Nirmala – Table 1 \(Rose\)/);
   assert.equal(text.split('\n').length, 2, 'one line per person, in table order');
   assert.equal(lines.get('g1'), undefined, "the other side's people are not listed");
+});
+
+test('the SQL path refuses a number any table already has, before inserting anything', async () => {
+  const statements = [];
+  await assert.rejects(
+    createSeatingTable({ tableNumber: 4, tableName: 'Tulip', capacity: 2, party: 'groom' }, async (sql) => {
+      statements.push(sql);
+      return { rows: [{ '?column?': 1 }] };
+    }),
+    /A table with that number already exists/
+  );
+  assert.equal(statements.length, 1, 'only the number check ran; nothing was inserted');
 });

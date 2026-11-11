@@ -58,7 +58,7 @@ beforeEach(async () => {
   const [sunil] = await acceptedPeople('g1', ['Sunil', 'Rani']);
 
   const brideTable = await createSeatingTable({ tableNumber: 1, capacity: 3, party: 'bride' });
-  const groomTable = await createSeatingTable({ tableNumber: 1, capacity: 3, party: 'groom' });
+  const groomTable = await createSeatingTable({ tableNumber: 2, capacity: 3, party: 'groom' });
   await assignGuestToSeat(brideTable.seats[0].id, 'b1');
   await assignInviteeToSeat(brideTable.seats[1].id, kamala.id);
   await assignInviteeToSeat(groomTable.seats[0].id, sunil.id);

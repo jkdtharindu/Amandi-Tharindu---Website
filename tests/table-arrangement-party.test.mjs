@@ -89,7 +89,7 @@ test('a party with named people is not offered as a whole party', async () => {
 test('listAssignedGuestsByParty returns that side\'s seated guests, without throwing', async () => {
   resetStores();
   const brideTable = await createSeatingTable({ tableNumber: 1, capacity: 2, party: 'bride' });
-  const groomTable = await createSeatingTable({ tableNumber: 1, capacity: 2, party: 'groom' });
+  const groomTable = await createSeatingTable({ tableNumber: 2, capacity: 2, party: 'groom' });
   await assignGuestToSeat(brideTable.seats[0].id, 'b1');
   await assignGuestToSeat(groomTable.seats[0].id, 'g1');
 
@@ -103,15 +103,15 @@ test('listAssignedGuestsByParty returns that side\'s seated guests, without thro
 test('listSeatingTablesByParty keeps each side\'s tables apart', async () => {
   resetStores();
   await createSeatingTable({ tableNumber: 1, capacity: 2, party: 'bride' });
-  await createSeatingTable({ tableNumber: 1, capacity: 2, party: 'groom' });
+  await createSeatingTable({ tableNumber: 2, capacity: 2, party: 'groom' });
 
   const bride = await listSeatingTablesByParty('bride');
   const groom = await listSeatingTablesByParty('groom');
 
   assert.equal(bride.length, 1);
   assert.equal(groom.length, 1);
-  // Migration 022 lets both sides have a "Table 1"; they must not merge.
+  // Each side has its own table (numbers are unique venue-wide); they must not merge.
   assert.equal(bride[0].table_number, 1);
-  assert.equal(groom[0].table_number, 1);
+  assert.equal(groom[0].table_number, 2);
   assert.notEqual(bride[0].id, groom[0].id);
 });

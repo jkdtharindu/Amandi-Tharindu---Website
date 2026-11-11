@@ -46,8 +46,8 @@ beforeEach(async () => {
   [kamala] = await createInviteesForGuest('b1', ['Kamala']);
   [sunil] = await createInviteesForGuest('g1', ['Sunil']);
   brideTable = await createSeatingTable({ tableNumber: 1, capacity: 2, party: 'bride' });
-  groomTable = await createSeatingTable({ tableNumber: 1, capacity: 2, party: 'groom' });
-  commonTable = await createSeatingTable({ tableNumber: 1, tableName: 'Lotus', capacity: 4, party: 'common' });
+  groomTable = await createSeatingTable({ tableNumber: 2, capacity: 2, party: 'groom' });
+  commonTable = await createSeatingTable({ tableNumber: 3, tableName: 'Lotus', capacity: 4, party: 'common' });
 });
 
 test("a guest is on their own side only; a guest with no side recorded is the bride's", async () => {
@@ -96,7 +96,7 @@ test("a seat counts only on its own table, and only for that table's side", asyn
   assert.equal(await seatIsOnSideTable(brideTable.id, groomSeat, 'bride'), false, "the groom's seat under the bride's table id");
   assert.equal(await seatIsOnSideTable(brideTable.id, 'no-seat', 'bride'), false);
 
-  const brideTable2 = await createSeatingTable({ tableNumber: 2, capacity: 2, party: 'bride' });
+  const brideTable2 = await createSeatingTable({ tableNumber: 4, capacity: 2, party: 'bride' });
   assert.equal(
     await seatIsOnSideTable(brideTable.id, brideTable2.seats[0].id, 'bride'),
     false,

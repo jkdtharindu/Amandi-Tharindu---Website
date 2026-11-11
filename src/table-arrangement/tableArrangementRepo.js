@@ -324,7 +324,9 @@ export async function getSeatingTableById(tableId, exec) {
  * left behind with a partial seat set.
  *
  * `party` is the table's side: 'bride', 'groom' or 'common' (Action 68). Table
- * numbers are unique per side; names are unique across the whole venue,
+ * numbers are unique across the whole venue (checked in code, so older tables
+ * that already share a number across sides do not block new ones; the database
+ * itself still only enforces migration 022's number-per-side rule); names are unique across the whole venue,
  * ignoring capital letters, and a table with no name is exempt — the route
  * requires one for every new table (validateNewTable), this function does not,
  * so tables created before names were required, and the legacy prototype's,
@@ -340,7 +342,7 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
 
   const run = exec ?? (useDb ? query : null);
   if (!run) {
-    if (seatingTables.some((table) => table.table_number === number && sideOf(table) === party)) {
+    if (seatingTables.some((table) => table.table_number === number)) {
       throw new Error(DUPLICATE_TABLE_NUMBER);
     }
     if (name && seatingTables.some((table) => sameTableName(table.table_name, name))) {
@@ -367,6 +369,15 @@ export async function createSeatingTable({ tableNumber, tableName, capacity = 10
     seatingTables.push(table);
     return hydrateMemoryTable(table);
   }
+
+  // A number is used once across the whole venue, whichever side has it, so a
+  // guest never hears "Table 1" for two different tables. Checked here rather
+  // than by a database rule so tables saved before this rule never block it.
+  const { rows: numberTaken } = await run(
+    'SELECT 1 FROM seating_tables WHERE table_number = $1 LIMIT 1',
+    [number]
+  );
+  if (numberTaken.length > 0) throw new Error(DUPLICATE_TABLE_NUMBER);
 
   let created;
   try {
