@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGuestForParty, listAllGuests, listAllRsvpResponses, listGuestsByParty, getPartyStats } from '@/src/admin/adminRepo.js';
+import { withRsvpDetail } from '@/src/admin/rsvpDetail.js';
+import { createGuestForParty, listAllInvitees, listAllGuests, listAllRsvpResponses, listGuestsByParty, getPartyStats } from '@/src/admin/adminRepo.js';
 import { computeRsvpStats, filterGuests } from '@/src/admin/guestQueries.js';
 import { validateGuestInput } from '@/src/admin/guestValidation.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
@@ -13,10 +14,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!session) return unauthorizedResponse();
 
   const params = request.nextUrl.searchParams;
-  const [partyGuests, allGuests, responses] = await Promise.all([
+  const [partyGuests, allGuests, responses, allInvitees] = await Promise.all([
     listGuestsByParty(session.party),
     listAllGuests(),
     listAllRsvpResponses(),
+    listAllInvitees(),
   ]);
 
   // Compute stats for this party and overall
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     success: true,
-    guests: filterGuests(partyGuests, {
+    guests: filterGuests(withRsvpDetail(partyGuests, allInvitees), {
       status: params.get('status'),
       relationship: params.get('relationship'),
       search: params.get('search'),

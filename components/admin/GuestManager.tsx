@@ -9,6 +9,7 @@ import {
   matchesSeating,
   matchesMessaging,
 } from '@/src/admin/guestListFilters.js';
+import { RSVP_DETAIL_OPTIONS, RSVP_DETAIL_LABELS } from '@/src/admin/rsvpDetail.js';
 import { useToast } from '@/components/Toast';
 
 export type Guest = {
@@ -19,6 +20,8 @@ export type Guest = {
   slotCount: number;
   whatsappNumber: string | null;
   rsvpStatus: string;
+  /** Finer status for the list: see src/admin/rsvpDetail.js */
+  rsvpDetail?: string;
 };
 
 /** How completely a party is seated (src/table-arrangement/seatingCompletion.js). */
@@ -55,10 +58,12 @@ function SeatingBadge({ info }: { info?: SeatingStatus }) {
   );
 }
 
-const STATUSES = ['all', 'pending', 'accepted', 'declined'];
+const STATUSES = ['all', ...RSVP_DETAIL_OPTIONS.map((option) => option.value)];
 
 const STATUS_STYLES: Record<string, string> = {
-  accepted: 'bg-emerald-100 text-emerald-800',
+  accepted_all: 'bg-emerald-100 text-emerald-800',
+  accepted_partial: 'bg-lime-100 text-lime-800',
+  declined_partial: 'bg-orange-100 text-orange-800',
   declined: 'bg-rose-100 text-rose-800',
   pending: 'bg-amber-100 text-amber-800',
 };
@@ -593,9 +598,7 @@ export default function GuestManager({
             >
               {STATUSES.map((value) => (
                 <option key={value} value={value}>
-                  {value === 'all'
-                    ? 'All statuses'
-                    : value[0].toUpperCase() + value.slice(1)}
+                  {value === 'all' ? 'All statuses' : RSVP_DETAIL_LABELS[value]}
                 </option>
               ))}
             </select>
@@ -1147,10 +1150,10 @@ export default function GuestManager({
                     <span
                       className={
                         'inline-block px-2 py-0.5 rounded-full text-xs font-semibold ' +
-                        (STATUS_STYLES[guest.rsvpStatus] ?? 'bg-slate-100 text-slate-700')
+                        (STATUS_STYLES[guest.rsvpDetail ?? guest.rsvpStatus] ?? 'bg-slate-100 text-slate-700')
                       }
                     >
-                      {guest.rsvpStatus}
+                      {RSVP_DETAIL_LABELS[guest.rsvpDetail ?? guest.rsvpStatus] ?? guest.rsvpStatus}
                     </span>
                   </td>
                   <td className="px-4 py-3">

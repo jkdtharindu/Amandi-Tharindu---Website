@@ -28,7 +28,9 @@ export function filterGuests(guests = [], filters = {}) {
 
   return guests.filter((guest) => {
     if (guest.isDeleted) return false;
-    if (wantStatus && guest.rsvpStatus !== wantStatus) return false;
+    // A guest carrying the finer rsvpDetail (see rsvpDetail.js) is matched on
+    // that; otherwise on the stored pending/accepted/declined status.
+    if (wantStatus && (guest.rsvpDetail ?? guest.rsvpStatus) !== wantStatus) return false;
     if (wantRelationship && guest.relationship !== wantRelationship) return false;
 
     if (needle) {

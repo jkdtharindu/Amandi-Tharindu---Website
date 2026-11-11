@@ -6,6 +6,7 @@ import { listAllInvitees, listGuestsByParty } from '@/src/admin/adminRepo.js';
 import { listSeatingTablesByParty } from '@/src/table-arrangement/tableArrangementRepo.js';
 import { computeSeatingCompletion } from '@/src/table-arrangement/seatingCompletion.js';
 import { filterGuests } from '@/src/admin/guestQueries.js';
+import { withRsvpDetail } from '@/src/admin/rsvpDetail.js';
 import { mergeGroups } from '@/src/admin/categories.js';
 import { getMessageEventsByGuest } from '@/src/messaging/messageEventsRepo.js';
 import { listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
@@ -40,7 +41,7 @@ export default async function AdminGuestsPage() {
         <h1 className="text-2xl font-bold mb-6">Guest list</h1>
         <InviteeRequests />
         <GuestManager
-          initialGuests={filterGuests(guests, {}) as Guest[]}
+          initialGuests={filterGuests(withRsvpDetail(guests, allInvitees), {}) as Guest[]}
           categories={categories}
           siteUrl={process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3010'}
           party={session.party}
