@@ -218,6 +218,27 @@ export default function MessagingCenter({
     return () => clearTimeout(timer);
   }, [loadLogs, showToast]);
 
+  // Re-read the saved templates whenever this tab is shown again, so a change made on
+  // another device or tab is never sent from a stale copy.
+  useEffect(() => {
+    async function refreshTemplates() {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const res = await fetch('/api/admin/message-templates', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) setTemplateList(data.templates);
+      } catch {
+        // Keep the current copy if the fresh read fails.
+      }
+    }
+    document.addEventListener('visibilitychange', refreshTemplates);
+    window.addEventListener('focus', refreshTemplates);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshTemplates);
+      window.removeEventListener('focus', refreshTemplates);
+    };
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(loadAudience, 0);
     return () => clearTimeout(timer);
@@ -536,10 +557,9 @@ export default function MessagingCenter({
               upsertTemplate(variantTemplateName(level, variant), { body, groups: [] });
               setVariantNo(variant);
             }}
-            onRemoved={(variant) => {
-              setTemplateList((list) =>
-                list.filter((entry) => entry.name !== variantTemplateName(level, variant))
-              );
+            onRemoved={(templates) => {
+              // The server moved later templates up, so take its fresh list.
+              setTemplateList(templates);
               setVariantNo(1);
             }}
             onTemplates={setTemplateList}

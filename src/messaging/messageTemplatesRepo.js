@@ -150,6 +150,51 @@ export async function deleteTemplate(name) {
 }
 
 /**
+ * Removes the wording at position `index` of `names` (a level's saved row names in
+ * order, e.g. ['initial_invite', 'initial_invite_2']) and closes the gap: every later
+ * wording (text, groups, photo) moves up one place and the last row is deleted. Removing
+ * the only wording just deletes its row, so the level falls back to its default text.
+ * Log rows that pointed at a deleted row keep their line but lose the link.
+ */
+export async function removeTemplateAt(names, index) {
+  const last = names.length - 1;
+  if (index < 0 || index > last) return;
+
+  if (!isDbEnabled()) {
+    for (let i = index; i < last; i += 1) {
+      const from = messageTemplates.find((entry) => entry.name === names[i + 1]);
+      const to = messageTemplates.find((entry) => entry.name === names[i]);
+      if (!from) continue;
+      if (to) {
+        to.body = from.body;
+        to.groups = [...(from.groups ?? [])];
+        to.imageUrl = from.imageUrl ?? null;
+      } else {
+        messageTemplates.push({ ...from, id: `template-${names[i]}`, name: names[i], groups: [...(from.groups ?? [])] });
+      }
+    }
+    const at = messageTemplates.findIndex((entry) => entry.name === names[last]);
+    if (at !== -1) messageTemplates.splice(at, 1);
+    return;
+  }
+
+  for (let i = index; i < last; i += 1) {
+    await query(
+      `INSERT INTO message_templates (name, body, channel, linked_groups, image_url)
+       SELECT $1, body, channel, linked_groups, image_url FROM message_templates WHERE name = $2
+       ON CONFLICT (name) DO UPDATE
+         SET body = EXCLUDED.body, linked_groups = EXCLUDED.linked_groups, image_url = EXCLUDED.image_url`,
+      [names[i], names[i + 1]]
+    );
+  }
+  await query(
+    'UPDATE message_logs SET template_id = NULL WHERE template_id IN (SELECT id FROM message_templates WHERE name = $1)',
+    [names[last]]
+  );
+  await query('DELETE FROM message_templates WHERE name = $1', [names[last]]);
+}
+
+/**
  * Sets (or clears, with null) the preview photo for one template, creating the
  * row from `fallbackBody` if it does not exist yet (the table-number level has no
  * seeded row). Needs migration 033's image_url column.

@@ -34,7 +34,7 @@ export default function TemplateVariants({
   csrfToken: string;
   onOpen: (variant: number) => void;
   onAdded: (variant: number, body: string) => void;
-  onRemoved: (variant: number) => void;
+  onRemoved: (templates: MessageTemplate[]) => void;
   onTemplates: (templates: MessageTemplate[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -75,10 +75,18 @@ export default function TemplateVariants({
   }
 
   async function removeTemplate() {
-    if (open.variant < 2) return;
-    if (await call('DELETE', { variant: open.variant })) {
-      onRemoved(open.variant);
-      showToast({ kind: 'ok', text: `Removed template ${open.variant}. Its groups now get template 1.` });
+    const only = variants.length === 1;
+    const question = only
+      ? 'Delete this template? The message goes back to the default wording.'
+      : `Delete template ${open.variant}? Its groups will get template 1, and later templates move up one number.`;
+    if (!window.confirm(question)) return;
+    const data = await call('DELETE', { variant: open.variant });
+    if (data) {
+      onRemoved(data.templates);
+      showToast({
+        kind: 'ok',
+        text: only ? 'Template deleted. Back to the default wording.' : `Deleted template ${open.variant}.`,
+      });
     }
   }
 
@@ -127,16 +135,14 @@ export default function TemplateVariants({
             + Add template
           </button>
         )}
-        {open.variant > 1 && (
-          <button
-            type="button"
-            onClick={removeTemplate}
-            disabled={busy || !csrfToken}
-            className="ml-auto text-xs text-rose-700 underline hover:text-rose-900 disabled:opacity-50"
-          >
-            Remove template {open.variant}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={removeTemplate}
+          disabled={busy || !csrfToken}
+          className="ml-auto text-xs text-rose-700 underline hover:text-rose-900 disabled:opacity-50"
+        >
+          Delete template {open.variant}
+        </button>
       </div>
 
       <fieldset className="mt-3" disabled={busy || !csrfToken}>

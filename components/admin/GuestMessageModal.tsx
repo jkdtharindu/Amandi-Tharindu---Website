@@ -46,7 +46,7 @@ export default function GuestMessageModal({
   siteUrl,
   weddingDate,
   venueName,
-  templates,
+  templates: initialTemplates,
   onEventsChange,
   onClose,
 }: {
@@ -61,6 +61,24 @@ export default function GuestMessageModal({
   onClose: () => void;
 }) {
   const showToast = useToast();
+
+  // The page's copy can be old (the guest list may have been open a while, or the
+  // templates changed on another device), so read the saved templates fresh on open.
+  const [templates, setTemplates] = useState(initialTemplates);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/admin/message-templates', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success) setTemplates(data.templates);
+      })
+      .catch(() => {
+        // Keep the page's copy if the fresh read fails.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const kinds = useMemo<Kind[]>(() => {
     return MESSAGE_LEVELS.map((level) => ({

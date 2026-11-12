@@ -15,6 +15,7 @@ import {
   saveTemplate,
   saveTemplateGroups,
   deleteTemplate,
+  removeTemplateAt,
   listTemplates,
 } from '../src/messaging/messageTemplatesRepo.js';
 
@@ -113,4 +114,26 @@ test('linking a group to one template takes it off the others', async () => {
   await saveTemplateGroups('initial_invite', [], 'x');
   assert.equal((await listTemplates()).some((entry) => entry.name === 'initial_invite_2'), false);
   assert.ok(names.length);
+});
+
+test('deleting template 1 moves the later templates up and closes the gap', async () => {
+  const names = ['initial_invite', 'initial_invite_2', 'initial_invite_3'];
+  await saveTemplate('initial_invite', 'One');
+  await saveTemplate('initial_invite_2', 'Two');
+  await saveTemplate('initial_invite_3', 'Three');
+  await saveTemplateGroups('initial_invite_3', ['Friends'], 'x');
+
+  await removeTemplateAt(names, 0);
+
+  const rows = await listTemplates();
+  const row = (name) => rows.find((entry) => entry.name === name);
+  assert.equal(row('initial_invite').body, 'Two');
+  assert.equal(row('initial_invite_2').body, 'Three');
+  assert.deepEqual(row('initial_invite_2').groups, ['Friends']);
+  assert.equal(row('initial_invite_3'), undefined);
+
+  // Deleting the only one leaves the level on its default wording.
+  await removeTemplateAt(['initial_invite_2'], 0);
+  await removeTemplateAt(['initial_invite'], 0);
+  assert.equal((await listTemplates()).some((entry) => entry.name === 'initial_invite'), false);
 });

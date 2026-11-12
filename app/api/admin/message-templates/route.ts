@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveTemplate, saveTemplateGroups, deleteTemplate, listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
+import { saveTemplate, saveTemplateGroups, removeTemplateAt, listTemplates } from '@/src/messaging/messageTemplatesRepo.js';
 import { MESSAGE_LEVELS, variantTemplateName, templateVariants } from '@/src/messaging/messageLevels.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
@@ -41,6 +41,24 @@ async function readTarget(request: NextRequest) {
   }
 
   return { body, level, variant };
+}
+
+/**
+ * The saved wordings and their group links, read fresh. Screens that stay open call
+ * this so a change made on another device or tab shows up (no cache: always current).
+ */
+export async function GET(): Promise<NextResponse> {
+  const session = await getAdminSession();
+  if (!session) return unauthorizedResponse();
+  try {
+    return NextResponse.json(
+      { success: true, templates: await listTemplates() },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (error) {
+    console.error('Failed to list message templates:', error);
+    return NextResponse.json({ success: false, message: 'Could not load the templates.' }, { status: 500 });
+  }
 }
 
 /**
@@ -112,19 +130,27 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-/** Removes an extra wording. Body: { levelKey, variant } with variant 2 or higher. */
+/**
+ * Removes one wording. Body: { levelKey, variant }. Later wordings move up one place
+ * so the numbers stay 1, 2, 3 with no gap; removing the only wording puts the level
+ * back to its default text. Its groups fall back to template 1.
+ */
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const target = await readTarget(request);
   if (target.error) return target.error;
   const { level, variant } = target as { level: Level; variant: number };
 
-  if (variant < 2) {
-    return NextResponse.json({ success: false, message: 'The first template cannot be removed.' }, { status: 400 });
-  }
-
   try {
-    await deleteTemplate(variantTemplateName(level, variant));
-    return NextResponse.json({ success: true });
+    const saved = await listTemplates();
+    const names = Array.from({ length: level.maxTemplates }, (_, index) => variantTemplateName(level, index + 1)).filter(
+      (name, index) => index === 0 || saved.some((entry: { name: string }) => entry.name === name)
+    );
+    const index = names.indexOf(variantTemplateName(level, variant));
+    if (index === -1) {
+      return NextResponse.json({ success: false, message: 'Unknown template number.' }, { status: 400 });
+    }
+    await removeTemplateAt(names, index);
+    return NextResponse.json({ success: true, templates: await listTemplates() });
   } catch (error) {
     console.error('Failed to delete message template:', error);
     return NextResponse.json({ success: false, message: 'Could not remove the template.' }, { status: 500 });
