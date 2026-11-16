@@ -69,9 +69,7 @@ Declined: [count]
 Awaiting reply: [count]
 ```
 
-**Overall (Both Parties)** — the same four numbers, combined across both sides.
-
-Below both rows is a breakdown chart of the combined numbers, and an **Export CSV** button (your own guests only — see above).
+Under each party's row of numbers is a breakdown bar for that party. It counts people (accepted, declined, pending), so it always matches the numbers above it. The page also has an **Export CSV** button (your own guests only — see above).
 
 ### The Table Arrangement Page
 

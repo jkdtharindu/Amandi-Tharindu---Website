@@ -1,7 +1,7 @@
+/** People counts (the same numbers as the stat cards above the bar). */
 type Stats = {
-  totalInvited: number;
+  invited: number;
   accepted: number;
-  acceptedHeadcount: number;
   declined: number;
   pending: number;
 };
@@ -17,12 +17,12 @@ const SEGMENTS = [
  * charting library so it stays server-rendered and adds no bundle weight.
  */
 export default function RsvpChart({ stats }: { stats: Stats }) {
-  const total = stats.totalInvited;
+  const total = stats.invited;
 
   if (total === 0) {
     return (
       <p className="text-sm text-slate-500">
-        No guests yet — add your first guest to see the breakdown.
+        No invitees yet — add your first guest to see the breakdown.
       </p>
     );
   }
@@ -34,7 +34,7 @@ export default function RsvpChart({ stats }: { stats: Stats }) {
       <div
         className="flex h-4 w-full overflow-hidden rounded-full bg-slate-200"
         role="img"
-        aria-label={`RSVP breakdown of ${total} guests: ${SEGMENTS.map(
+        aria-label={`RSVP breakdown of ${total} people: ${SEGMENTS.map(
           (s) => `${stats[s.key]} ${s.label.toLowerCase()}`
         ).join(', ')}`}
       >

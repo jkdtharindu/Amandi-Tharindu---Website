@@ -76,7 +76,7 @@ function MessagingRow({ stats }: { stats: MessagingStats }) {
 
 export default async function AdminDashboardPage() {
   const session = await requireAdminPage();
-  const [{ sideBreakdown, otherBreakdown, overallStats }, activity, messaging] = await Promise.all([
+  const [{ sideBreakdown, otherBreakdown }, activity, messaging] = await Promise.all([
     loadDashboardStats(session.party),
     listRsvpActivity(session.party),
     loadMessagingDashboard(session.party),
@@ -105,16 +105,21 @@ export default async function AdminDashboardPage() {
           <StatRow totals={sideBreakdown.totals} />
         </div>
 
-        <div className="mb-8">
+        <section className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Breakdown (Your Party)</h2>
+          <RsvpChart stats={sideBreakdown.totals} />
+        </section>
+
+        <div className="mb-5">
           <h2 className="text-sm font-semibold text-slate-500 mb-2">
             {otherPartyLabel} Party
           </h2>
           <StatRow totals={otherBreakdown.totals} />
         </div>
 
-        <section className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold mb-4">Breakdown (Both Parties)</h2>
-          <RsvpChart stats={overallStats} />
+        <section className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Breakdown ({otherPartyLabel} Party)</h2>
+          <RsvpChart stats={otherBreakdown.totals} />
         </section>
 
         {messaging && (
