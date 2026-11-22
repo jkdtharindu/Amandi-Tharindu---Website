@@ -11,7 +11,8 @@ End of session. Do the close-out:
 3. Update `RISKS.md` if a risk changed.
 4. Update `TIMELINE.md`: statuses only. No invented dates. Log any delay and its cause.
 5. Rewrite `TASKS.md` to the top 5 next actions, with owners and deadlines.
-6. Check for the same fact written in two places and fix it.
-7. Say plainly: what is done, what is not done, what needs my approval.
+6. Add one line to `HISTORY.md` for anything actually built or finished (check the real files first).
+7. Check for the same fact written in two places and fix it. Check word limits in `CLAUDE.md`; archive if over.
+8. Say plainly: what is done, what is not done, what needs my approval.
 
 If nothing changed in a file, leave it alone. Do not add entries just to look busy.

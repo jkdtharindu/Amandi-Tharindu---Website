@@ -8,9 +8,10 @@ Start Working – New Session
 
 1. Read `CLAUDE.md` (rules) and `STRATEGY.md` (approved directions).
 2. Read `TASKS.md` (current focus), then the newest 3 entries in `DECISIONS.md`.
-3. Read `TIMELINE.md` and note the current phase and any overdue items.
-4. Skim `HITL.md` so you know what to stop and ask about.
-5. Reply with three short parts, in plain English:
+3. Read the top of `HISTORY.md` (current state). For detail on what is built, read the real files, not more notes.
+4. Read `TIMELINE.md` and note the current phase and any overdue items.
+5. Skim `HITL.md` so you know what to stop and ask about.
+6. Reply with three short parts, in plain English:
    - **Where we are** (phase, last decision, what changed)
    - **What is blocked or overdue**
    - **What I suggest we do now** (max 3 options), then ask which one.

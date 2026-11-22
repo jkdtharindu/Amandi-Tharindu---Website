@@ -50,7 +50,12 @@ Never keep a second copy of a fact in another file. Link to it instead.
 - **Start of a session** → follow `STARTUP_PROMPT.md`. **End of a session** → `SESSION_END_PROMPT.md`.
 
 ## Stop-and-ask
-Read `HITL.md` before any spending, supplier commitment, pricing, naming, legal or launch decision.
+Read `HITL.md` before any spending, supplier, pricing, naming, legal or launch decision. A phase is complete only after its gate in `TIMELINE.md` is approved, not when a document is drafted.
 
-## Phase gates
-Do not call a phase complete because a document was drafted. It is complete only when deliverables, evidence, risks, founder review and recorded approval all exist.
+## Size rules (keep it light)
+- Always-read files (`CLAUDE.md`, `STRATEGY.md`, `TASKS.md`, top of `TIMELINE.md`, top of `HISTORY.md`) total under 2,000 words.
+- `CLAUDE.md` under 500 words. `TASKS.md` top 5 only. `STRATEGY.md` one page.
+- Older than 3 months, or finished: move to `ARCHIVE/`, leave a one-line summary.
+- Link, never copy. Numbers go in spreadsheets.
+- Do not re-describe built work. Read the real files and `git log` for detail. `HISTORY.md` is only a short summary.
+- Check word counts at each weekly review.

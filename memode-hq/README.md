@@ -23,6 +23,8 @@ A markdown "business operating system" for building MEMODE, a contemporary premi
 | `GRILL_ME.md` | Interview routine and question banks |
 | `VIBE_CHECKS.md` | Roast and toast |
 | `UPDATE_ME.md` | Doc sync and project update |
+| `HISTORY.md` | Short summary of what has been built (detail is in the real files) |
+| `ARCHIVE/` | Old or finished material, moved out to keep files small |
 | `FINANCE/` `PRODUCT/` `SUPPLIERS/` `RESEARCH/` `REPORTS/` | Work files |
 
 ## Golden rules

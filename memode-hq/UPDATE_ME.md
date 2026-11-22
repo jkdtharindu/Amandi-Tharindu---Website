@@ -14,6 +14,10 @@ Triggers: "update the md files", "update the markdown", "sync the docs". Runs an
 - Next actions → `TASKS.md`
 - New risk → `RISKS.md`
 - New term → `GLOSSARY.md`
+- Something real was built or finished → one line in `HISTORY.md` (verify against the actual files first)
+
+## Size check (every update)
+Count words in the always-read files (limits in `CLAUDE.md`). If over, archive old entries to `ARCHIVE/`.
 
 If nothing changed, say so. Do not force entries.
 
