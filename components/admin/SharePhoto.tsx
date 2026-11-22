@@ -3,6 +3,30 @@
 import { useRef, useState } from 'react';
 import { useToast } from '@/components/Toast';
 
+const SAFE_UPLOAD_BYTES = 3 * 1024 * 1024;
+const MAX_EDGE = 2400;
+
+/** Returns the file unchanged if small, else a smaller JPEG copy (falls back to the original on any failure). */
+async function shrinkForUpload(file: File): Promise<File> {
+  if (file.size <= SAFE_UPLOAD_BYTES) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], 'share-photo.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
 /**
  * The one WhatsApp preview photo (PRD section 24), shown as the big picture on the link
  * card every message's link makes. It is cropped to 1200x630 on upload, and the box below
@@ -23,9 +47,12 @@ export default function SharePhoto({
   const fileRef = useRef<HTMLInputElement>(null);
   const showToast = useToast();
 
-  async function upload(file: File) {
+  async function upload(original: File) {
     setBusy(true);
     try {
+      // Vercel rejects request bodies over about 4.5 MB, so big photos are shrunk here first.
+      // The server still crops and compresses to the final 1200 x 630 card.
+      const file = await shrinkForUpload(original);
       const form = new FormData();
       form.append('file', file);
       const res = await fetch('/api/admin/message-templates/image', {
@@ -33,7 +60,17 @@ export default function SharePhoto({
         headers: { 'x-csrf-token': csrfToken },
         body: form,
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        showToast({
+          kind: 'error',
+          text:
+            res.status === 413
+              ? 'That photo is too big. Try a smaller one.'
+              : `The server could not save the photo (error ${res.status}). Please try again.`,
+        });
+        return;
+      }
       if (!res.ok || !data.success) {
         showToast({ kind: 'error', text: data.message || 'Could not save the photo.' });
         return;
