@@ -775,9 +775,8 @@ function InviteeChecklist({
           const badge =
             savedChoice === 'accepted' && invitee.table
               ? {
-                  text: invitee.table.name
-                    ? t('rsvp.badgeSeated', { tableNumber: invitee.table.number, tableName: invitee.table.name })
-                    : t('rsvp.badgeSeatedNoName', { tableNumber: invitee.table.number }),
+                  // Number only: the table name is for the admin, not the guest.
+                  text: t('rsvp.badgeSeatedNoName', { tableNumber: invitee.table.number }),
                   cls: 'bg-green-100 text-green-800',
                 }
               : savedChoice === 'accepted'

@@ -3,8 +3,13 @@ import { listApprovedInvitees } from '../invitees/inviteesRepo.js';
 import { tableLabel, tableLabelWithNumber } from './tableSides.js';
 
 /** "Nimal Perera" -> "Nimal". A party name on a whole-party seat is left whole. */
+const TITLES = new Set(['mr', 'mrs', 'ms', 'miss', 'mstr', 'master', 'dr', 'prof', 'rev', 'ven', 'hon']);
+
 export function firstName(fullName) {
-  return String(fullName ?? '').trim().split(/\s+/)[0] || '';
+  const words = String(fullName ?? '').trim().split(/\s+/).filter(Boolean);
+  // Skip a leading title ("Mr.", "Dr") so "Mr. Nimal Perera" gives "Nimal".
+  const word = words.find((w) => !TITLES.has(w.replace(/\.$/, '').toLowerCase())) ?? words[0];
+  return word || '';
 }
 
 /**
@@ -59,7 +64,8 @@ export async function getGuestTableView(guestId) {
 export function buildGuestPeopleLines(tables, { guest, invitees = [] }) {
   const tableOf = (match) => {
     const table = tables.find((candidate) => candidate.seats.some(match));
-    return table ? tableLabelWithNumber(table) : null;
+    // Guests see only "Table N"; the table's name is an admin-side label.
+    return table ? `Table ${table.table_number}` : null;
   };
   const line = (name, status, table) => ({
     name,

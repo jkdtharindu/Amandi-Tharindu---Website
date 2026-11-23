@@ -42,6 +42,8 @@ const seat = (fields) => ({ guestId: null, inviteeId: null, inviteeName: null, g
 test('firstName keeps the first word only', () => {
   assert.equal(firstName('  Nimal  Perera '), 'Nimal');
   assert.equal(firstName(null), '');
+  assert.equal(firstName('Mr. Nimal Perera'), 'Nimal');
+  assert.equal(firstName('Miss Kamala'), 'Kamala');
 });
 
 test('the table view lists the table number and the first names of the other people there', () => {
@@ -109,8 +111,8 @@ test('each person shows their answer, and a table only once confirmed and seated
   ];
   const lines = buildGuestPeopleLines(tables, { guest: { id: 'g-1', name: 'Family' }, invitees });
   assert.deepEqual(lines, [
-    { name: 'Kanthi', status: 'accepted', table: 'Table 1 (Diamond)' },
-    { name: 'Thusitha', status: 'accepted', table: 'Table 1 (Diamond)' },
+    { name: 'Kanthi', status: 'accepted', table: 'Table 1' },
+    { name: 'Thusitha', status: 'accepted', table: 'Table 1' },
     { name: 'Janitha', status: 'pending', table: null },
   ]);
 });

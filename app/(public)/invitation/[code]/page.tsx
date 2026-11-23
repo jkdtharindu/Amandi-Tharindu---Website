@@ -134,7 +134,7 @@ export default async function InvitationPage({
                 {tableViews.map((view, index) =>
                   view.mates.length > 0 ? (
                     <p key={`${index}-${view.label}`} className="text-sm text-gray-600">
-                      Table {view.tableNumber}{view.tableName ? ` (${view.tableName})` : ''} — with {view.mates.join(', ')}
+                      Table {view.tableNumber} — with {view.mates.join(', ')}
                     </p>
                   ) : null
                 )}
