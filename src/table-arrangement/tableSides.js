@@ -45,12 +45,11 @@ export function tableLabel(table) {
 }
 
 /**
- * The table as written in guest messages: "Table 5 (Rose)", or just "Table 5"
- * for a table with no name. Fills the `[TableNumber]` placeholder.
+ * The table as written in guest messages: "Table 5". The table's name is an
+ * admin-side label, so it is never included. Fills the `[TableNumber]` placeholder.
  */
 export function tableLabelWithNumber(table) {
-  const name = String(table?.table_name ?? '').trim();
-  return name ? `Table ${table?.table_number} (${name})` : `Table ${table?.table_number}`;
+  return `Table ${table?.table_number}`;
 }
 
 /** Whether anyone — a guest, one of their people, or a placeholder — sits on the seat. */

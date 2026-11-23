@@ -150,7 +150,7 @@ export function tableLabelsByGuest(tables) {
  * placeholder fills with when a party's members sit at different tables, so
  * each person is told their own. A whole-party seat has no person to name, so
  * a party seated only that way is left out and the caller falls back to
- * tableLabelsByGuest(). Shows the table's number and name, e.g. "Table 5 (Rose)".
+ * tableLabelsByGuest(). Shows each person's full name and the table number, e.g. "Nimal Perera – Table 5".
  */
 export function tableMemberLinesByGuest(tables) {
   const lines = new Map();
@@ -159,7 +159,7 @@ export function tableMemberLinesByGuest(tables) {
     for (const seat of table.seats) {
       if (!seat.inviteeId || !seat.inviteeGuestId) continue;
       const list = lines.get(seat.inviteeGuestId) ?? [];
-      list.push(`${firstName(seat.inviteeName)} – ${label}`);
+      list.push(`${String(seat.inviteeName ?? '').trim()} – ${label}`);
       lines.set(seat.inviteeGuestId, list);
     }
   }
