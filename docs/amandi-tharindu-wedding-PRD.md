@@ -1110,5 +1110,6 @@ A colour map of the wedding hall on the admin Table Arrangement screen, starting
 6. Tables show number and name and are coloured Bride, Groom or Common. Pointing at or tapping a table lists who sits there. The other side's own tables show no names.
 7. Items move only after "Move items" is pressed, so scrolling on a phone cannot move them by accident. Each move saves itself. Works by mouse, finger or arrow keys.
 8. Out of scope: printing, undo, live updates between two screens, anything on guest pages.
+9. (Added 2026-11-26) At 100% zoom the whole hall fits the window. A "Large view" button opens the map alone over the whole screen; "Close large view" or Escape returns.
 
 **Status:** built 2026-11-26; needs migration 041 before it is pushed.

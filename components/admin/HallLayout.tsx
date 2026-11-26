@@ -32,6 +32,11 @@ const CLIP: Partial<Record<HallArea['shape'], string>> = {
 const RADIUS: Partial<Record<HallArea['shape'], string>> = { circle: '50%', rounded: '12%' };
 
 const ZOOMS = [1, 1.5, 2];
+// At 100% the whole hall fits on screen: no wider than the card or 720px, and no taller
+// than 80% of the window (never narrower than 280px, so a very short window stays readable).
+const FIT_WIDTH = `min(100%, 720px, max(280px, calc(80vh * ${HALL.width} / ${HALL.height})))`;
+// The large view covers the window, so the hall takes all the height left under the buttons and legend.
+const LARGE_WIDTH = `min(100%, max(280px, calc((100dvh - 8rem) * ${HALL.width} / ${HALL.height})))`;
 const NUDGE = 5;
 const DRAG_THRESHOLD_PX = 4;
 const TOOLTIP_WIDTH = 224;
@@ -82,6 +87,7 @@ export default function HallLayout({
   const [busy, setBusy] = useState(false);
   const [moving, setMoving] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [large, setLarge] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
   const [areaDraft, setAreaDraft] = useState<AreaDraft | null>(null);
@@ -119,6 +125,26 @@ export default function HallLayout({
     window.addEventListener('focus', refresh);
     return () => window.removeEventListener('focus', refresh);
   }, [load, onTablesChanged]);
+
+  // In the large view the page behind stays still, and Escape closes the view once
+  // nothing on top of it (a table's pop-up or a dialog) is open.
+  const somethingOnTop = Boolean(pinned || areaDraft || settingsOpen);
+  useEffect(() => {
+    if (!large) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = before; };
+  }, [large]);
+  useEffect(() => {
+    if (!large) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (somethingOnTop) setPinned(null);
+      else setLarge(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [large, somethingOnTop]);
 
   /** One change to the map, then a fresh read. Returns the reply, or null when it failed. */
   async function send(path: string, method: string, body?: object) {
@@ -252,12 +278,28 @@ export default function HallLayout({
   const moveCursor = moving ? 'cursor-move touch-none select-none' : '';
 
   return (
-    <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4" data-testid="hall-layout">
+    // The same section either way, so nothing about the map resets when the large view opens.
+    <section
+      className={
+        large
+          ? 'fixed inset-0 z-40 flex flex-col bg-white p-3 sm:p-4'
+          : 'mb-6 rounded-xl border border-slate-200 bg-white p-4'
+      }
+      {...(large ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Hall layout, large view' } : {})}
+      data-testid="hall-layout"
+    >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Hall layout</h2>
         <div className="flex flex-wrap items-center gap-2">
           {layout?.hasLayout && (
             <>
+              <button
+                type="button"
+                onClick={() => { setLarge((open) => !open); setZoom(1); setPinned(null); }}
+                className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+              >
+                {large ? 'Close large view' : '⛶ Large view'}
+              </button>
               <button
                 type="button"
                 aria-pressed={moving}
@@ -321,18 +363,18 @@ export default function HallLayout({
               </li>
             ))}
           </ul>
-          <p className="mb-3 text-xs text-slate-500">
+          {/* The large view drops the hint to give the map the height, except while moving. */}
+          <p className={`mb-3 text-xs text-slate-500 ${large && !moving ? 'hidden' : ''}`}>
             {moving
               ? 'Drag tables and areas; each move is saved. Tap an area to rename, resize, turn or remove it.'
               : 'Point at or tap a table to see who sits there. Press “Move items” to rearrange.'}
           </p>
-          <div className="overflow-auto max-h-[85vh]">
+          <div className={`overflow-auto ${large ? 'min-h-0 flex-1' : 'max-h-[85vh]'}`}>
             <div
               ref={canvasRef}
               className="relative mx-auto"
               style={{
-                width: percent(zoom, 1),
-                maxWidth: 720 * zoom,
+                width: `calc(${large ? LARGE_WIDTH : FIT_WIDTH} * ${zoom})`,
                 aspectRatio: `${HALL.width} / ${HALL.height}`,
                 containerType: 'inline-size',
               }}
