@@ -14,8 +14,12 @@ import {
   validateArea,
   validatePosition,
   validateTableCount,
+  GRID,
+  snapPoint,
 } from '../src/hall-layout/hallLayoutShapes.js';
+import { areaFrame, fitLabel, toHallDelta, toViewPoint, viewSize } from '../src/hall-layout/hallLayoutView.js';
 import {
+  alignHallLayout,
   createHallArea,
   deleteHallArea,
   generateHallLayout,
@@ -237,4 +241,67 @@ test('every hall layout change checks the session and CSRF token', () => {
 test('migration 041 only adds the new table', () => {
   const sql = readFileSync(join(ROOT, 'migrations/041_create_hall_layout.sql'), 'utf8').replace(/--.*$/gm, '');
   assert.doesNotMatch(sql, /\b(ALTER|DROP|UPDATE\s+\w+\s+SET|DELETE\s+FROM|TRUNCATE)\b/i);
+});
+
+test('a moved item lands on the closest grid point', () => {
+  assert.deepEqual(validatePosition({ x: 409, y: 411 }).value, { x: 400, y: 420 });
+  assert.deepEqual(snapPoint(-30, 5000), { x: 0, y: HALL.height });
+});
+
+test('the starting plan is already lined up on the grid', () => {
+  const points = [...defaultAreas(), ...Array.from({ length: 26 }, (_, i) => planSlot(i + 1))];
+  const extra = placeTables([{ id: 'a', number: 40 }], new Map(), defaultAreas()).get('a');
+  for (const { x, y } of [...points, extra]) {
+    assert.ok(x % GRID === 0 && y % GRID === 0, `${x},${y} is off the grid`);
+  }
+});
+
+test('aligning moves saved tables to the grid and leaves areas already on it alone', async () => {
+  await generateHallLayout(2);
+  const [first] = (await loadHallLayout()).tables;
+  await saveTablePosition(first.id, { x: 409, y: 411 });
+  const before = await loadHallLayout();
+
+  await alignHallLayout();
+
+  const after = await loadHallLayout();
+  const moved = after.tables.find((t) => t.id === first.id);
+  assert.deepEqual({ x: moved.x, y: moved.y }, { x: 400, y: 420 });
+  assert.deepEqual(after.areas, before.areas);
+});
+
+test('in a turned view a drag moves the item the same way as the pointer', () => {
+  for (const turn of [0, 90, 180, 270]) {
+    const size = viewSize(turn);
+    const start = toViewPoint(200, 300, turn);
+    assert.ok(start.x >= 0 && start.x <= size.width && start.y >= 0 && start.y <= size.height);
+    const delta = toHallDelta(40, -20, turn);
+    const end = toViewPoint(200 + delta.x, 300 + delta.y, turn);
+    assert.deepEqual({ x: end.x - start.x, y: end.y - start.y }, { x: 40, y: -20 }, `turn ${turn}`);
+  }
+  assert.deepEqual(viewSize(90), { width: HALL.height, height: HALL.width });
+});
+
+test("a turned area's frame swaps its sides", () => {
+  const stage = { width: 168, height: 251, rotation: 0 };
+  assert.equal(areaFrame(stage, 0).width, 168);
+  assert.equal(areaFrame(stage, 90).width, 251);
+  assert.equal(areaFrame(stage, 180).width, 168);
+});
+
+test('upright names are sized to fit inside their shape, however it is turned', () => {
+  for (const turn of [0, 90, 180, 270]) {
+    for (const area of defaultAreas().filter((a) => a.label && a.shape !== 'arrow')) {
+      const { angle } = areaFrame(area, turn);
+      const { size, lines } = fitLabel(area.label.toUpperCase(), area.width, area.height, angle);
+      assert.ok(size > 0);
+      assert.equal(lines.join(' '), area.label.toUpperCase(), 'no word is lost');
+      const w = Math.max(...lines.map((line) => line.length)) * 0.68 * size;
+      const h = lines.length * 1.15 * size;
+      const c = Math.abs(Math.cos((angle * Math.PI) / 180));
+      const s = Math.abs(Math.sin((angle * Math.PI) / 180));
+      assert.ok(w * c + h * s <= area.width + 0.01 && w * s + h * c <= area.height + 0.01, `${area.label} at ${turn}`);
+    }
+  }
+  assert.deepEqual(fitLabel('HEAD TABLE', 54, 242, 0).lines, ['HEAD', 'TABLE'], 'a narrow box breaks the words');
 });

@@ -1111,5 +1111,8 @@ A colour map of the wedding hall on the admin Table Arrangement screen, starting
 7. Items move only after "Move items" is pressed, so scrolling on a phone cannot move them by accident. Each move saves itself. Works by mouse, finger or arrow keys.
 8. Out of scope: printing, undo, live updates between two screens, anything on guest pages.
 9. (Added 2026-11-26) At 100% zoom the whole hall fits the window. A "Large view" button opens the map alone over the whole screen; "Close large view" or Escape returns.
+10. (Added 2026-11-26) An unseen grid (20 drawing units): moved items jump to the closest grid point, the starting plan sits on the grid, and "Align everything to the grid" in Layout settings tidies a saved map.
+11. (Added 2026-11-26) "Rotate" turns the viewer's picture a quarter turn at a time. It is remembered on that device only; saved positions do not change. Names stay upright and shrink or wrap to fit their shape.
+12. (Added 2026-11-26) Holding Space over the map and dragging moves the view, as in Photoshop.
 
 **Status:** built 2026-11-26; needs migration 041 before it is pushed.

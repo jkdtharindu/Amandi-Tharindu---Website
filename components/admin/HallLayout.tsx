@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { useToast } from '@/components/Toast';
-import { HALL, HALL_WALLS, TABLE_SIZE, clampPoint } from '@/src/hall-layout/hallLayoutShapes.js';
+import { GRID, HALL, HALL_WALLS, TABLE_SIZE, snapPoint } from '@/src/hall-layout/hallLayoutShapes.js';
+import { areaFrame, fitLabel, toHallDelta, toViewPoint, viewSize } from '@/src/hall-layout/hallLayoutView.js';
 import { seatOccupantLabel } from '@/src/table-arrangement/seatLabel.js';
 import { sideLabel } from '@/src/table-arrangement/tableSides.js';
 import {
@@ -32,24 +33,57 @@ const CLIP: Partial<Record<HallArea['shape'], string>> = {
 const RADIUS: Partial<Record<HallArea['shape'], string>> = { circle: '50%', rounded: '12%' };
 
 const ZOOMS = [1, 1.5, 2];
-// At 100% the whole hall fits on screen: no wider than the card or 720px, and no taller
-// than 80% of the window (never narrower than 280px, so a very short window stays readable).
-const FIT_WIDTH = `min(100%, 720px, max(280px, calc(80vh * ${HALL.width} / ${HALL.height})))`;
+type View = { width: number; height: number };
+// At 100% the whole hall fits on screen: no wider than the card (720px upright, more on its side)
+// and no taller than 80% of the window (never narrower than 280px, so a very short window stays readable).
+const fitWidth = (view: View) =>
+  `min(100%, ${Math.round(720 * Math.max(1, view.width / HALL.width))}px, max(280px, calc(80vh * ${view.width} / ${view.height})))`;
 // The large view covers the window, so the hall takes all the height left under the buttons and legend.
-const LARGE_WIDTH = `min(100%, max(280px, calc((100dvh - 8rem) * ${HALL.width} / ${HALL.height})))`;
-const NUDGE = 5;
+const largeWidth = (view: View) => `min(100%, max(280px, calc((100dvh - 8rem) * ${view.width} / ${view.height})))`;
+// Which way up this device shows the hall. A viewing choice only: the saved layout never turns.
+const TURN_KEY = 'hall-layout-turn';
+const TURNS = [0, 90, 180, 270];
+
+function savedTurn(): number {
+  try {
+    const turn = Number(window.localStorage.getItem(TURN_KEY));
+    return TURNS.includes(turn) ? turn : 0;
+  } catch {
+    return 0;
+  }
+}
 const DRAG_THRESHOLD_PX = 4;
 const TOOLTIP_WIDTH = 224;
 
 const percent = (value: number, of: number) => `${(value / of) * 100}%`;
 
-function box(x: number, y: number, width: number, height: number): CSSProperties {
+/** Places a box by its centre on the drawing as currently turned. */
+function box(view: View, x: number, y: number, width: number, height: number): CSSProperties {
   return {
-    left: percent(x - width / 2, HALL.width),
-    top: percent(y - height / 2, HALL.height),
-    width: percent(width, HALL.width),
-    height: percent(height, HALL.height),
+    left: percent(x - width / 2, view.width),
+    top: percent(y - height / 2, view.height),
+    width: percent(width, view.width),
+    height: percent(height, view.height),
   };
+}
+
+/** Upright text, sized in drawing units so it grows and shrinks with the map. */
+function FittedText({ view, fit, className = '', color }: {
+  view: View;
+  fit: { size: number; lines: string[] };
+  className?: string;
+  color?: string;
+}) {
+  return (
+    <span
+      className={`block whitespace-nowrap text-center ${className}`}
+      style={{ fontSize: `${(fit.size / view.width) * 100}cqw`, lineHeight: 1.15, color }}
+    >
+      {fit.lines.map((line, index) => (
+        <span key={index} className="block">{line}</span>
+      ))}
+    </span>
+  );
 }
 
 /** Black or white, whichever reads better on the area's colour. */
@@ -88,6 +122,12 @@ export default function HallLayout({
   const [moving, setMoving] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [large, setLarge] = useState(false);
+  // Read once: the map is not drawn until its data arrives, so this cannot differ from the server's page.
+  const [turn, setTurn] = useState(() => (typeof window === 'undefined' ? 0 : savedTurn()));
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pointerOverMap = useRef(false);
+  const panFrom = useRef<{ x: number; y: number } | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
   const [areaDraft, setAreaDraft] = useState<AreaDraft | null>(null);
@@ -145,6 +185,76 @@ export default function HallLayout({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [large, somethingOnTop]);
+
+  // Holding Space turns the pointer into a hand that drags the view around, as in Photoshop.
+  // Only while the pointer is on the map (or in the large view), so Space keeps its usual job elsewhere.
+  const dialogOpen = Boolean(areaDraft || settingsOpen);
+  useEffect(() => {
+    const wanted = (event: globalThis.KeyboardEvent) => {
+      if (event.code !== 'Space' || dialogOpen) return false;
+      // A key pressed with nothing focused can be aimed at the window itself, which is not an element.
+      const target = event.target instanceof Element ? event.target : document.body;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return false;
+      return pointerOverMap.current || (large && !target.closest('button'));
+    };
+    const down = (event: globalThis.KeyboardEvent) => {
+      if (!wanted(event)) return;
+      event.preventDefault();
+      setSpaceHeld(true);
+    };
+    const release = () => {
+      panFrom.current = null;
+      setSpaceHeld(false);
+    };
+    const up = (event: globalThis.KeyboardEvent) => {
+      if (event.code !== 'Space') return;
+      // A focused button would otherwise be pressed as Space comes up.
+      if (wanted(event)) event.preventDefault();
+      release();
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', release);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', release);
+    };
+  }, [large, dialogOpen]);
+
+  /** Drags the view: the map's own scroll first, then the page for any up-and-down that is left. */
+  function pan(event: PointerEvent<HTMLElement>) {
+    const from = panFrom.current;
+    const scroller = scrollRef.current;
+    if (!from || !scroller) return;
+    const dx = event.clientX - from.x;
+    const dy = event.clientY - from.y;
+    panFrom.current = { x: event.clientX, y: event.clientY };
+    const before = scroller.scrollTop;
+    scroller.scrollLeft -= dx;
+    scroller.scrollTop -= dy;
+    const left = dy - (before - scroller.scrollTop);
+    if (!large && Math.abs(left) >= 1) window.scrollBy({ top: -left, behavior: 'instant' });
+  }
+
+  function rotate() {
+    const next = (turn + 90) % 360;
+    setTurn(next);
+    setPinned(null);
+    try {
+      window.localStorage.setItem(TURN_KEY, String(next));
+    } catch {
+      // Private browsing: the choice just lasts until the page is reloaded.
+    }
+  }
+
+  async function align() {
+    if (!window.confirm('Line everything on the map up to the grid? Each table and area moves only a little.')) return;
+    if (await send('', 'POST', { action: 'align' })) {
+      showToast({ kind: 'ok', text: 'Everything is lined up on the grid.' });
+      await load();
+    }
+  }
 
   /** One change to the map, then a fresh read. Returns the reply, or null when it failed. */
   async function send(path: string, method: string, body?: object) {
@@ -238,8 +348,11 @@ export default function HallLayout({
     const dy = event.clientY - start.clientY;
     if (!start.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
     start.moved = true;
-    const scale = HALL.width / canvas.getBoundingClientRect().width;
-    setDrag({ ...start.item, ...clampPoint(start.item.x + dx * scale, start.item.y + dy * scale) });
+    const scale = viewSize(turn).width / canvas.getBoundingClientRect().width;
+    // The drag is measured on the turned picture; the position is saved the hall's own way up.
+    const moved = toHallDelta(dx * scale, dy * scale, turn);
+    // It jumps from grid point to grid point while being dragged, so you see where it will land.
+    setDrag({ ...start.item, ...snapPoint(start.item.x + moved.x, start.item.y + moved.y) });
   }
 
   function endDrag(cancelled = false) {
@@ -247,7 +360,8 @@ export default function HallLayout({
     dragStart.current = null;
     if (start?.moved) {
       justDragged.current = true;
-      if (!cancelled && drag) void saveMove(drag);
+      // A drag that ends where it began changes nothing.
+      if (!cancelled && drag && (drag.x !== start.item.x || drag.y !== start.item.y)) void saveMove(drag);
     }
     setDrag(null);
   }
@@ -257,7 +371,8 @@ export default function HallLayout({
     const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!moving || !step) return;
     event.preventDefault();
-    void saveMove({ ...item, ...clampPoint(item.x + step[0] * NUDGE, item.y + step[1] * NUDGE) });
+    const moved = toHallDelta(step[0] * GRID, step[1] * GRID, turn);
+    void saveMove({ ...item, ...snapPoint(item.x + moved.x, item.y + moved.y) });
   }
 
   const dragProps = (item: Item) => ({
@@ -276,6 +391,9 @@ export default function HallLayout({
   const shownId = drag ? null : (pinned ?? (moving ? null : hovered));
   const shownTable = layout?.tables.find((table) => table.id === shownId);
   const moveCursor = moving ? 'cursor-move touch-none select-none' : '';
+  const view = viewSize(turn);
+  const wallA = toViewPoint(HALL_WALLS.left, HALL_WALLS.top, turn);
+  const wallB = toViewPoint(HALL_WALLS.right, HALL_WALLS.bottom, turn);
 
   return (
     // The same section either way, so nothing about the map resets when the large view opens.
@@ -309,6 +427,14 @@ export default function HallLayout({
                 }`}
               >
                 {moving ? 'Done moving' : 'Move items'}
+              </button>
+              <button
+                type="button"
+                onClick={rotate}
+                title="Turns your view of the hall by a quarter turn"
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                ⟳ Rotate
               </button>
               <button
                 type="button"
@@ -366,16 +492,37 @@ export default function HallLayout({
           {/* The large view drops the hint to give the map the height, except while moving. */}
           <p className={`mb-3 text-xs text-slate-500 ${large && !moving ? 'hidden' : ''}`}>
             {moving
-              ? 'Drag tables and areas; each move is saved. Tap an area to rename, resize, turn or remove it.'
+              ? 'Drag tables and areas; they snap into line and each move is saved. Tap an area to rename, resize, turn or remove it.'
               : 'Point at or tap a table to see who sits there. Press “Move items” to rearrange.'}
+            {' '}Hold Space and drag to move around the map.
           </p>
-          <div className={`overflow-auto ${large ? 'min-h-0 flex-1' : 'max-h-[85vh]'}`}>
+          <div
+            className={`relative ${large ? 'flex min-h-0 flex-1 flex-col' : ''}`}
+            onPointerEnter={() => { pointerOverMap.current = true; }}
+            onPointerLeave={() => { pointerOverMap.current = false; }}
+          >
+          {spaceHeld && (
+            // Lies over the map, so a drag pans instead of moving or opening anything.
+            <div
+              data-testid="hall-pan"
+              className="absolute inset-0 z-20 cursor-grab touch-none select-none active:cursor-grabbing"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.currentTarget.setPointerCapture(e.pointerId);
+                panFrom.current = { x: e.clientX, y: e.clientY };
+              }}
+              onPointerMove={pan}
+              onPointerUp={() => { panFrom.current = null; }}
+              onPointerCancel={() => { panFrom.current = null; }}
+            />
+          )}
+          <div ref={scrollRef} className={`overflow-auto ${large ? 'min-h-0 flex-1' : 'max-h-[85vh]'}`}>
             <div
               ref={canvasRef}
               className="relative mx-auto"
               style={{
-                width: `calc(${large ? LARGE_WIDTH : FIT_WIDTH} * ${zoom})`,
-                aspectRatio: `${HALL.width} / ${HALL.height}`,
+                width: `calc(${large ? largeWidth(view) : fitWidth(view)} * ${zoom})`,
+                aspectRatio: `${view.width} / ${view.height}`,
                 containerType: 'inline-size',
               }}
               onClick={(e) => { if (e.target === e.currentTarget) setPinned(null); }}
@@ -385,10 +532,10 @@ export default function HallLayout({
                 aria-hidden="true"
                 className="pointer-events-none absolute border-4 border-double border-slate-800"
                 style={{
-                  left: percent(HALL_WALLS.left, HALL.width),
-                  top: percent(HALL_WALLS.top, HALL.height),
-                  width: percent(HALL_WALLS.right - HALL_WALLS.left, HALL.width),
-                  height: percent(HALL_WALLS.bottom - HALL_WALLS.top, HALL.height),
+                  left: percent(Math.min(wallA.x, wallB.x), view.width),
+                  top: percent(Math.min(wallA.y, wallB.y), view.height),
+                  width: percent(Math.abs(wallB.x - wallA.x), view.width),
+                  height: percent(Math.abs(wallB.y - wallA.y), view.height),
                 }}
               />
 
@@ -396,12 +543,13 @@ export default function HallLayout({
                 const area = positionOf(saved);
                 const item: Item = { kind: 'area', id: area.id, x: area.x, y: area.y };
                 const labelBelow = area.shape === 'circle' && area.width < 90;
-                const upright = area.height > area.width * 2.5;
+                const at = toViewPoint(area.x, area.y, turn);
+                const frame = areaFrame(area, turn);
                 return (
                   <div
                     key={area.id}
                     className={`absolute ${moveCursor} ${moving ? 'hover:outline-2 hover:outline-dashed hover:outline-emerald-700' : ''}`}
-                    style={box(area.x, area.y, area.width, area.height)}
+                    style={box(view, at.x, at.y, frame.width, frame.height)}
                     {...(moving
                       ? {
                           ...dragProps(item),
@@ -417,33 +565,42 @@ export default function HallLayout({
                       : {})}
                     data-area={area.label || area.shape}
                   >
-                    <div className="absolute inset-0" style={{ transform: `rotate(${area.rotation}deg)` }}>
-                      <div
-                        className="absolute inset-0 border border-black/25"
-                        style={{ background: area.color, clipPath: CLIP[area.shape], borderRadius: RADIUS[area.shape] }}
-                      />
-                      {area.label && !labelBelow && (
-                        <span
-                          className={`absolute inset-0 flex justify-center text-center font-semibold uppercase leading-tight ${
-                            area.shape === 'arrow' ? 'items-end pb-[28%]' : 'items-center'
-                          }`}
-                          style={{
-                            color: textOn(area.color),
-                            fontSize: 'clamp(7px, 1.5cqw, 18px)',
-                            writingMode: upright ? 'vertical-rl' : undefined,
-                          }}
-                        >
-                          {area.shape === 'arrow' ? (
-                            // An arrow's body is narrower than its name, so the name carries its own backing.
-                            <span className="whitespace-nowrap rounded-sm px-0.5" style={{ background: area.color }}>
-                              {area.label}
-                            </span>
-                          ) : (
-                            area.label
-                          )}
-                        </span>
-                      )}
-                    </div>
+                    {/* Only the shape turns. Its name is drawn on top, always upright. */}
+                    <div
+                      className="absolute left-1/2 top-1/2 border border-black/25"
+                      style={{
+                        width: percent(frame.shapeWidth, frame.width),
+                        height: percent(frame.shapeHeight, frame.height),
+                        transform: `translate(-50%, -50%) rotate(${frame.angle}deg)`,
+                        background: area.color,
+                        clipPath: CLIP[area.shape],
+                        borderRadius: RADIUS[area.shape],
+                      }}
+                    />
+                    {area.label && !labelBelow && (
+                      <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        {area.shape === 'arrow' ? (
+                          // An arrow is narrow, so its name fits across the whole arrow on its own backing.
+                          <span className="rounded-sm" style={{ background: area.color }}>
+                            <FittedText
+                              view={view}
+                              className="px-0.5 font-semibold uppercase"
+                              color={textOn(area.color)}
+                              fit={fitLabel(area.label.toUpperCase(), frame.width * 0.95, frame.height * 0.5, 0)}
+                            />
+                          </span>
+                        ) : (
+                          <FittedText
+                            view={view}
+                            className="font-semibold uppercase"
+                            color={textOn(area.color)}
+                            fit={fitLabel(area.label.toUpperCase(), area.width, area.height, frame.angle, {
+                              round: area.shape === 'circle',
+                            })}
+                          />
+                        )}
+                      </span>
+                    )}
                     {area.label && labelBelow && (
                       <span
                         className="pointer-events-none absolute left-1/2 top-full -translate-x-1/2 whitespace-nowrap font-semibold text-slate-700"
@@ -460,6 +617,7 @@ export default function HallLayout({
                 const table = positionOf(saved);
                 const item: Item = { kind: 'table', id: table.id, x: table.x, y: table.y };
                 const name = table.name?.trim() ?? '';
+                const at = toViewPoint(table.x, table.y, turn);
                 return (
                   <button
                     key={table.id}
@@ -467,7 +625,7 @@ export default function HallLayout({
                     className={`absolute flex flex-col items-center justify-center rounded-full border-2 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${
                       SIDE_FILL[table.side] ?? SIDE_FILL.common
                     } ${moveCursor || 'cursor-pointer'} ${shownId === table.id ? 'ring-4 ring-slate-900/40' : ''}`}
-                    style={box(table.x, table.y, TABLE_SIZE, TABLE_SIZE)}
+                    style={box(view, at.x, at.y, TABLE_SIZE, TABLE_SIZE)}
                     aria-label={`Table ${table.number}${name ? `, ${name}` : ''}, ${sideLabel(table.side)}`}
                     data-table={table.number}
                     {...dragProps(item)}
@@ -479,22 +637,23 @@ export default function HallLayout({
                       if (!justDragged.current) setPinned((current) => (current === table.id ? null : table.id));
                     }}
                   >
-                    <span className="font-bold leading-none" style={{ fontSize: 'clamp(10px, 3cqw, 36px)' }}>
-                      {table.number}
-                    </span>
-                    {name && (
-                      <span className="w-[92%] truncate text-center leading-tight" style={{ fontSize: 'clamp(7px, 1.5cqw, 18px)' }}>
-                        {name}
-                      </span>
-                    )}
+                    <FittedText view={view} className="font-bold" fit={{ size: name ? 30 : 36, lines: [String(table.number)] }} />
+                    {name && <FittedText view={view} fit={fitLabel(name, 90, 42, 0, { charWidth: 0.56, maxSize: 16 })} />}
                   </button>
                 );
               })}
 
               {shownTable && (
-                <TableTooltip table={shownTable} details={detailsById.get(shownTable.id)} party={party} />
+                <TableTooltip
+                  table={shownTable}
+                  at={toViewPoint(shownTable.x, shownTable.y, turn)}
+                  view={view}
+                  details={detailsById.get(shownTable.id)}
+                  party={party}
+                />
               )}
             </div>
+          </div>
           </div>
         </>
       )}
@@ -514,6 +673,7 @@ export default function HallLayout({
           onRemoveArea={(id) => void removeArea(id)}
           onRemoveTable={(table) => void onDeleteTable(table)}
           onReset={() => void reset()}
+          onAlign={() => void align()}
           // The area editor sits on top: Escape closes it first.
           onClose={() => { if (!areaDraft) onCloseSettings(); }}
         />
@@ -533,12 +693,19 @@ export default function HallLayout({
 }
 
 /** Who sits at a table. The other side's tables show no names (owner's decision). */
-function TableTooltip({ table, details, party }: { table: MapTable; details?: SeatingTable; party: Party }) {
+function TableTooltip({ table, at, view, details, party }: {
+  table: MapTable;
+  /** Where the table is drawn, with the hall as currently turned. */
+  at: { x: number; y: number };
+  view: View;
+  details?: SeatingTable;
+  party: Party;
+}) {
   const hidden = table.side !== 'common' && table.side !== party;
   const people = details?.seats
     .filter((seat) => seat.guestId || seat.inviteeId || seat.probableAttendeeId)
     .map((seat) => ({ id: seat.id, name: seatOccupantLabel(seat), declined: seat.occupantRsvpStatus === 'declined' }));
-  const above = table.y > HALL.height * 0.55;
+  const above = at.y > view.height * 0.55;
 
   return (
     <div
@@ -547,10 +714,10 @@ function TableTooltip({ table, details, party }: { table: MapTable; details?: Se
       className="pointer-events-none absolute z-10 rounded-lg border border-slate-300 bg-white p-3 text-left text-xs text-slate-800 shadow-lg"
       style={{
         width: TOOLTIP_WIDTH,
-        left: `clamp(0px, calc(${percent(table.x, HALL.width)} - ${TOOLTIP_WIDTH / 2}px), calc(100% - ${TOOLTIP_WIDTH}px))`,
+        left: `clamp(0px, calc(${percent(at.x, view.width)} - ${TOOLTIP_WIDTH / 2}px), calc(100% - ${TOOLTIP_WIDTH}px))`,
         ...(above
-          ? { bottom: percent(HALL.height - table.y + TABLE_SIZE / 2 + 6, HALL.height) }
-          : { top: percent(table.y + TABLE_SIZE / 2 + 6, HALL.height) }),
+          ? { bottom: percent(view.height - at.y + TABLE_SIZE / 2 + 6, view.height) }
+          : { top: percent(at.y + TABLE_SIZE / 2 + 6, view.height) }),
       }}
     >
       <p className="text-sm font-bold">

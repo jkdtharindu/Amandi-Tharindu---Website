@@ -173,6 +173,7 @@ export function LayoutSettingsDialog({
   onRemoveArea,
   onRemoveTable,
   onReset,
+  onAlign,
   onClose,
 }: {
   hasLayout: boolean;
@@ -188,6 +189,7 @@ export function LayoutSettingsDialog({
   onRemoveArea: (areaId: string) => void;
   onRemoveTable: (table: SeatingTable) => void;
   onReset: () => void;
+  onAlign: () => void;
   onClose: () => void;
 }) {
   const [count, setCount] = useState(() => String(Math.min(MAX_LAYOUT_TABLES, Math.max(0, ...existingNumbers) || 26)));
@@ -264,6 +266,15 @@ export function LayoutSettingsDialog({
             </div>
             <p className="mt-2 text-xs text-slate-500">
               Only empty tables on your side or Common are listed. To add one table, use &ldquo;Add a table&rdquo;.
+            </p>
+          </section>
+
+          <section className="mt-5 border-t border-slate-200 pt-4">
+            <button type="button" disabled={busy} onClick={onAlign} className={SECONDARY}>
+              Align everything to the grid
+            </button>
+            <p className="mt-2 text-xs text-slate-500">
+              Nudges every table and area to its closest grid point, so rows and columns line up.
             </p>
           </section>
 

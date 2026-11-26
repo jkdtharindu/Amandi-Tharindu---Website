@@ -3,7 +3,7 @@ import { query, withTransaction } from '../db.js';
 import { hallLayoutItems } from '../data/hallLayoutStore.js';
 import { createSeatingTable, listSeatingTables } from '../table-arrangement/tableArrangementRepo.js';
 import { COMMON } from '../table-arrangement/tableSides.js';
-import { MAX_AREAS, TABLE_SIZE, defaultAreas, placeTables } from './hallLayoutShapes.js';
+import { GRID, MAX_AREAS, TABLE_SIZE, defaultAreas, placeTables, snapPoint } from './hallLayoutShapes.js';
 
 /**
  * The shared hall map: one layout for both admins, either of whom may move
@@ -185,6 +185,20 @@ export async function resetHallLayout() {
     else hallLayoutItems.length = 0;
     await fillLayout(run, markers);
   });
+}
+
+/** Moves every saved table and area to its closest grid point. Nothing else about them changes. */
+export async function alignHallLayout() {
+  if (!useDb) {
+    for (const row of hallLayoutItems) Object.assign(row, snapPoint(row.x, row.y));
+    return;
+  }
+  // GRID is our own constant. Saved positions are already inside the drawing, whose sides are multiples of it.
+  await query(
+    `UPDATE hall_layout_items
+     SET x = (ROUND(x / ${GRID}.0) * ${GRID})::int, y = (ROUND(y / ${GRID}.0) * ${GRID})::int, updated_at = now()
+     WHERE x % ${GRID} <> 0 OR y % ${GRID} <> 0`
+  );
 }
 
 /** Saves where one table stands. False when there is no such table. */

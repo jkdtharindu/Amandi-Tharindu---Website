@@ -12,6 +12,8 @@ export const HALL = { width: 920, height: 1300 };
 export const HALL_WALLS = { left: 40, top: 40, right: 885, bottom: 1270 };
 
 export const TABLE_SIZE = 104;
+/** The unseen grid: anything placed or moved lands with its centre on a multiple of this. */
+export const GRID = 20;
 export const MAX_LAYOUT_TABLES = 60;
 export const MAX_AREAS = 100;
 export const MAX_AREA_LABEL = 40;
@@ -26,12 +28,12 @@ export const AREA_SHAPE_LABELS = {
   arrow: 'Arrow',
 };
 
-// Where tables 1 to 26 stand on the hotel's plan, in number order.
+// Where tables 1 to 26 stand on the hotel's plan, in number order, lined up on the grid.
 const PLAN_TABLE_SLOTS = [
-  [808, 1190], [690, 1193], [560, 1193], [814, 1033], [690, 1058], [559, 1056], [808, 873],
-  [690, 929], [554, 928], [811, 718], [685, 794], [550, 794], [686, 663], [550, 663],
-  [809, 569], [686, 527], [550, 527], [814, 404], [686, 396], [550, 396], [342, 428],
-  [226, 428], [242, 295], [108, 428], [117, 295], [109, 172],
+  [800, 1200], [680, 1200], [560, 1200], [800, 1040], [680, 1060], [560, 1060], [800, 880],
+  [680, 920], [560, 920], [800, 720], [680, 800], [560, 800], [680, 660], [560, 660],
+  [800, 560], [680, 520], [560, 520], [800, 400], [680, 400], [560, 400], [340, 420],
+  [220, 420], [220, 300], [100, 420], [100, 300], [100, 180],
 ];
 
 /** The plan's spot for a table number, or null when the plan has no such number. */
@@ -49,8 +51,12 @@ const SMALL_TABLE_SPOTS = [
   [215, 1023], [291, 1019], [164, 1105], [250, 1098], [341, 1087], [204, 1167], [305, 1163], [261, 1228],
 ];
 
-/** Every non-table area on the hotel's plan. Returns fresh objects each call. */
+/** Every non-table area on the hotel's plan, centred on the grid. Returns fresh objects each call. */
 export function defaultAreas() {
+  return planAreas().map((item) => ({ ...item, ...snapPoint(item.x, item.y) }));
+}
+
+function planAreas() {
   return [
     area('rect', 'Setyback', 443, 112, 233, 112, '#c8eddc'),
     area('circle', 'Photography table', 612, 100, 70, 70, '#b3a2c7'),
@@ -75,6 +81,13 @@ export function clampPoint(x, y) {
   return { x: clamp(Math.round(x), 0, HALL.width), y: clamp(Math.round(y), 0, HALL.height) };
 }
 
+const snap = (value, max) => clamp(Math.round(value / GRID) * GRID, 0, max);
+
+/** The closest grid point on the drawing. */
+export function snapPoint(x, y) {
+  return { x: snap(x, HALL.width), y: snap(y, HALL.height) };
+}
+
 const overlaps = (point, box) =>
   Math.abs(point.x - box.x) < (TABLE_SIZE + box.width) / 2 &&
   Math.abs(point.y - box.y) < (TABLE_SIZE + box.height) / 2;
@@ -85,14 +98,15 @@ const touchesTable = (point, taken) =>
 /** The first gap inside the walls that covers no table and no area; a staggered corner spot if the hall is full. */
 function freeSpot(taken, areas, overflowIndex) {
   const half = TABLE_SIZE / 2;
-  for (let y = HALL_WALLS.top + half + 4; y <= HALL_WALLS.bottom - half; y += 20) {
-    for (let x = HALL_WALLS.left + half + 4; x <= HALL_WALLS.right - half; x += 20) {
+  const firstOnGrid = (wall) => Math.ceil((wall + half + 4) / GRID) * GRID;
+  for (let y = firstOnGrid(HALL_WALLS.top); y <= HALL_WALLS.bottom - half; y += GRID) {
+    for (let x = firstOnGrid(HALL_WALLS.left); x <= HALL_WALLS.right - half; x += GRID) {
       const point = { x, y };
       if (!touchesTable(point, taken) && !areas.some((box) => overlaps(point, box))) return point;
     }
   }
   const step = overflowIndex % 20;
-  return { x: 100 + step * 30, y: 220 + step * 30 };
+  return { x: 100 + step * GRID, y: 220 + step * GRID };
 }
 
 /**
@@ -143,7 +157,7 @@ export function validateTableCount(value) {
 }
 
 /**
- * A position sent by the screen. Off-drawing values are pulled back onto it.
+ * A position sent by the screen, moved to the closest grid point on the drawing.
  * @returns {Checked<{ x: number, y: number }>}
  */
 export function validatePosition(body) {
@@ -151,7 +165,7 @@ export function validatePosition(body) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     return { ok: false, message: 'A position needs two numbers.' };
   }
-  return { ok: true, value: clampPoint(x, y) };
+  return { ok: true, value: snapPoint(x, y) };
 }
 
 const wholeNumberIn = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
@@ -169,7 +183,7 @@ export function validateArea(body, { partial = false } = {}) {
   if (!partial) {
     if (!AREA_SHAPES.includes(input.shape)) return fail('Choose a shape for the area.');
     value.shape = input.shape;
-    Object.assign(value, { label: '', x: 460, y: 650, width: 120, height: 80, rotation: 0, color: '#94a3b8' });
+    Object.assign(value, { label: '', x: 460, y: 660, width: 120, height: 80, rotation: 0, color: '#94a3b8' });
   }
 
   if (input.label !== undefined) {

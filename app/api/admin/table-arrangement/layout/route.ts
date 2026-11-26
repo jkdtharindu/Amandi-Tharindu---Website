@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession, unauthorizedResponse } from '@/lib/adminGuard';
 import { MISSING_LAYOUT_MESSAGE, hallFail, hallFault, readHallChange } from '@/lib/hallLayoutRoute';
-import { generateHallLayout, loadHallLayout, resetHallLayout } from '@/src/hall-layout/hallLayoutRepo.js';
+import {
+  alignHallLayout,
+  generateHallLayout,
+  loadHallLayout,
+  resetHallLayout,
+} from '@/src/hall-layout/hallLayoutRepo.js';
 import { validateTableCount } from '@/src/hall-layout/hallLayoutShapes.js';
 
 /**
@@ -21,6 +26,7 @@ export async function GET(): Promise<NextResponse> {
  * `{ action: 'generate', tableCount }` creates any missing table from 1 to the
  * count (empty, Common) and lays out the map; nothing existing is changed.
  * `{ action: 'reset' }` puts the map back to the hotel plan.
+ * `{ action: 'align' }` moves everything on the map to its closest grid point.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const checked = await readHallChange(request);
@@ -30,6 +36,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     if (action === 'reset') {
       await resetHallLayout();
+      return NextResponse.json({ success: true });
+    }
+    if (action === 'align') {
+      await alignHallLayout();
       return NextResponse.json({ success: true });
     }
     if (action !== 'generate') return hallFail('Unknown action.', 400);
