@@ -6,6 +6,7 @@ import { seatOccupantLabel } from '@/src/table-arrangement/seatLabel.js';
 import { sideLabel, tableLabel } from '@/src/table-arrangement/tableSides.js';
 import { deleteTableWarning } from '@/src/table-arrangement/deleteTableWarning.js';
 import { declineRequestSeats } from '@/src/table-arrangement/declineRequests.js';
+import HallLayout from './HallLayout';
 
 export type Party = 'bride' | 'groom';
 export type TableSide = Party | 'common';
@@ -112,6 +113,7 @@ export default function TableArrangement({
   const [form, setForm] = useState<NewTableForm>(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [layoutSettingsOpen, setLayoutSettingsOpen] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
   const showToast = useToast();
 
@@ -388,7 +390,16 @@ export default function TableArrangement({
 
       <div className="mb-4">
         <form onSubmit={handleAddTable} className="bg-white rounded-xl border border-slate-200 p-4">
-          <h2 className="font-semibold mb-3">Add a table</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Add a table</h2>
+            <button
+              type="button"
+              onClick={() => setLayoutSettingsOpen(true)}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              ⚙ Layout settings
+            </button>
+          </div>
           <div className="grid gap-3 grid-cols-2">
             <div>
               <label htmlFor="tableNumber" className="block text-xs font-semibold text-slate-500 mb-1">
@@ -406,7 +417,7 @@ export default function TableArrangement({
             </div>
             <div>
               <label htmlFor="tableName" className="block text-xs font-semibold text-slate-500 mb-1">
-                Name <span className="font-normal">(guests see this)</span>
+                Name <span className="font-normal">(shown on the map)</span>
               </label>
               <input
                 id="tableName"
@@ -448,7 +459,7 @@ export default function TableArrangement({
             </div>
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Numbers start again on each side and for Common tables. Guests see only the name.
+            A table number is used once in the whole hall. Guests see only the table number.
           </p>
           <button
             type="submit"
@@ -503,6 +514,16 @@ export default function TableArrangement({
           </ul>
         </div>
       )}
+      <HallLayout
+        party={party}
+        tables={tables}
+        csrfToken={csrfToken}
+        settingsOpen={layoutSettingsOpen}
+        onOpenSettings={() => setLayoutSettingsOpen(true)}
+        onCloseSettings={() => setLayoutSettingsOpen(false)}
+        onTablesChanged={load}
+        onDeleteTable={handleDeleteTable}
+      />
       {tables.length === 0 ? (
         <p className="text-sm text-slate-500">No tables created yet.</p>
       ) : (

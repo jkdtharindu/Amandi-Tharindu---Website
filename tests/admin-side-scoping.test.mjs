@@ -69,6 +69,11 @@ const SHARED_ROUTES = [
   'app/api/admin/upload/route.ts',
   'app/api/admin/login/route.ts',
   'app/api/admin/logout/route.ts',
+  // The hall map is one shared layout both admins may edit (2026-11-26); it carries no guest names.
+  'app/api/admin/table-arrangement/layout/route.ts',
+  'app/api/admin/table-arrangement/layout/tables/[tableId]/route.ts',
+  'app/api/admin/table-arrangement/layout/areas/route.ts',
+  'app/api/admin/table-arrangement/layout/areas/[areaId]/route.ts',
   'app/api/admin/table-arrangement/probable-attendees/route.ts',
 ];
 

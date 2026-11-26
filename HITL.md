@@ -90,3 +90,7 @@ The admin can now edit and save the wording for each of the three message levels
 ## Migration 034 — `invitees.answered_by` (added 2026-10-31)
 
 Migration `034_invitee_answered_by.sql` adds one nullable column, `answered_by`, to `invitees`. It holds a one-way hash of the network address of the device that last saved that person's answer (never the address itself). The owner runs `npm run migrate` themselves, *before* the code is pushed, because every RSVP save now writes the column (see the 2026-09-12 clarification above). The owner confirmed it was run on 2026-10-31. Nothing is sent by the app and no paid-send gate is touched. An earlier migration that also used the number 034 (the dietary note) was never applied and was removed, so this number is free.
+
+## Migration 041 — `hall_layout_items` (added 2026-11-26)
+
+Migration `041_create_hall_layout.sql` creates one new table for the hall map's positions. It alters no existing table and touches no guest, seating or RSVP data. The owner runs `npm run migrate` themselves, *before* the code is pushed (see the 2026-09-12 clarification above). If the code runs first, only the map shows a "needs the database update" note. Nothing is sent by the app and guest pages do not read the new table. The map's "number of tables" button creates empty Common tables in live data when the admin presses it.

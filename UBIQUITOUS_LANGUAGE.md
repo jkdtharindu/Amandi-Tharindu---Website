@@ -169,6 +169,12 @@ This document defines the canonical vocabulary for the Amandi & Tharindu wedding
 - Example: A SeatingTable named "Table 4" seats eight Guests, assigned by the Admin on `/admin/table-arrangement`.
 - Note: Built 2026-09-04 (`seating_tables`/`table_seats`, migrations 007–008). Scoped down from the per-Participant, AgeCategory/RelationshipType-filtered vision proposed 2026-09-03 (see `Participant`'s note above and PRD §14) — the built version assigns whole Guests to seats, not individual Participants, and the admin UI has no AgeCategory or RelationshipType filter. Revisit if per-participant seating is still wanted; until then, `SeatAssignment` below still describes the unbuilt finer-grained version.
 
+### HallLayout
+- Canonical name: `HallLayout`
+- Definition: The shared drawing of the reception hall on the admin Table Arrangement screen: where each SeatingTable stands, plus the drawn areas (stage, bar, head table and so on). An area is only a drawing and seats nobody.
+- Do not call it: `floor plan data`, `seating plan` (that is who sits where)
+- Example: The Admin drags table 5 on the HallLayout; its seated guests do not change.
+
 ### TableSide
 - Canonical name: `TableSide`
 - Definition: Which side a SeatingTable belongs to — `bride`, `groom` or `common` — chosen when the Admin creates the table. Only people from that side can be seated at a bride or groom table; a `common` table takes people from both sides.

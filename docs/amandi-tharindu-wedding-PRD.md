@@ -1096,3 +1096,19 @@ Owner request: simplify guest codes, rename the name field, and let the owner ad
 **Known limits.** The gate means WhatsApp can only read the share page, so every guest sees the same card per level and no guest data can leak into it. WhatsApp caches cards: messages already sent keep their old card, and a changed photo may take a while to show.
 
 **Status:** built (commit 2621297), plus decision 9 prompt templates. Model: Sonnet 5 (proposed, unconfirmed).
+
+## 25. Visual Hall Layout (Grill Me session 2026-11-26)
+
+A colour map of the wedding hall on the admin Table Arrangement screen, starting from the hotel's plan (*14TH DECEMBER CAMELIA*).
+
+**Decisions (owner).**
+1. The admin enters the number of tables first (1 to 60); the map is then created. Missing table numbers are created as empty Common tables named "Table N" with 10 seats. Existing tables and seated guests are never changed; a lower number deletes nothing.
+2. Tables 1 to 26 start where the hotel plan has them; extra tables take free spaces.
+3. Areas from the plan start on the map: setyback, photography table, head table (drawing only, no guests), music stage, dancing floor, music table, elevator, 16 small tables, bar counter, entrance and exits.
+4. A "Layout settings" pop-up (in "Add a table" and on the map) sets the table count, adds, edits and removes areas, removes empty tables, and resets the map.
+5. One shared map. Either admin may move any table or area.
+6. Tables show number and name and are coloured Bride, Groom or Common. Pointing at or tapping a table lists who sits there. The other side's own tables show no names.
+7. Items move only after "Move items" is pressed, so scrolling on a phone cannot move them by accident. Each move saves itself. Works by mouse, finger or arrow keys.
+8. Out of scope: printing, undo, live updates between two screens, anything on guest pages.
+
+**Status:** built 2026-11-26; needs migration 041 before it is pushed.
