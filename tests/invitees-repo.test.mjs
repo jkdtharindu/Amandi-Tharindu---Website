@@ -18,11 +18,28 @@ import {
   validateInviteeNames,
   validateRequestedInviteeName,
   validateParticipantNames,
+  validatePendingRequestCount,
+  MAX_PENDING_REQUESTS,
 } from '../src/invitees/validateInvitees.js';
 import { invitees } from '../src/data/inviteesStore.js';
 
 beforeEach(() => {
   invitees.length = 0;
+});
+
+test('validatePendingRequestCount stops a party at the waiting-request limit', () => {
+  const waiting = (count) => Array.from({ length: count }, () => ({ approvalStatus: 'pending_approval' }));
+
+  assert.equal(validatePendingRequestCount(waiting(MAX_PENDING_REQUESTS - 1)).valid, true);
+  assert.equal(validatePendingRequestCount(waiting(MAX_PENDING_REQUESTS)).valid, false);
+});
+
+test('validatePendingRequestCount ignores approved and rejected people', () => {
+  const answered = ['approved', 'rejected'].flatMap((approvalStatus) =>
+    Array.from({ length: MAX_PENDING_REQUESTS }, () => ({ approvalStatus }))
+  );
+
+  assert.equal(validatePendingRequestCount(answered).valid, true);
 });
 
 test('validateInviteeNames rejects a non-array', () => {

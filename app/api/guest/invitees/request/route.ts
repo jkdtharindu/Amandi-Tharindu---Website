@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findGuestById } from '@/src/guest-auth/guestRepo.js';
 import { authorizeRsvp } from '@/src/guest-auth/authorizeRsvp.js';
-import { requestNewInvitee } from '@/src/invitees/inviteesRepo.js';
-import { validateRequestedInviteeName } from '@/src/invitees/validateInvitees.js';
+import { listInviteesForGuest, requestNewInvitee } from '@/src/invitees/inviteesRepo.js';
+import { validatePendingRequestCount, validateRequestedInviteeName } from '@/src/invitees/validateInvitees.js';
 import { verifySession } from '@/src/session.js';
 import { verifyCsrfToken } from '@/src/csrf.js';
 
@@ -43,6 +43,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { success: false, reason: 'invalid_name', message: validation.error },
         { status: 400 }
+      );
+    }
+
+    const limit = validatePendingRequestCount(await listInviteesForGuest(auth.guest.id));
+    if (!limit.valid) {
+      return NextResponse.json(
+        { success: false, reason: 'too_many_requests', message: limit.error },
+        { status: 429 }
       );
     }
 

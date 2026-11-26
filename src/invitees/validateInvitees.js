@@ -38,6 +38,24 @@ export function validateRequestedInviteeName(name) {
   return { valid: true, name: trimmed };
 }
 
+/** The most "add another person" requests one invitation can have waiting at once. */
+export const MAX_PENDING_REQUESTS = 5;
+
+/**
+ * Whether a party may send one more request. Only requests still waiting for
+ * approval count, so an admin approving or rejecting one frees a place.
+ */
+export function validatePendingRequestCount(invitees) {
+  const waiting = invitees.filter((invitee) => invitee.approvalStatus === 'pending_approval').length;
+  if (waiting >= MAX_PENDING_REQUESTS) {
+    return {
+      valid: false,
+      error: `You already have ${MAX_PENDING_REQUESTS} requests waiting. Please wait for the couple to answer them.`,
+    };
+  }
+  return { valid: true };
+}
+
 /**
  * The legacy whole-party RSVP path, where a guest types their party's names as
  * free text rather than ticking admin-entered invitees.
