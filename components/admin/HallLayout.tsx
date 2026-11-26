@@ -488,6 +488,7 @@ export default function HallLayout({
                 {sideLabel(side)}
               </li>
             ))}
+            <li>8/10 under a table = seats filled out of all seats (green when full)</li>
           </ul>
           {/* The large view drops the hint to give the map the height, except while moving. */}
           <p className={`mb-3 text-xs text-slate-500 ${large && !moving ? 'hidden' : ''}`}>
@@ -618,6 +619,10 @@ export default function HallLayout({
                 const item: Item = { kind: 'table', id: table.id, x: table.x, y: table.y };
                 const name = table.name?.trim() ?? '';
                 const at = toViewPoint(table.x, table.y, turn);
+                // Counted like the table cards (placeholders take a seat). Only for tables this admin
+                // can see: the other side's tables show colour, number and name.
+                const seating = table.side === party || table.side === 'common' ? detailsById.get(table.id) : undefined;
+                const filled = seating?.seats.filter((seat) => seat.guestId || seat.inviteeId || seat.probableAttendeeId).length ?? 0;
                 return (
                   <button
                     key={table.id}
@@ -626,7 +631,9 @@ export default function HallLayout({
                       SIDE_FILL[table.side] ?? SIDE_FILL.common
                     } ${moveCursor || 'cursor-pointer'} ${shownId === table.id ? 'ring-4 ring-slate-900/40' : ''}`}
                     style={box(view, at.x, at.y, TABLE_SIZE, TABLE_SIZE)}
-                    aria-label={`Table ${table.number}${name ? `, ${name}` : ''}, ${sideLabel(table.side)}`}
+                    aria-label={`Table ${table.number}${name ? `, ${name}` : ''}, ${sideLabel(table.side)}${
+                      seating ? `, ${filled} of ${seating.capacity} seats filled` : ''
+                    }`}
                     data-table={table.number}
                     {...dragProps(item)}
                     onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHovered(table.id); }}
@@ -639,6 +646,20 @@ export default function HallLayout({
                   >
                     <FittedText view={view} className="font-bold" fit={{ size: name ? 30 : 36, lines: [String(table.number)] }} />
                     {name && <FittedText view={view} fit={fitLabel(name, 90, 42, 0, { charWidth: 0.56, maxSize: 16 })} />}
+                    {seating && (
+                      // Sits across the bottom edge, small enough for the gap to the table below. Green when full.
+                      <span
+                        data-testid="seat-count"
+                        className={`absolute left-1/2 top-full -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border font-bold ${
+                          filled >= seating.capacity
+                            ? 'border-emerald-800 bg-emerald-700 text-white'
+                            : 'border-slate-500 bg-white text-slate-900'
+                        }`}
+                        style={{ fontSize: `${(18 / view.width) * 100}cqw`, lineHeight: 1.2, padding: '0 0.35em' }}
+                      >
+                        {filled}/{seating.capacity}
+                      </span>
+                    )}
                   </button>
                 );
               })}
