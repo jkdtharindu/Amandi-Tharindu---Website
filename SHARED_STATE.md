@@ -70,7 +70,7 @@ WhatsApp/message templates (invite, reminders, thank-you) and a log of what was 
 ### HallLayoutItem
 The visual hall map on the admin Table Arrangement screen (table `hall_layout_items`, migration 041; `src/hall-layout/`). One shared layout for both admins. A row is either one seating table's position (`shape = 'table'`, deleted with its table) or a drawn area (stage, bar, arrow and so on). Positions are item centres on a 920 x 1300 drawing. It stores nothing about who sits where, and **no guest page reads it**.
 
-**Side rule (owner's decision, 2026-11-26):** on the map each admin sees *every* table's number, name, side and position, including the other side's own tables, but never their seats or guest names. This is the one exception to the "never the other side's tables" rule above: the map's API (`GET /api/admin/table-arrangement/layout`) returns no names at all, and the screen adds names only from the admin's normal table list (own side and Common). Either admin may move any table or area. Creating, deleting, renaming and seating still follow the table rules above.
+**Side rule (owner's decision, 2026-11-26):** on the map each admin sees *every* table's number, name, side, position and seat counts (filled out of total), including the other side's own tables, but never who sits there or which seat. This is the one exception to the "never the other side's tables" rule above: the map's API (`GET /api/admin/table-arrangement/layout`) returns counts but no guest names at all, and the screen adds names only from the admin's normal table list (own side and Common). Either admin may move any table or area. Creating, deleting, renaming and seating still follow the table rules above.
 
 ---
 

@@ -1114,6 +1114,6 @@ A colour map of the wedding hall on the admin Table Arrangement screen, starting
 10. (Added 2026-11-26) An unseen grid (20 drawing units): moved items jump to the closest grid point, the starting plan sits on the grid, and "Align everything to the grid" in Layout settings tidies a saved map.
 11. (Added 2026-11-26) "Rotate" turns the viewer's picture a quarter turn at a time. It is remembered on that device only; saved positions do not change. Names stay upright and shrink or wrap to fit their shape.
 12. (Added 2026-11-26) Holding Space over the map and dragging moves the view, as in Photoshop.
-13. (Added 2026-11-26) Each of the admin's own and Common tables shows "seats filled / all seats" under it (green when full, placeholders counted). The other side's tables show no count, in line with decision 6.
+13. (Added 2026-11-26) Every table shows "seats filled / all seats" under it (green when full, placeholders counted). Both admins see these counts for every table, the other side's too; guest names there stay hidden (this widens decision 6, owner's request).
 
 **Status:** built 2026-11-26; needs migration 041 before it is pushed.

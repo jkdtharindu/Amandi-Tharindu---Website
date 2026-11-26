@@ -16,7 +16,11 @@ import {
 } from './HallLayoutDialogs';
 import type { Party, SeatingTable, TableSide } from './TableArrangement';
 
-type MapTable = { id: string; number: number; name: string | null; side: TableSide; x: number; y: number };
+type MapTable = {
+  id: string; number: number; name: string | null; side: TableSide; x: number; y: number;
+  /** All seats, and how many are taken. Sent for every table, either side's. */
+  capacity: number; filled: number;
+};
 type Layout = { available: boolean; hasLayout: boolean; tables: MapTable[]; areas: HallArea[] };
 type Item = { kind: 'table' | 'area'; id: string; x: number; y: number };
 
@@ -84,6 +88,17 @@ function FittedText({ view, fit, className = '', color }: {
       ))}
     </span>
   );
+}
+
+/**
+ * Seats filled out of all seats, counted like the table cards (placeholders take a seat).
+ * A table this admin can see is counted from the screen's own list, which updates the
+ * moment someone is seated; the other side's tables use the counts sent with the map.
+ */
+function seatCounts(table: MapTable, details?: SeatingTable): { filled: number; capacity: number } {
+  if (!details) return { filled: table.filled, capacity: table.capacity };
+  const filled = details.seats.filter((seat) => seat.guestId || seat.inviteeId || seat.probableAttendeeId).length;
+  return { filled, capacity: details.capacity };
 }
 
 /** Black or white, whichever reads better on the area's colour. */
@@ -619,10 +634,7 @@ export default function HallLayout({
                 const item: Item = { kind: 'table', id: table.id, x: table.x, y: table.y };
                 const name = table.name?.trim() ?? '';
                 const at = toViewPoint(table.x, table.y, turn);
-                // Counted like the table cards (placeholders take a seat). Only for tables this admin
-                // can see: the other side's tables show colour, number and name.
-                const seating = table.side === party || table.side === 'common' ? detailsById.get(table.id) : undefined;
-                const filled = seating?.seats.filter((seat) => seat.guestId || seat.inviteeId || seat.probableAttendeeId).length ?? 0;
+                const { filled, capacity } = seatCounts(table, detailsById.get(table.id));
                 return (
                   <button
                     key={table.id}
@@ -631,9 +643,7 @@ export default function HallLayout({
                       SIDE_FILL[table.side] ?? SIDE_FILL.common
                     } ${moveCursor || 'cursor-pointer'} ${shownId === table.id ? 'ring-4 ring-slate-900/40' : ''}`}
                     style={box(view, at.x, at.y, TABLE_SIZE, TABLE_SIZE)}
-                    aria-label={`Table ${table.number}${name ? `, ${name}` : ''}, ${sideLabel(table.side)}${
-                      seating ? `, ${filled} of ${seating.capacity} seats filled` : ''
-                    }`}
+                    aria-label={`Table ${table.number}${name ? `, ${name}` : ''}, ${sideLabel(table.side)}, ${filled} of ${capacity} seats filled`}
                     data-table={table.number}
                     {...dragProps(item)}
                     onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHovered(table.id); }}
@@ -646,20 +656,18 @@ export default function HallLayout({
                   >
                     <FittedText view={view} className="font-bold" fit={{ size: name ? 30 : 36, lines: [String(table.number)] }} />
                     {name && <FittedText view={view} fit={fitLabel(name, 90, 42, 0, { charWidth: 0.56, maxSize: 16 })} />}
-                    {seating && (
-                      // Sits across the bottom edge, small enough for the gap to the table below. Green when full.
-                      <span
-                        data-testid="seat-count"
-                        className={`absolute left-1/2 top-full -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border font-bold ${
-                          filled >= seating.capacity
-                            ? 'border-emerald-800 bg-emerald-700 text-white'
-                            : 'border-slate-500 bg-white text-slate-900'
-                        }`}
-                        style={{ fontSize: `${(18 / view.width) * 100}cqw`, lineHeight: 1.2, padding: '0 0.35em' }}
-                      >
-                        {filled}/{seating.capacity}
-                      </span>
-                    )}
+                    {/* Sits across the bottom edge, small enough for the gap to the table below. Green when full. */}
+                    <span
+                      data-testid="seat-count"
+                      className={`absolute left-1/2 top-full -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border font-bold ${
+                        filled >= capacity
+                          ? 'border-emerald-800 bg-emerald-700 text-white'
+                          : 'border-slate-500 bg-white text-slate-900'
+                      }`}
+                      style={{ fontSize: `${(18 / view.width) * 100}cqw`, lineHeight: 1.2, padding: '0 0.35em' }}
+                    >
+                      {filled}/{capacity}
+                    </span>
                   </button>
                 );
               })}
@@ -727,6 +735,7 @@ function TableTooltip({ table, at, view, details, party }: {
     .filter((seat) => seat.guestId || seat.inviteeId || seat.probableAttendeeId)
     .map((seat) => ({ id: seat.id, name: seatOccupantLabel(seat), declined: seat.occupantRsvpStatus === 'declined' }));
   const above = at.y > view.height * 0.55;
+  const counts = seatCounts(table, details);
 
   return (
     <div
@@ -747,7 +756,7 @@ function TableTooltip({ table, at, view, details, party }: {
       </p>
       <p className="mb-1 text-slate-500">
         {sideLabel(table.side)}
-        {!hidden && details ? ` · ${people?.length ?? 0}/${details.capacity} seats filled` : ''}
+        {` · ${counts.filled}/${counts.capacity} seats filled`}
       </p>
       {hidden ? (
         <p className="text-slate-500">Only the {sideLabel(table.side).toLowerCase()}&apos;s admin sees who sits here.</p>

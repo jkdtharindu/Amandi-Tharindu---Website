@@ -160,13 +160,14 @@ test('generating keeps existing tables, seated guests and moved positions', asyn
   assert.equal(layout.tables.find((t) => t.id === rose.id).x, 300);
 });
 
-test('the map shows every table but never a guest name or a seat', async () => {
+test('the map gives every table its seat counts but never a guest name or a seat', async () => {
   const rose = await createSeatingTable({ tableNumber: 1, tableName: 'Rose', capacity: 2, party: 'groom' });
   await assignGuestToSeat(rose.seats[0].id, 'g1');
   await generateHallLayout(1);
 
   const layout = await loadHallLayout();
-  assert.deepEqual(Object.keys(layout.tables[0]).sort(), ['id', 'name', 'number', 'side', 'x', 'y']);
+  assert.deepEqual(Object.keys(layout.tables[0]).sort(), ['capacity', 'filled', 'id', 'name', 'number', 'side', 'x', 'y']);
+  assert.deepEqual([layout.tables[0].filled, layout.tables[0].capacity], [1, 2], "the other side's table has counts");
   assert.ok(!JSON.stringify(layout).includes(SECRET));
 });
 

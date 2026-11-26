@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { query, withTransaction } from '../db.js';
 import { hallLayoutItems } from '../data/hallLayoutStore.js';
 import { createSeatingTable, listSeatingTables } from '../table-arrangement/tableArrangementRepo.js';
-import { COMMON } from '../table-arrangement/tableSides.js';
+import { COMMON, isSeatOccupied } from '../table-arrangement/tableSides.js';
 import { GRID, MAX_AREAS, TABLE_SIZE, defaultAreas, placeTables, snapPoint } from './hallLayoutShapes.js';
 
 /**
@@ -11,8 +11,9 @@ import { GRID, MAX_AREAS, TABLE_SIZE, defaultAreas, placeTables, snapPoint } fro
  * drawn. Who sits where stays in table_seats and is never touched from here.
  *
  * Nothing here returns a guest's name: both sides' tables are listed with their
- * number, name and side only, and the screen adds the names it is already allowed
- * to see (own side and Common).
+ * number, name, side and two counts (seats, and how many are filled — owner's
+ * decision, 2026-11-26), and the screen adds the names it is already allowed to
+ * see (own side and Common).
  */
 
 const useDb = Boolean(process.env.DATABASE_URL);
@@ -53,6 +54,9 @@ async function listTableMarkers() {
     number: table.table_number,
     name: table.table_name,
     side: table.side,
+    capacity: table.capacity,
+    // A count only: which seats, and who is on them, stay behind.
+    filled: table.seats.filter(isSeatOccupied).length,
   }));
 }
 
